@@ -1,0 +1,20 @@
+# TAK-ADSB-Feeder Docker Image Versions
+# Pin specific image builds to prevent unexpected updates
+# Update these periodically to get latest features
+
+# Core container (if using ultrafeeder pattern)
+ULTRAFEEDER_CONTAINER=ghcr.io/sdr-enthusiasts/docker-adsb-ultrafeeder:latest
+
+# Aggregator containers
+FR24_CONTAINER=ghcr.io/sdr-enthusiasts/docker-flightradar24:latest
+ADSBX_CONTAINER=ghcr.io/sdr-enthusiasts/docker-adsbexchange:latest
+RB_CONTAINER=ghcr.io/sdr-enthusiasts/docker-airnavradar:latest
+PF_CONTAINER=ghcr.io/sdr-enthusiasts/docker-planefinder:latest
+OS_CONTAINER=ghcr.io/sdr-enthusiasts/docker-opensky-network:latest
+AH_CONTAINER=ghcr.io/sdr-enthusiasts/docker-adsbhub:latest
+
+# For airplanes.live (uses ultrafeeder)
+AIRPLANESLIVE_CONTAINER=ghcr.io/sdr-enthusiasts/docker-adsb-ultrafeeder:latest
+
+# Alpine base (for utilities if needed)
+ALPINE_CONTAINER=alpine:3.23

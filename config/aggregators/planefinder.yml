@@ -1,0 +1,26 @@
+services:
+  planefinder:
+    image: ghcr.io/sdr-enthusiasts/docker-planefinder:latest
+    container_name: planefinder
+    hostname: planefinder
+    restart: unless-stopped
+    networks:
+      - adsb_bridge
+    cpu_period: 50000
+    cpu_quota: 7500
+    stop_grace_period: 3s
+    ports:
+      - "30053:30053"
+    environment:
+      - BEASTHOST=host.docker.internal
+      - BEASTPORT=30005
+      - SHARECODE=${PLANEFINDER_SHARECODE}
+      - TZ=${FEEDER_TZ:-UTC}
+      - S6_KILL_GRACETIME=1000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    tmpfs:
+      - /run:exec,size=64M
+      - /var/log
+    healthcheck:
+      disable: true

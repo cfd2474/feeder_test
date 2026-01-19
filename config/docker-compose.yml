@@ -1,0 +1,17 @@
+version: '3.8'
+
+networks:
+  adsb_bridge:
+    driver: bridge
+
+services:
+  # Base placeholder service
+  # Actual aggregator services loaded dynamically from aggregators/*.yml
+  # based on AF_IS_*_ENABLED flags in .env
+  
+  placeholder:
+    image: hello-world
+    container_name: placeholder
+    restart: "no"
+    networks:
+      - adsb_bridge

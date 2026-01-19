@@ -1,0 +1,19 @@
+[Unit]
+Description=TAK-ADSB-Feeder Docker Aggregators
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/TAK_ADSB/scripts/docker-compose-adsb up -d
+ExecStop=/opt/TAK_ADSB/scripts/docker-compose-adsb down
+ExecReload=/opt/TAK_ADSB/scripts/docker-compose-adsb up -d
+Restart=on-failure
+RestartSec=10
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

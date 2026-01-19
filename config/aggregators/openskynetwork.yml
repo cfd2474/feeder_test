@@ -1,0 +1,28 @@
+services:
+  openskynetwork:
+    image: ghcr.io/sdr-enthusiasts/docker-openskynetwork:latest
+    container_name: openskynetwork
+    hostname: openskynetwork
+    restart: unless-stopped
+    networks:
+      - adsb_bridge
+    cpu_period: 50000
+    cpu_quota: 7500
+    stop_grace_period: 3s
+    environment:
+      - BEASTHOST=host.docker.internal
+      - BEASTPORT=30005
+      - OPENSKY_USERNAME=${OPENSKYNETWORK_USERNAME}
+      - OPENSKY_SERIAL=${OPENSKYNETWORK_SERIAL}
+      - LAT=${FEEDER_LAT}
+      - LON=${FEEDER_LON}
+      - ALT=${FEEDER_ALT_M}
+      - TZ=${FEEDER_TZ:-UTC}
+      - S6_KILL_GRACETIME=1000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    tmpfs:
+      - /run:exec,size=64M
+      - /var/log
+    healthcheck:
+      disable: true

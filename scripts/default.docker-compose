@@ -1,0 +1,38 @@
+#!/bin/bash
+# /opt/TAK_ADSB/config/default.docker-compose
+# Assemble the docker compose files we want to use
+# This needs to be extended for each new aggregator
+
+# Start with base compose file
+COMPOSE_FILES=( "-f" "/opt/TAK_ADSB/config/docker-compose.yml" )
+
+if [ -f /opt/TAK_ADSB/config/.env ]; then
+    # For each aggregator, check if it's enabled in .env
+    
+    if grep "AF_IS_FR24_ENABLED=true" /opt/TAK_ADSB/config/.env > /dev/null 2>&1; then
+        COMPOSE_FILES+=( "-f" "/opt/TAK_ADSB/config/aggregators/fr24.yml" )
+    fi
+    
+    if grep "AF_IS_ADSBX_ENABLED=true" /opt/TAK_ADSB/config/.env > /dev/null 2>&1; then
+        COMPOSE_FILES+=( "-f" "/opt/TAK_ADSB/config/aggregators/adsbx.yml" )
+    fi
+    
+    if grep "AF_IS_AIRPLANESLIVE_ENABLED=true" /opt/TAK_ADSB/config/.env > /dev/null 2>&1; then
+        COMPOSE_FILES+=( "-f" "/opt/TAK_ADSB/config/aggregators/airplaneslive.yml" )
+    fi
+    
+    if grep "AF_IS_RADARBOX_ENABLED=true" /opt/TAK_ADSB/config/.env > /dev/null 2>&1; then
+        COMPOSE_FILES+=( "-f" "/opt/TAK_ADSB/config/aggregators/radarbox.yml" )
+    fi
+    
+    if grep "AF_IS_PLANEFINDER_ENABLED=true" /opt/TAK_ADSB/config/.env > /dev/null 2>&1; then
+        COMPOSE_FILES+=( "-f" "/opt/TAK_ADSB/config/aggregators/planefinder.yml" )
+    fi
+    
+    if grep "AF_IS_OPENSKYNETWORK_ENABLED=true" /opt/TAK_ADSB/config/.env > /dev/null 2>&1; then
+        COMPOSE_FILES+=( "-f" "/opt/TAK_ADSB/config/aggregators/openskynetwork.yml" )
+    fi
+fi
+
+# Export for use by docker-compose-adsb
+export COMPOSE_FILES

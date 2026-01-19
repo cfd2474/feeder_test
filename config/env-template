@@ -1,0 +1,109 @@
+# TAK-ADSB-Feeder v2.0 Environment Configuration
+# Based on adsb.im production patterns
+
+# ============================================
+# System Configuration
+# ============================================
+FEEDER_TZ=UTC
+FEEDER_LAT=0.0
+FEEDER_LONG=0.0
+FEEDER_ALT_M=0
+MLAT_SITE_NAME=MyFeeder
+MLAT_SITE_NAME_SANITIZED=MyFeeder
+
+# Base configuration completion flag
+_IS_BASE_CONFIG_FINISHED=True
+
+# ============================================
+# Readsb Configuration (Native Service)
+# ============================================
+FEEDER_RTL_SDR=rtlsdr
+FEEDER_READSB_DEVICE=0
+FEEDER_READSB_GAIN=autogain
+ADSB_SDR_PPM=0
+FEEDER_ENABLE_BIASTEE=
+FEEDER_MAX_RANGE=300
+
+# MLAT Configuration
+MLAT_ENABLE=True
+MLAT_PRIVACY=False
+
+# ============================================
+# Docker Network Configuration
+# ============================================
+AF_DOCKER_IPV6=False
+
+# ============================================
+# Aggregator Enable Flags (Production Pattern)
+# ============================================
+# Set to 'true' to enable, 'false' to disable
+
+AF_IS_FR24_ENABLED=false
+AF_IS_ADSBX_ENABLED=false
+AF_IS_AIRPLANESLIVE_ENABLED=false
+AF_IS_RADARBOX_ENABLED=false
+AF_IS_PLANEFINDER_ENABLED=false
+AF_IS_OPENSKYNETWORK_ENABLED=false
+AF_IS_ADSBHUB_ENABLED=false
+
+# ============================================
+# FlightRadar24 Configuration
+# ============================================
+FEEDER_FR24_SHARING_KEY=
+FEEDER_FR24_MLAT=yes
+
+# ============================================
+# ADS-B Exchange Configuration
+# ============================================
+FEEDER_ADSBX_UUID=
+FEEDER_ADSBX_MLAT=yes
+
+# Alternative: Use ULTRAFEEDER_CONFIG format for multiple feeds
+# FEEDER_ULTRAFEEDER_CONFIG=adsb,feed1.adsbexchange.com,30004,beast_reduce_plus_out,uuid=YOUR_UUID;mlat,feed.adsbexchange.com,31090,39003,uuid=YOUR_UUID
+
+# ============================================
+# Airplanes.Live Configuration
+# ============================================
+FEEDER_AIRPLANESLIVE_UUID=
+FEEDER_AIRPLANESLIVE_MLAT=yes
+
+# ============================================
+# RadarBox Configuration
+# ============================================
+FEEDER_RADARBOX_SHARING_KEY=
+FEEDER_RADARBOX_SN=
+FEEDER_RADARBOX_MLAT=yes
+
+# ============================================
+# PlaneFinder Configuration
+# ============================================
+FEEDER_PLANEFINDER_SHARECODE=
+
+# ============================================
+# OpenSky Network Configuration
+# ============================================
+FEEDER_OPENSKY_USERNAME=
+FEEDER_OPENSKY_SERIAL=
+
+# ============================================
+# ADSBHub Configuration
+# ============================================
+FEEDER_ADSBHUB_STATION_KEY=
+
+# ============================================
+# Web Interface Ports (if using tar1090/graphs1090)
+# ============================================
+AF_TAR1090_PORT=8080
+AF_TAR1090_PORT_ADJUSTED=8080
+
+# ============================================
+# Advanced Settings
+# ============================================
+# Healthcheck URL (optional - for monitoring services)
+HEALTHCHECK_URL=
+
+# Temperature sensor path (Raspberry Pi)
+CPU_TEMPERATURE_PATH=/sys/class/thermal/thermal_zone0/temp
+
+# Closest airport (for context)
+FEEDER_CLOSEST_AIRPORT=
