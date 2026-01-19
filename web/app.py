@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TAK-ADSB-Feeder Web Interface v2.1
-Flask app with TAK Server protection - allows on/off toggle only
+Flask app with Tailscale installation support
 """
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
@@ -76,6 +76,34 @@ def rebuild_config():
     except:
         return False
 
+def install_tailscale(auth_key=None):
+    """Install and configure Tailscale"""
+    try:
+        # Check if already installed
+        check_result = subprocess.run(['which', 'tailscale'], 
+                                     capture_output=True, timeout=5)
+        
+        if check_result.returncode != 0:
+            # Install Tailscale
+            install_cmd = 'curl -fsSL https://tailscale.com/install.sh | sh'
+            subprocess.run(install_cmd, shell=True, timeout=120)
+        
+        # Start Tailscale
+        if auth_key:
+            # Authenticate with key
+            subprocess.run(['tailscale', 'up', '--authkey', auth_key], 
+                          timeout=30)
+        else:
+            # Start without auth (user will need to authenticate manually)
+            subprocess.run(['tailscale', 'up'], timeout=30)
+        
+        return {'success': True, 'message': 'Tailscale installed successfully'}
+        
+    except subprocess.TimeoutExpired:
+        return {'success': False, 'message': 'Installation timed out'}
+    except Exception as e:
+        return {'success': False, 'message': str(e)}
+
 # Routes
 @app.route('/')
 def index():
@@ -134,9 +162,6 @@ def save_config():
             if key in data:
                 del data[key]
         
-        # Allow TAK_ENABLED toggle (user can turn TAK on/off)
-        # But keep connection details protected
-        
         # Update env with user data (protected TAK settings excluded)
         for key, value in data.items():
             env[key] = str(value)
@@ -152,6 +177,23 @@ def save_config():
         rebuild_config()
         
         return jsonify({'success': True, 'message': 'Configuration saved'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/tailscale/install', methods=['POST'])
+def api_install_tailscale():
+    """Install Tailscale with optional auth key"""
+    try:
+        data = request.json
+        auth_key = data.get('auth_key', None)
+        
+        result = install_tailscale(auth_key)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 500
+            
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 

@@ -124,17 +124,66 @@
                     </small>
                 </div>
                 
-                <div class="info-box" style="margin-top: 20px;">
-                    <h3>✓ TAK Server (Always Active)</h3>
-                    <p>Your feeder will automatically send all aircraft data to the TAK Server. No additional configuration needed.</p>
-                </div>
-                
                 <button class="btn btn-primary" onclick="nextStep(2)">Next →</button>
             </div>
 
-            <!-- Step 2: Optional Aggregators -->
+            <!-- Step 2: Tailscale Setup -->
             <div class="step" id="step2">
-                <h2>Step 2: Public Aggregators</h2>
+                <h2>Step 2: Tailscale VPN</h2>
+                <p>Secure connection to TAK Server aggregator</p>
+                
+                <div class="info-box" style="margin-bottom: 20px; background: #e8f5e9; border-left: 4px solid #4caf50;">
+                    <h3 style="color: #2e7d32;">✓ Recommended: Tailscale VPN</h3>
+                    <p>Tailscale is the <strong>preferred method</strong> to reach the TAK Server aggregator. It provides:</p>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>Secure encrypted connection</li>
+                        <li>Direct network access to aggregator</li>
+                        <li>Better reliability than public internet</li>
+                        <li>Automatic failover to public IP if needed</li>
+                    </ul>
+                </div>
+                
+                <div class="form-group">
+                    <label style="font-size: 1.1em;">
+                        <input type="checkbox" id="tailscale_enabled" {{ 'checked' if config.get('TAILSCALE_ENABLED') == 'true' else '' }}>
+                        <strong>Enable Tailscale VPN</strong>
+                    </label>
+                </div>
+                
+                <div id="tailscale-config" style="display: none; margin-top: 20px;">
+                    <div class="form-group">
+                        <label>Tailscale Auth Key (Optional)</label>
+                        <input type="text" id="tailscale_key" placeholder="tskey-auth-xxxxx" value="{{ config.get('TAILSCALE_AUTH_KEY', '') }}">
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            Leave blank if you'll authenticate manually later
+                        </small>
+                    </div>
+                    
+                    <div class="info-note" style="margin-top: 15px;">
+                        <p><strong>Need a Tailscale auth key?</strong></p>
+                        <p>Contact: <a href="mailto:michael.leckliter@yahoo.com" style="color: #667eea;">Michael Leckliter</a></p>
+                        <p style="margin-top: 5px; font-size: 0.9em;">
+                            If you don't have a key now, you can add it later in Settings.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="info-box" style="margin-top: 20px;">
+                    <h3>✓ TAK Server (Always Active)</h3>
+                    <p>Your feeder will automatically connect to the TAK Server aggregator via:</p>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li><strong>Primary:</strong> Tailscale VPN (if enabled)</li>
+                        <li><strong>Fallback:</strong> Public IP (automatic failover)</li>
+                    </ul>
+                </div>
+                
+                <button class="btn" onclick="prevStep(1)">← Back</button>
+                <button class="btn btn-primary" onclick="nextStep(3)">Next →</button>
+            </div>
+
+            <!-- Step 3: Optional Aggregators -->
+            <div class="step" id="step3">
+                <h2>Step 3: Public Aggregators</h2>
                 <p>Optional: Share data with public aggregator services</p>
                 
                 <div class="info-note">
@@ -183,7 +232,7 @@
                     </div>
                 </div>
                 
-                <button class="btn" onclick="prevStep(1)">← Back</button>
+                <button class="btn" onclick="prevStep(2)">← Back</button>
                 <button class="btn btn-success" onclick="saveAndStart()">Save & Start 🚀</button>
             </div>
         </div>
@@ -200,6 +249,17 @@
             if (currentTz) {
                 tzSelect.value = currentTz;
             }
+            
+            // Show/hide Tailscale config section
+            const tailscaleCheckbox = document.getElementById('tailscale_enabled');
+            const tailscaleConfig = document.getElementById('tailscale-config');
+            
+            function toggleTailscaleConfig() {
+                tailscaleConfig.style.display = tailscaleCheckbox.checked ? 'block' : 'none';
+            }
+            
+            tailscaleCheckbox.addEventListener('change', toggleTailscaleConfig);
+            toggleTailscaleConfig(); // Initial state
         });
     </script>
 </body>

@@ -17,6 +17,13 @@ READSB_DEVICE=0
 READSB_GAIN=autogain
 
 # ============================================
+# Tailscale VPN (Optional but Recommended)
+# Provides secure connection to TAK Server
+# ============================================
+TAILSCALE_ENABLED=false
+TAILSCALE_AUTH_KEY=
+
+# ============================================
 # TAK Server (HARDCODED - Always Enabled)
 # Priority feed for all aircraft data
 # Automatically configured with failover support

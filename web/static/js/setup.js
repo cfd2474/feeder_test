@@ -37,6 +37,23 @@ async function getZipCodeFromCoords(lat, lon) {
     }
 }
 
+// Install Tailscale with auth key
+async function installTailscale(authKey) {
+    try {
+        const response = await fetch('/api/tailscale/install', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auth_key: authKey })
+        });
+        
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error('Failed to install Tailscale:', error);
+        return { success: false, message: 'Failed to communicate with server' };
+    }
+}
+
 // Save configuration and start service
 async function saveAndStart() {
     const lat = document.getElementById('lat').value;
@@ -73,11 +90,30 @@ async function saveAndStart() {
     if (zipCode) {
         // Format: ZIPCODE-Name
         finalSiteName = `${zipCode}-${siteName}`;
-        showStatus(`Location found: ${zipCode}. Saving configuration...`, 'success');
+        showStatus(`Location found: ${zipCode}. Processing configuration...`, 'success');
     } else {
         // If zip code lookup fails, use default prefix
         finalSiteName = `00000-${siteName}`;
-        showStatus('Could not determine zip code, using default. Saving configuration...', 'info');
+        showStatus('Could not determine zip code, using default. Processing configuration...', 'info');
+    }
+    
+    // Check Tailscale setup
+    const tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
+    const tailscaleKey = document.getElementById('tailscale_key').value.trim();
+    
+    // If Tailscale enabled with key, install it first
+    if (tailscaleEnabled && tailscaleKey) {
+        showStatus('Installing Tailscale VPN...', 'info');
+        const tailscaleResult = await installTailscale(tailscaleKey);
+        
+        if (!tailscaleResult.success) {
+            showStatus(`Tailscale setup failed: ${tailscaleResult.message}. Continuing with public IP fallback.`, 'error');
+            // Continue anyway - will use public IP
+        } else {
+            showStatus('✓ Tailscale installed successfully!', 'success');
+        }
+    } else if (tailscaleEnabled && !tailscaleKey) {
+        showStatus('Tailscale enabled but no key provided. You can configure it later in Settings.', 'info');
     }
     
     const config = {
@@ -87,6 +123,10 @@ async function saveAndStart() {
         FEEDER_ALT_M: alt,
         FEEDER_TZ: tz,
         MLAT_SITE_NAME: finalSiteName,
+        
+        // Tailscale settings
+        TAILSCALE_ENABLED: tailscaleEnabled ? 'true' : 'false',
+        TAILSCALE_AUTH_KEY: tailscaleKey || '',
         
         // TAK Server is hardcoded - DO NOT send these parameters
         // TAK_ENABLED, TAK_SERVER_HOST_*, TAK_SERVER_PORT will use defaults from env-template
@@ -101,6 +141,8 @@ async function saveAndStart() {
         AIRPLANESLIVE_ENABLED: document.getElementById('airplaneslive_enabled').checked ? 'true' : 'false',
         AIRPLANESLIVE_UUID: document.getElementById('airplaneslive_uuid').value
     };
+    
+    showStatus('Saving configuration...', 'info');
     
     try {
         // Save config
@@ -121,7 +163,7 @@ async function saveAndStart() {
         
         if (!restartResponse.ok) throw new Error('Failed to restart service');
         
-        showStatus(`✓ Setup complete! Feeder name: ${finalSiteName}. Redirecting to dashboard...`, 'success');
+        showStatus(`✓ Setup complete! Feeder: ${finalSiteName}. Redirecting to dashboard...`, 'success');
         
         setTimeout(() => {
             window.location.href = '/dashboard';
