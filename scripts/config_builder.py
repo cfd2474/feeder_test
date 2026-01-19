@@ -19,7 +19,7 @@ def build_config(env_vars):
     
     # TAK Server (Priority 1)
     if env_vars.get('TAK_ENABLED', '').lower() == 'true':
-        host = env_vars.get('TAK_SERVER_HOST', '').strip()
+        host = env_vars.get('TAK_SERVER_HOST', '').strip().rstrip('/')
         port = env_vars.get('TAK_SERVER_PORT', '8087').strip()
         if host:
             config_parts.append(f"adsb,{host},{port},beast_reduce_plus_out")
