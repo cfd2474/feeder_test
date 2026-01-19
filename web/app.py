@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TAK-ADSB-Feeder Web Interface v2.1
-Flask app with TAK Server protection
+Flask app with TAK Server protection - allows on/off toggle only
 """
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
@@ -14,9 +14,8 @@ app = Flask(__name__)
 ENV_FILE = Path("/opt/adsb/config/.env")
 CONFIG_BUILDER = "/opt/adsb/scripts/config_builder.py"
 
-# TAK Server hardcoded defaults - NEVER override these from user input
-TAK_DEFAULTS = {
-    'TAK_ENABLED': 'true',
+# TAK Server hardcoded connection details - NEVER allow user to change these
+TAK_PROTECTED_SETTINGS = {
     'TAK_SERVER_HOST_PRIMARY': '100.117.34.88',
     'TAK_SERVER_HOST_FALLBACK': '104.225.219.254',
     'TAK_SERVER_PORT': '30004',
@@ -118,27 +117,32 @@ def get_config():
 def save_config():
     """
     Save configuration
-    CRITICAL: Protect TAK Server settings from user override
+    CRITICAL: User can only toggle TAK_ENABLED, cannot change connection details
     """
     try:
         data = request.json
         env = read_env()
         
-        # PROTECT TAK SETTINGS - Always use hardcoded defaults
-        # Remove any TAK parameters from user input
-        tak_keys = ['TAK_ENABLED', 'TAK_SERVER_HOST', 'TAK_SERVER_HOST_PRIMARY', 
-                    'TAK_SERVER_HOST_FALLBACK', 'TAK_SERVER_PORT', 'TAK_CONNECTION_MODE']
+        # PROTECT TAK CONNECTION SETTINGS
+        # User can only change TAK_ENABLED (on/off), nothing else
+        tak_protected_keys = ['TAK_SERVER_HOST', 'TAK_SERVER_HOST_PRIMARY', 
+                              'TAK_SERVER_HOST_FALLBACK', 'TAK_SERVER_PORT', 
+                              'TAK_CONNECTION_MODE']
         
-        for key in tak_keys:
+        # Remove any protected TAK settings from user input
+        for key in tak_protected_keys:
             if key in data:
-                del data[key]  # Remove user-provided TAK settings
+                del data[key]
         
-        # Update env with user data (TAK excluded)
+        # Allow TAK_ENABLED toggle (user can turn TAK on/off)
+        # But keep connection details protected
+        
+        # Update env with user data (protected TAK settings excluded)
         for key, value in data.items():
             env[key] = str(value)
         
-        # Ensure TAK defaults are always present and correct
-        for key, value in TAK_DEFAULTS.items():
+        # Force protected TAK connection settings (always these values)
+        for key, value in TAK_PROTECTED_SETTINGS.items():
             env[key] = value
         
         # Write to file

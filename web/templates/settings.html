@@ -35,23 +35,22 @@
                     <label>Altitude (meters)</label>
                     <input type="number" id="alt" value="{{ config.get('FEEDER_ALT_M', '') }}">
                 </div>
+                <div class="form-group">
+                    <label>Timezone</label>
+                    <input type="text" id="tz" value="{{ config.get('FEEDER_TZ', 'UTC') }}">
+                </div>
             </div>
 
             <div class="card">
                 <h3>TAK Server</h3>
                 <div class="form-group">
                     <label>
-                        <input type="checkbox" id="tak_enabled" {{ 'checked' if config.get('TAK_ENABLED') == 'true' else '' }}>
-                        Enable TAK Server
+                        <input type="checkbox" id="tak_enabled" {{ 'checked' if config.get('TAK_ENABLED', 'true') == 'true' else '' }}>
+                        Enable TAK Server Feed
                     </label>
                 </div>
-                <div class="form-group">
-                    <label>Host/IP</label>
-                    <input type="text" id="tak_host" value="{{ config.get('TAK_SERVER_HOST', '') }}">
-                </div>
-                <div class="form-group">
-                    <label>Port</label>
-                    <input type="number" id="tak_port" value="{{ config.get('TAK_SERVER_PORT', '30004') }}">
+                <div class="info-note" style="margin-top: 10px;">
+                    <p>ℹ️ Connection details managed automatically with Tailscale failover</p>
                 </div>
             </div>
 
@@ -66,6 +65,20 @@
                 <div class="form-group">
                     <label>Sharing Key</label>
                     <input type="text" id="fr24_key" value="{{ config.get('FR24_SHARING_KEY', '') }}">
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>ADS-B Exchange</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="adsbx_enabled" {{ 'checked' if config.get('ADSBX_ENABLED') == 'true' else '' }}>
+                        Enable ADSBX
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>UUID</label>
+                    <input type="text" id="adsbx_uuid" value="{{ config.get('ADSBX_UUID', '') }}">
                 </div>
             </div>
 
@@ -84,11 +97,16 @@
                 FEEDER_LAT: document.getElementById('lat').value,
                 FEEDER_LONG: document.getElementById('lon').value,
                 FEEDER_ALT_M: document.getElementById('alt').value,
+                FEEDER_TZ: document.getElementById('tz').value,
+                
+                // TAK - only on/off toggle
                 TAK_ENABLED: document.getElementById('tak_enabled').checked ? 'true' : 'false',
-                TAK_SERVER_HOST: document.getElementById('tak_host').value,
-                TAK_SERVER_PORT: document.getElementById('tak_port').value,
+                
                 FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
-                FR24_SHARING_KEY: document.getElementById('fr24_key').value
+                FR24_SHARING_KEY: document.getElementById('fr24_key').value,
+                
+                ADSBX_ENABLED: document.getElementById('adsbx_enabled').checked ? 'true' : 'false',
+                ADSBX_UUID: document.getElementById('adsbx_uuid').value
             };
             
             showStatus('Saving...', 'info');
