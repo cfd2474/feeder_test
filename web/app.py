@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TAK-ADSB-Feeder Web Interface v2.1
-Flask app with Tailscale installation support
+Flask app with Tailscale management
 """
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
@@ -88,21 +88,43 @@ def install_tailscale(auth_key=None):
             install_cmd = 'curl -fsSL https://tailscale.com/install.sh | sh'
             subprocess.run(install_cmd, shell=True, timeout=120)
         
-        # Start Tailscale
+        # If auth key provided, re-authenticate
         if auth_key:
-            # Authenticate with key
-            subprocess.run(['tailscale', 'up', '--authkey', auth_key], 
-                          timeout=30)
+            # Down first to clear previous connection
+            subprocess.run(['tailscale', 'down'], timeout=10)
+            
+            # Up with new key
+            result = subprocess.run(['tailscale', 'up', '--authkey', auth_key], 
+                                   capture_output=True, text=True, timeout=30)
+            
+            if result.returncode != 0:
+                return {'success': False, 'message': f'Authentication failed: {result.stderr}'}
         else:
-            # Start without auth (user will need to authenticate manually)
+            # Just start Tailscale
             subprocess.run(['tailscale', 'up'], timeout=30)
         
-        return {'success': True, 'message': 'Tailscale installed successfully'}
+        return {'success': True, 'message': 'Tailscale configured successfully'}
         
     except subprocess.TimeoutExpired:
         return {'success': False, 'message': 'Installation timed out'}
     except Exception as e:
         return {'success': False, 'message': str(e)}
+
+def get_tailscale_status():
+    """Get Tailscale connection status"""
+    try:
+        result = subprocess.run(['tailscale', 'status'], 
+                               capture_output=True, text=True, timeout=5)
+        
+        if result.returncode == 0:
+            return {'success': True, 'status': result.stdout}
+        else:
+            return {'success': False, 'status': 'Tailscale not running'}
+            
+    except FileNotFoundError:
+        return {'success': False, 'status': 'Tailscale not installed'}
+    except Exception as e:
+        return {'success': False, 'status': str(e)}
 
 # Routes
 @app.route('/')
@@ -182,7 +204,7 @@ def save_config():
 
 @app.route('/api/tailscale/install', methods=['POST'])
 def api_install_tailscale():
-    """Install Tailscale with optional auth key"""
+    """Install/update Tailscale with optional auth key"""
     try:
         data = request.json
         auth_key = data.get('auth_key', None)
@@ -196,6 +218,15 @@ def api_install_tailscale():
             
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/tailscale/status', methods=['GET'])
+def api_tailscale_status():
+    """Get Tailscale connection status"""
+    try:
+        result = get_tailscale_status()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'status': str(e)}), 500
 
 @app.route('/api/service/restart', methods=['POST'])
 def api_restart_service():

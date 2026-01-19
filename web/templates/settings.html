@@ -72,6 +72,47 @@
             </div>
 
             <div class="card">
+                <h3>Tailscale VPN</h3>
+                <div class="info-note" style="margin-bottom: 15px;">
+                    <p>ℹ️ Tailscale provides secure VPN connection to TAK Server aggregator</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="tailscale_enabled" {{ 'checked' if config.get('TAILSCALE_ENABLED', 'false') == 'true' else '' }}>
+                        Enable Tailscale VPN
+                    </label>
+                </div>
+                
+                <div id="tailscale-config" style="display: none; margin-top: 15px;">
+                    <div class="form-group">
+                        <label>Tailscale Auth Key</label>
+                        <input type="text" id="tailscale_key" placeholder="tskey-auth-xxxxx" value="{{ config.get('TAILSCALE_AUTH_KEY', '') }}">
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            Enter a new key to re-register this device
+                        </small>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 15px;">
+                        <button class="btn btn-primary" onclick="updateTailscale()">🔄 Apply Tailscale Changes</button>
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            This will restart Tailscale with the new configuration
+                        </small>
+                    </div>
+                    
+                    <div class="info-note" style="margin-top: 15px;">
+                        <p><strong>Need a Tailscale auth key?</strong></p>
+                        <p>Contact: <a href="mailto:michael.leckliter@yahoo.com" style="color: #667eea;">Michael Leckliter</a></p>
+                    </div>
+                    
+                    <div id="tailscale-status" style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; display: none;">
+                        <strong>Tailscale Status:</strong>
+                        <pre id="tailscale-status-text" style="margin-top: 5px; font-size: 0.9em;"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
                 <h3>TAK Server</h3>
                 <div class="form-group">
                     <label>
@@ -113,7 +154,7 @@
             </div>
 
             <div class="actions">
-                <button class="btn btn-success" onclick="saveSettings()">💾 Save Changes</button>
+                <button class="btn btn-success" onclick="saveSettings()">💾 Save Configuration</button>
                 <button class="btn" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
             </div>
         </div>
@@ -126,6 +167,17 @@
         document.addEventListener('DOMContentLoaded', function() {
             const currentTz = "{{ config.get('FEEDER_TZ', 'UTC') }}";
             document.getElementById('tz').value = currentTz;
+            
+            // Show/hide Tailscale config section
+            const tailscaleCheckbox = document.getElementById('tailscale_enabled');
+            const tailscaleConfig = document.getElementById('tailscale-config');
+            
+            function toggleTailscaleConfig() {
+                tailscaleConfig.style.display = tailscaleCheckbox.checked ? 'block' : 'none';
+            }
+            
+            tailscaleCheckbox.addEventListener('change', toggleTailscaleConfig);
+            toggleTailscaleConfig(); // Initial state
         });
         
         // Get zip code from coordinates
@@ -146,6 +198,66 @@
             } catch (error) {
                 console.error('Failed to get zip code:', error);
                 return null;
+            }
+        }
+        
+        // Update Tailscale configuration
+        async function updateTailscale() {
+            const tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
+            const tailscaleKey = document.getElementById('tailscale_key').value.trim();
+            
+            if (!tailscaleEnabled) {
+                showStatus('Please enable Tailscale first', 'error');
+                return;
+            }
+            
+            if (!tailscaleKey) {
+                showStatus('Please enter a Tailscale auth key', 'error');
+                return;
+            }
+            
+            showStatus('Updating Tailscale configuration...', 'info');
+            
+            try {
+                // Install/update Tailscale with new key
+                const response = await fetch('/api/tailscale/install', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ auth_key: tailscaleKey })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus('✓ Tailscale updated successfully!', 'success');
+                    
+                    // Get status
+                    const statusResponse = await fetch('/api/tailscale/status');
+                    const statusData = await statusResponse.json();
+                    
+                    if (statusData.success) {
+                        const statusDiv = document.getElementById('tailscale-status');
+                        const statusText = document.getElementById('tailscale-status-text');
+                        statusDiv.style.display = 'block';
+                        statusText.textContent = statusData.status;
+                    }
+                    
+                    // Save the key to config
+                    const saveResponse = await fetch('/api/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            TAILSCALE_ENABLED: 'true',
+                            TAILSCALE_AUTH_KEY: tailscaleKey
+                        })
+                    });
+                    
+                } else {
+                    showStatus('Error: ' + result.message, 'error');
+                }
+                
+            } catch (error) {
+                showStatus('Error updating Tailscale: ' + error.message, 'error');
             }
         }
         
@@ -185,6 +297,9 @@
                 FEEDER_TZ: document.getElementById('tz').value,
                 MLAT_SITE_NAME: finalSiteName,
                 
+                TAILSCALE_ENABLED: document.getElementById('tailscale_enabled').checked ? 'true' : 'false',
+                TAILSCALE_AUTH_KEY: document.getElementById('tailscale_key').value.trim(),
+                
                 TAK_ENABLED: document.getElementById('tak_enabled').checked ? 'true' : 'false',
                 
                 FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
@@ -203,7 +318,7 @@
                 
                 if (!response.ok) throw new Error('Failed to save');
                 
-                showStatus('✓ Saved! Feeder name: ' + finalSiteName, 'success');
+                showStatus('✓ Saved! Feeder name: ' + finalSiteName + '. Restart service to apply.', 'success');
                 
                 setTimeout(() => location.reload(), 2000);
                 
