@@ -146,19 +146,36 @@
                 </div>
                 
                 <div id="tailscale-config" style="display: none; margin-top: 15px;">
+                    {% if config.get('TAILSCALE_AUTH_KEY', '') %}
+                    <div class="info-box" style="background: #e8f5e9; border-left: 4px solid #4caf50; margin-bottom: 15px;">
+                        <p style="margin: 0;">✓ Tailscale auth key is configured</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Enter New Key Checkbox -->
                     <div class="form-group">
-                        <label>Tailscale Auth Key</label>
-                        <input type="text" id="tailscale_key" placeholder="tskey-auth-xxxxx" value="{{ config.get('TAILSCALE_AUTH_KEY', '') }}">
-                        <small style="color: #666; display: block; margin-top: 5px;">
-                            Enter a new key to re-register this device
-                        </small>
+                        <label>
+                            <input type="checkbox" id="enter_new_key">
+                            Enter New Tailscale Key
+                        </label>
                     </div>
                     
-                    <div class="form-group" style="margin-top: 15px;">
-                        <button class="btn btn-primary" onclick="updateTailscale()">🔄 Apply Tailscale Changes</button>
-                        <small style="color: #666; display: block; margin-top: 5px;">
-                            This will restart Tailscale with the new configuration
-                        </small>
+                    <!-- New Key Input (only shown when checkbox is checked) -->
+                    <div id="new-key-section" style="display: none; margin-top: 15px;">
+                        <div class="form-group">
+                            <label>Insert NEW Tailscale Auth Key</label>
+                            <input type="text" id="tailscale_key" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx">
+                            <small style="color: #666; display: block; margin-top: 5px;">
+                                Enter a new key to re-register this device with Tailscale
+                            </small>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 15px;">
+                            <button class="btn btn-primary" onclick="updateTailscale()">🔄 Apply New Tailscale Key</button>
+                            <small style="color: #666; display: block; margin-top: 5px;">
+                                This will restart Tailscale with the new authentication key
+                            </small>
+                        </div>
                     </div>
                     
                     <div class="info-note" style="margin-top: 15px;">
@@ -253,12 +270,27 @@
             // Show/hide Tailscale config section
             const tailscaleCheckbox = document.getElementById('tailscale_enabled');
             const tailscaleConfig = document.getElementById('tailscale-config');
+            const enterNewKeyCheckbox = document.getElementById('enter_new_key');
+            const newKeySection = document.getElementById('new-key-section');
             
             // Store initial state
             originalTailscaleState = tailscaleCheckbox.checked;
             
             function toggleTailscaleConfig() {
                 tailscaleConfig.style.display = tailscaleCheckbox.checked ? 'block' : 'none';
+                if (!tailscaleCheckbox.checked) {
+                    // Also hide new key section if Tailscale disabled
+                    enterNewKeyCheckbox.checked = false;
+                    newKeySection.style.display = 'none';
+                }
+            }
+            
+            function toggleNewKeySection() {
+                newKeySection.style.display = enterNewKeyCheckbox.checked ? 'block' : 'none';
+                // Clear the key field when hiding
+                if (!enterNewKeyCheckbox.checked) {
+                    document.getElementById('tailscale_key').value = '';
+                }
             }
             
             // Intercept checkbox changes
@@ -272,6 +304,9 @@
                     toggleTailscaleConfig();
                 }
             });
+            
+            // Handle enter new key checkbox
+            enterNewKeyCheckbox.addEventListener('change', toggleNewKeySection);
             
             toggleTailscaleConfig(); // Initial state
         });
@@ -291,6 +326,8 @@
             checkbox.checked = false;
             originalTailscaleState = false;
             document.getElementById('tailscale-config').style.display = 'none';
+            document.getElementById('enter_new_key').checked = false;
+            document.getElementById('new-key-section').style.display = 'none';
         }
         
         // Get zip code from coordinates
@@ -387,6 +424,11 @@
                     });
                     
                     originalTailscaleState = true;
+                    
+                    // Clear the input and uncheck "Enter New Key"
+                    document.getElementById('tailscale_key').value = '';
+                    document.getElementById('enter_new_key').checked = false;
+                    document.getElementById('new-key-section').style.display = 'none';
                     
                 } else {
                     showStatus('Error: ' + result.message, 'error');
