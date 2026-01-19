@@ -41,42 +41,42 @@
                 
                 <div class="form-group">
                     <label>Feeder Name</label>
-                    <input type="text" id="site_name" placeholder="MyFeeder" value="{{ config.get('MLAT_SITE_NAME', '') }}">
+                    <input type="text" id="site_name" placeholder="MyFeeder" value="{{ config.get('MLAT_SITE_NAME', 'TAK-ADSB-Feeder') }}">
                 </div>
                 
                 <button class="btn btn-primary" onclick="nextStep(2)">Next →</button>
             </div>
 
-            <!-- Step 2: TAK Server -->
+            <!-- Step 2: TAK Server Info -->
             <div class="step" id="step2">
                 <h2>Step 2: TAK Server</h2>
-                <p>Configure your TAK aggregator (optional)</p>
+                <p>TAK Server is always enabled as your primary feed</p>
                 
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="tak_enabled" {{ 'checked' if config.get('TAK_ENABLED') == 'true' else '' }}>
-                        Enable TAK Server Feed
-                    </label>
+                <div class="info-box">
+                    <h3>✓ TAK Server Configuration</h3>
+                    <p><strong>Status:</strong> Always Enabled (Hardcoded)</p>
+                    <p><strong>Primary IP:</strong> {{ config.get('TAK_SERVER_HOST_PRIMARY', '100.117.34.88') }}</p>
+                    <p><strong>Fallback IP:</strong> {{ config.get('TAK_SERVER_HOST_FALLBACK', '104.225.219.254') }}</p>
+                    <p><strong>Port:</strong> {{ config.get('TAK_SERVER_PORT', '30004') }}</p>
+                    <p><strong>Mode:</strong> Auto (with failover support)</p>
                 </div>
                 
-                <div class="form-group">
-                    <label>TAK Server Host/IP</label>
-                    <input type="text" id="tak_host" placeholder="104.225.219.254" value="{{ config.get('TAK_SERVER_HOST', '') }}">
-                </div>
-                
-                <div class="form-group">
-                    <label>TAK Server Port</label>
-                    <input type="number" id="tak_port" value="{{ config.get('TAK_SERVER_PORT', '30004') }}">
+                <div class="info-note">
+                    <p>ℹ️ TAK Server receives all aircraft data automatically. Connection monitoring and failover will be available in a future update.</p>
                 </div>
                 
                 <button class="btn" onclick="prevStep(1)">← Back</button>
                 <button class="btn btn-primary" onclick="nextStep(3)">Next →</button>
             </div>
 
-            <!-- Step 3: Aggregators -->
+            <!-- Step 3: Optional Aggregators -->
             <div class="step" id="step3">
-                <h2>Step 3: Aggregators</h2>
-                <p>Enable additional aggregator feeds</p>
+                <h2>Step 3: Public Aggregators</h2>
+                <p>Optional: Enable additional public aggregator feeds</p>
+                
+                <div class="info-note">
+                    <p>ℹ️ TAK Server is already configured and will receive data regardless of these settings.</p>
+                </div>
                 
                 <div class="aggregator-card">
                     <h3>FlightRadar24</h3>

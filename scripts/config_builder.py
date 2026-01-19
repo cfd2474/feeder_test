@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Build ULTRAFEEDER_CONFIG from .env settings"""
+"""
+TAK-ADSB-Feeder Config Builder v2.1
+Builds ULTRAFEEDER_CONFIG with TAK Server as hardcoded priority
+Supports primary/fallback connection modes
+"""
 
 import sys
+import socket
 from pathlib import Path
 
 def read_env(env_file):
+    """Read .env file and return as dict"""
     env_vars = {}
     with open(env_file) as f:
         for line in f:
@@ -14,16 +20,77 @@ def read_env(env_file):
                 env_vars[key.strip()] = value.strip()
     return env_vars
 
+def check_host_reachable(host, port, timeout=2):
+    """Check if a host:port is reachable"""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        result = sock.connect_ex((host, int(port)))
+        sock.close()
+        return result == 0
+    except:
+        return False
+
+def select_tak_host(env_vars):
+    """
+    Select TAK Server host based on connection mode and availability
+    Returns: (selected_host, connection_type)
+    """
+    mode = env_vars.get('TAK_CONNECTION_MODE', 'auto').lower()
+    primary = env_vars.get('TAK_SERVER_HOST_PRIMARY', '').strip()
+    fallback = env_vars.get('TAK_SERVER_HOST_FALLBACK', '').strip()
+    port = env_vars.get('TAK_SERVER_PORT', '30004').strip()
+    
+    # Force modes
+    if mode == 'primary' and primary:
+        print(f"ℹ TAK: Forced to primary: {primary}")
+        return (primary, 'primary-forced')
+    
+    if mode == 'fallback' and fallback:
+        print(f"ℹ TAK: Forced to fallback: {fallback}")
+        return (fallback, 'fallback-forced')
+    
+    # Auto mode - test connectivity
+    if mode == 'auto':
+        if primary and check_host_reachable(primary, port):
+            print(f"✓ TAK: Primary reachable: {primary}")
+            return (primary, 'primary-auto')
+        elif fallback and check_host_reachable(fallback, port):
+            print(f"⚠ TAK: Primary unreachable, using fallback: {fallback}")
+            return (fallback, 'fallback-auto')
+        elif primary:
+            print(f"⚠ TAK: Neither reachable, defaulting to primary: {primary}")
+            return (primary, 'primary-default')
+    
+    # Monitor mode (Phase 2) - use primary, external monitor will handle failover
+    if mode == 'monitor' and primary:
+        print(f"ℹ TAK: Monitor mode, using primary: {primary}")
+        return (primary, 'monitor-mode')
+    
+    # Fallback to primary if nothing else works
+    if primary:
+        return (primary, 'primary-fallback')
+    elif fallback:
+        return (fallback, 'fallback-only')
+    
+    return (None, 'disabled')
+
 def build_config(env_vars):
+    """Build ULTRAFEEDER_CONFIG string with TAK as priority"""
     config_parts = []
     
-    # TAK Server (Priority 1)
-    if env_vars.get('TAK_ENABLED', '').lower() == 'true':
-        host = env_vars.get('TAK_SERVER_HOST', '').strip().rstrip('/')
-        port = env_vars.get('TAK_SERVER_PORT', '8087').strip()
-        if host:
-            config_parts.append(f"adsb,{host},{port},beast_reduce_plus_out")
-            print(f"✓ TAK Server: {host}:{port}")
+    # TAK Server - ALWAYS FIRST (Priority Feed)
+    if env_vars.get('TAK_ENABLED', 'true').lower() == 'true':
+        tak_host, connection_type = select_tak_host(env_vars)
+        port = env_vars.get('TAK_SERVER_PORT', '30004').strip()
+        
+        if tak_host:
+            config_parts.append(f"adsb,{tak_host},{port},beast_reduce_plus_out")
+            print(f"✓ TAK Server: {tak_host}:{port} ({connection_type})")
+        else:
+            print("✗ TAK Server: No valid host configuration found")
+    else:
+        print("ℹ TAK Server: Disabled (not recommended)")
     
     # FlightRadar24
     if env_vars.get('FR24_ENABLED', '').lower() == 'true':
@@ -71,6 +138,7 @@ def build_config(env_vars):
     return ';'.join(config_parts)
 
 def update_env_file(env_file, config_string):
+    """Update ULTRAFEEDER_CONFIG in .env file"""
     lines = []
     updated = False
     
@@ -90,15 +158,28 @@ def update_env_file(env_file, config_string):
 
 def main():
     env_file = Path("/opt/adsb/config/.env")
+    
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("TAK-ADSB-Feeder Config Builder v2.1")
     print("Building ULTRAFEEDER_CONFIG...")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    
+    # Read environment
     env_vars = read_env(env_file)
+    
+    # Build config
     config_string = build_config(env_vars)
+    
+    # Update .env
     update_env_file(env_file, config_string)
     
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     if config_string:
-        print(f"\n✓ Built config with {len(config_string.split(';'))} feeds")
+        feed_count = len([p for p in config_string.split(';') if p.startswith('adsb,')])
+        print(f"✓ Configuration built: {feed_count} active feeds")
     else:
-        print("\n⚠ No aggregators enabled")
+        print("⚠ No aggregators enabled")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     
     return 0
 

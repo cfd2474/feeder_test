@@ -1,6 +1,13 @@
-# TAK-ADSB-Feeder
+# TAK-ADSB-Feeder v2.1
 
-adsb.im clone with TAK Server integration + Web UI
+**adsb.im clone with hardcoded TAK Server priority**
+
+## 🎯 What Makes This Different
+
+- ✅ **TAK Server always enabled** - No configuration needed
+- ✅ **Automatic failover** - Primary (Tailscale) → Fallback (Public IP)
+- ✅ **Web setup wizard** - Configure location and optional feeds
+- ✅ **Production-ready** - Based on adsb.im architecture
 
 ## 🚀 Quick Start
 
@@ -8,100 +15,64 @@ adsb.im clone with TAK Server integration + Web UI
 wget -O - https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 ```
 
-Then open your browser: **http://your-pi-ip:5000**
+Open browser: **http://your-pi-ip:5000**
 
 ## ✨ Features
 
-- ✅ **Web Setup Wizard** - Configure via browser
-- ✅ **Live Dashboard** - View feed status
-- ✅ **TAK Server Integration** - Built-in support
-- ✅ **Multiple Aggregators** - FR24, ADSBX, Airplanes.Live, etc.
-- ✅ **One-Line Install** - Flash and go
-- ✅ **Ultrafeeder Architecture** - Production-ready
+### TAK Server (Hardcoded Priority)
+- Always feeds your TAK aggregator
+- Primary IP: 100.117.34.88 (Tailscale)
+- Fallback IP: 104.225.219.254 (Public)
+- Auto-selects best connection
+- Can't be disabled
 
-## 📖 Usage
+### Optional Public Aggregators
+- FlightRadar24
+- ADS-B Exchange
+- Airplanes.Live
+- RadarBox
+- PlaneFinder
+- OpenSky Network
 
-### First Time Setup
+## 📖 Documentation
 
-1. Flash Raspberry Pi OS Lite (Bookworm) to SD card
-2. Boot and SSH in
-3. Run installer (one command above)
-4. Open browser to http://your-pi-ip:5000
-5. Complete 3-step setup wizard
-6. Done! 🎉
-
-### Access Points
-
-- **Setup/Dashboard**: http://your-pi-ip:5000
-- **Live Map**: http://your-pi-ip:8080
-- **Settings**: http://your-pi-ip:5000/settings
-
-### Manual Commands
-
-```bash
-# Start/stop services
-sudo systemctl start ultrafeeder
-sudo systemctl stop ultrafeeder
-sudo systemctl restart ultrafeeder
-
-# View logs
-sudo docker logs ultrafeeder
-
-# Web UI
-sudo systemctl status adsb-web
-```
+- [Phase 1 Details](PHASE1-README.md) - TAK hardcoded implementation
+- [Installation Guide](#installation)
+- [Configuration](#configuration)
 
 ## 🏗️ Architecture
 
-Single ultrafeeder container includes:
-- readsb (RTL-SDR receiver)
-- tar1090 (live map)
-- TAK Server feed (priority)
-- All aggregator feeds
+```
+RTL-SDR → readsb → Ultrafeeder
+                      ├─→ TAK Server (Priority, Always On)
+                      ├─→ FlightRadar24 (Optional)
+                      ├─→ ADS-B Exchange (Optional)
+                      └─→ Other feeds (Optional)
+```
 
 ## 📝 Configuration
 
-Edit `/opt/adsb/config/.env` or use the web interface.
+Only location is required:
 
-Required settings:
-- `FEEDER_LAT` - Your latitude
-- `FEEDER_LONG` - Your longitude  
-- `FEEDER_ALT_M` - Altitude in meters
-- `FEEDER_TZ` - Timezone
-
-Optional aggregators:
-- `TAK_ENABLED=true` + `TAK_SERVER_HOST`
-- `FR24_ENABLED=true` + `FR24_SHARING_KEY`
-- `ADSBX_ENABLED=true` + `ADSBX_UUID`
-
-## 🐛 Troubleshooting
-
-### Container won't start
 ```bash
-docker logs ultrafeeder
-cat /opt/adsb/config/.env
+FEEDER_LAT=33.5539
+FEEDER_LONG=-117.2139
+FEEDER_ALT_M=304
 ```
 
-### Web UI not accessible
-```bash
-sudo systemctl status adsb-web
-sudo systemctl restart adsb-web
-```
+TAK Server is pre-configured and always active.
 
-### No aircraft showing
-- Check RTL-SDR is plugged in: `lsusb | grep RTL`
-- Check antenna connection
-- Wait 5-10 minutes for initial sync
+## 🌐 Access Points
 
-## 🤝 Contributing
+- Setup/Dashboard: `http://your-pi:5000`
+- Live Map: `http://your-pi:8080`
 
-Issues and PRs welcome!
+## 🔮 Roadmap
+
+- **Phase 1** ✅ - TAK Server hardcoded with failover
+- **Phase 2** 🚧 - Active connection monitoring
+- **Phase 3** 📋 - Auto-update system
 
 ## 📜 License
 
 MIT
-
-## 🙏 Credits
-
-- [adsb.im](https://github.com/dirkhh/adsb-feeder-image) - Inspiration
-- [sdr-enthusiasts](https://github.com/sdr-enthusiasts) - Docker images
