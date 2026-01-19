@@ -197,6 +197,15 @@
                         Enable TAK Server Feed
                     </label>
                 </div>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>
+                        <input type="checkbox" id="tak_mlat_enabled" {{ 'checked' if config.get('TAK_MLAT_ENABLED', 'true') == 'true' else '' }}>
+                        Enable TAK Server MLAT
+                    </label>
+                    <small style="color: #666; display: block; margin-top: 5px; margin-left: 25px;">
+                        Multilateration for improved position accuracy
+                    </small>
+                </div>
                 <div class="info-note" style="margin-top: 10px;">
                     <p>ℹ️ Connection details managed automatically with Tailscale failover</p>
                 </div>
@@ -259,8 +268,29 @@
         </div>
     </div>
 
+    <!-- Disable MLAT Confirmation Modal -->
+    <div id="disableMlatModal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-header">⚠️ Disable TAK Server MLAT?</h2>
+            <div class="modal-body">
+                <p><strong>Are you sure you want to disable MLAT?</strong></p>
+                <p>This is <strong>not recommended</strong>. Disabling MLAT will:</p>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>Reduce position accuracy for aircraft without ADS-B</li>
+                    <li>Limit multilateration coverage</li>
+                    <li>Decrease overall tracking quality</li>
+                </ul>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="cancelMlatDisable()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmMlatDisable()">Yes, Disable MLAT</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let originalTailscaleState = false;
+        let originalMlatState = false;
         
         // Set timezone dropdown
         document.addEventListener('DOMContentLoaded', function() {
@@ -272,9 +302,11 @@
             const tailscaleConfig = document.getElementById('tailscale-config');
             const enterNewKeyCheckbox = document.getElementById('enter_new_key');
             const newKeySection = document.getElementById('new-key-section');
+            const mlatCheckbox = document.getElementById('tak_mlat_enabled');
             
-            // Store initial state
+            // Store initial states
             originalTailscaleState = tailscaleCheckbox.checked;
+            originalMlatState = mlatCheckbox.checked;
             
             function toggleTailscaleConfig() {
                 tailscaleConfig.style.display = tailscaleCheckbox.checked ? 'block' : 'none';
@@ -293,7 +325,7 @@
                 }
             }
             
-            // Intercept checkbox changes
+            // Intercept Tailscale checkbox changes
             tailscaleCheckbox.addEventListener('change', function(e) {
                 if (originalTailscaleState && !this.checked) {
                     // User is trying to disable - show confirmation
@@ -307,6 +339,16 @@
             
             // Handle enter new key checkbox
             enterNewKeyCheckbox.addEventListener('change', toggleNewKeySection);
+            
+            // Intercept MLAT checkbox changes
+            mlatCheckbox.addEventListener('change', function(e) {
+                if (originalMlatState && !this.checked) {
+                    // User is trying to disable MLAT - show confirmation
+                    e.preventDefault();
+                    this.checked = true; // Keep it checked until confirmed
+                    showMlatDisableModal();
+                }
+            });
             
             toggleTailscaleConfig(); // Initial state
         });
@@ -328,6 +370,22 @@
             document.getElementById('tailscale-config').style.display = 'none';
             document.getElementById('enter_new_key').checked = false;
             document.getElementById('new-key-section').style.display = 'none';
+        }
+        
+        function showMlatDisableModal() {
+            document.getElementById('disableMlatModal').style.display = 'block';
+        }
+        
+        function cancelMlatDisable() {
+            document.getElementById('disableMlatModal').style.display = 'none';
+            // Checkbox stays checked
+        }
+        
+        function confirmMlatDisable() {
+            document.getElementById('disableMlatModal').style.display = 'none';
+            const checkbox = document.getElementById('tak_mlat_enabled');
+            checkbox.checked = false;
+            originalMlatState = false;
         }
         
         // Get zip code from coordinates
@@ -519,6 +577,7 @@
                 TAILSCALE_AUTH_KEY: document.getElementById('tailscale_key').value.trim(),
                 
                 TAK_ENABLED: document.getElementById('tak_enabled').checked ? 'true' : 'false',
+                TAK_MLAT_ENABLED: document.getElementById('tak_mlat_enabled').checked ? 'true' : 'false',
                 
                 FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
                 FR24_SHARING_KEY: document.getElementById('fr24_key').value,

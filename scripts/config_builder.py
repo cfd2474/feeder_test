@@ -83,10 +83,19 @@ def build_config(env_vars):
     if env_vars.get('TAK_ENABLED', 'true').lower() == 'true':
         tak_host, connection_type = select_tak_host(env_vars)
         port = env_vars.get('TAK_SERVER_PORT', '30004').strip()
+        mlat_port = env_vars.get('TAK_MLAT_PORT', '30105').strip()
         
         if tak_host:
+            # Beast feed
             config_parts.append(f"adsb,{tak_host},{port},beast_reduce_plus_out")
-            print(f"✓ TAK Server: {tak_host}:{port} ({connection_type})")
+            print(f"✓ TAK Server Beast: {tak_host}:{port} ({connection_type})")
+            
+            # MLAT feed (if enabled)
+            if env_vars.get('TAK_MLAT_ENABLED', 'true').lower() == 'true':
+                config_parts.append(f"mlat,{tak_host},{mlat_port},39001")
+                print(f"✓ TAK Server MLAT: {tak_host}:{mlat_port}")
+            else:
+                print("ℹ TAK Server MLAT: Disabled")
         else:
             print("✗ TAK Server: No valid host configuration found")
     else:

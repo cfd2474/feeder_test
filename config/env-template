@@ -34,6 +34,10 @@ TAK_SERVER_HOST_FALLBACK=104.225.219.254
 TAK_SERVER_PORT=30004
 TAK_CONNECTION_MODE=auto
 
+# TAK Server MLAT
+TAK_MLAT_ENABLED=true
+TAK_MLAT_PORT=30105
+
 # Connection mode options:
 # - auto: Automatically select best connection (default)
 # - primary: Force primary Tailscale IP
