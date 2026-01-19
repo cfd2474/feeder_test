@@ -1,0 +1,14 @@
+[Unit]
+Description=TAK-ADSB Web Interface
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/adsb/web
+ExecStart=/usr/bin/python3 /opt/adsb/web/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

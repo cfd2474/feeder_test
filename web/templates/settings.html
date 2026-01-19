@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - TAK-ADSB</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛩️ TAK-ADSB-Feeder</h1>
+            <nav>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/settings" class="active">Settings</a>
+                <a href="http://{{ request.host.split(':')[0] }}:8080" target="_blank">Map</a>
+            </nav>
+        </header>
+
+        <div class="dashboard">
+            <h2>Configuration</h2>
+            <p class="text-muted">Edit your feeder configuration</p>
+            
+            <div class="card">
+                <h3>Location</h3>
+                <div class="form-group">
+                    <label>Latitude</label>
+                    <input type="number" step="any" id="lat" value="{{ config.get('FEEDER_LAT', '') }}">
+                </div>
+                <div class="form-group">
+                    <label>Longitude</label>
+                    <input type="number" step="any" id="lon" value="{{ config.get('FEEDER_LONG', '') }}">
+                </div>
+                <div class="form-group">
+                    <label>Altitude (meters)</label>
+                    <input type="number" id="alt" value="{{ config.get('FEEDER_ALT_M', '') }}">
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>TAK Server</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="tak_enabled" {{ 'checked' if config.get('TAK_ENABLED') == 'true' else '' }}>
+                        Enable TAK Server
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Host/IP</label>
+                    <input type="text" id="tak_host" value="{{ config.get('TAK_SERVER_HOST', '') }}">
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" id="tak_port" value="{{ config.get('TAK_SERVER_PORT', '30004') }}">
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>FlightRadar24</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="fr24_enabled" {{ 'checked' if config.get('FR24_ENABLED') == 'true' else '' }}>
+                        Enable FR24
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Sharing Key</label>
+                    <input type="text" id="fr24_key" value="{{ config.get('FR24_SHARING_KEY', '') }}">
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-success" onclick="saveSettings()">💾 Save Changes</button>
+                <button class="btn" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
+            </div>
+        </div>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        async function saveSettings() {
+            const config = {
+                FEEDER_LAT: document.getElementById('lat').value,
+                FEEDER_LONG: document.getElementById('lon').value,
+                FEEDER_ALT_M: document.getElementById('alt').value,
+                TAK_ENABLED: document.getElementById('tak_enabled').checked ? 'true' : 'false',
+                TAK_SERVER_HOST: document.getElementById('tak_host').value,
+                TAK_SERVER_PORT: document.getElementById('tak_port').value,
+                FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
+                FR24_SHARING_KEY: document.getElementById('fr24_key').value
+            };
+            
+            showStatus('Saving...', 'info');
+            
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                if (!response.ok) throw new Error('Failed to save');
+                
+                showStatus('✓ Saved! Restart service to apply changes.', 'success');
+                
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            }
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = type;
+            status.style.display = 'block';
+            setTimeout(() => status.style.display = 'none', 5000);
+        }
+    </script>
+</body>
+</html>

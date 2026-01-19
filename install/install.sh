@@ -1,12 +1,12 @@
 #!/bin/bash
-# TAK-ADSB-Feeder One-Line Installer
+# TAK-ADSB-Feeder One-Line Installer v2.1
 # wget -O - https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAK-ADSB-Feeder Installer v2.0"
-echo "  Ultrafeeder + TAK Server Integration"
+echo "  TAK-ADSB-Feeder Installer v2.1"
+echo "  Ultrafeeder + TAK + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Install Docker
@@ -17,25 +17,38 @@ if ! command -v docker &> /dev/null; then
     systemctl start docker
 fi
 
-# Install Python
+# Install Python and Flask
 echo "Installing Python dependencies..."
 apt-get update -qq
-apt-get install -y python3 wget curl
+apt-get install -y python3-flask python3-pip wget curl
 
 # Create directories
 echo "Creating directories..."
-mkdir -p /opt/adsb/{config,scripts,ultrafeeder}
+mkdir -p /opt/adsb/{config,scripts,ultrafeeder,web/{templates,static/{css,js}}}
 
 # Download files
 echo "Downloading configuration files..."
 REPO="https://raw.githubusercontent.com/cfd2474/feeder_test/main"
+
+# Config files
 wget -q $REPO/config/docker-compose.yml -O /opt/adsb/config/docker-compose.yml
 wget -q $REPO/config/env-template -O /opt/adsb/config/.env
 wget -q $REPO/scripts/config_builder.py -O /opt/adsb/scripts/config_builder.py
 chmod +x /opt/adsb/scripts/config_builder.py
 
-# Create systemd service
-echo "Creating systemd service..."
+# Web UI files
+echo "Installing Web UI..."
+wget -q $REPO/web/app.py -O /opt/adsb/web/app.py
+wget -q $REPO/web/templates/setup.html -O /opt/adsb/web/templates/setup.html
+wget -q $REPO/web/templates/dashboard.html -O /opt/adsb/web/templates/dashboard.html
+wget -q $REPO/web/templates/settings.html -O /opt/adsb/web/templates/settings.html
+wget -q $REPO/web/static/css/style.css -O /opt/adsb/web/static/css/style.css
+wget -q $REPO/web/static/js/setup.js -O /opt/adsb/web/static/js/setup.js
+wget -q $REPO/web/static/js/dashboard.js -O /opt/adsb/web/static/js/dashboard.js
+chmod +x /opt/adsb/web/app.py
+
+# Create ultrafeeder systemd service
+echo "Creating ultrafeeder service..."
 cat > /etc/systemd/system/ultrafeeder.service << 'SVCEOF'
 [Unit]
 Description=TAK-ADSB Ultrafeeder
@@ -58,21 +71,59 @@ RestartSec=10
 WantedBy=multi-user.target
 SVCEOF
 
+# Create web UI systemd service
+echo "Creating web interface service..."
+cat > /etc/systemd/system/adsb-web.service << 'WEBSVC'
+[Unit]
+Description=TAK-ADSB Web Interface
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/adsb/web
+ExecStart=/usr/bin/python3 /opt/adsb/web/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+WEBSVC
+
+# Enable services
 systemctl daemon-reload
 systemctl enable ultrafeeder
+systemctl enable adsb-web
+
+# Start web UI (but not ultrafeeder - needs config first)
+systemctl start adsb-web
 
 # Set permissions
 if [ "$SUDO_USER" ]; then
     chown -R $SUDO_USER:$SUDO_USER /opt/adsb
 fi
 
-# Done
+# Get IP address
 IP=$(hostname -I | awk '{print $1}')
+
+# Done
 echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "✓ Installation complete!"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "Next steps:"
-echo "1. Configure: sudo nano /opt/adsb/config/.env"
-echo "2. Start: sudo systemctl start ultrafeeder"  
-echo "3. Map: http://$IP:8080"
+echo "🌐 Open your browser and go to:"
+echo ""
+echo "   http://$IP:5000"
+echo ""
+echo "   Complete the setup wizard to configure your feeder."
+echo ""
+echo "After setup, you can access:"
+echo "   • Setup/Dashboard: http://$IP:5000"
+echo "   • Live Map: http://$IP:8080"
+echo ""
+echo "Manual commands (if needed):"
+echo "   • Start: sudo systemctl start ultrafeeder"
+echo "   • Restart: sudo systemctl restart ultrafeeder"
+echo "   • Logs: sudo docker logs ultrafeeder"
 echo ""

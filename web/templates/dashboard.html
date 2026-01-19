@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAK-ADSB Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛩️ TAK-ADSB-Feeder</h1>
+            <nav>
+                <a href="/dashboard" class="active">Dashboard</a>
+                <a href="/settings">Settings</a>
+                <a href="http://{{ request.host.split(':')[0] }}:8080" target="_blank">Map</a>
+            </nav>
+        </header>
+
+        <div class="dashboard">
+            <!-- Status Cards -->
+            <div class="card-grid">
+                <div class="card">
+                    <h3>Container Status</h3>
+                    <div id="container-status">
+                        {% if docker.get('ultrafeeder') %}
+                            <div class="status-item">
+                                <span class="status-dot {% if 'Up' in docker.get('ultrafeeder') %}active{% else %}inactive{% endif %}"></span>
+                                <span>ultrafeeder</span>
+                                <span class="status-text">{{ docker.get('ultrafeeder', 'Unknown') }}</span>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">Container not running</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Location</h3>
+                    <p><strong>Lat:</strong> {{ config.get('FEEDER_LAT', 'Not set') }}</p>
+                    <p><strong>Lon:</strong> {{ config.get('FEEDER_LONG', 'Not set') }}</p>
+                    <p><strong>Alt:</strong> {{ config.get('FEEDER_ALT_M', 'Not set') }}m</p>
+                    <p><strong>TZ:</strong> {{ config.get('FEEDER_TZ', 'UTC') }}</p>
+                </div>
+
+                <div class="card">
+                    <h3>Active Feeds</h3>
+                    <div id="active-feeds">
+                        {% if config.get('TAK_ENABLED') == 'true' and config.get('TAK_SERVER_HOST') %}
+                            <div class="feed-item">
+                                <span class="status-dot active"></span>
+                                TAK Server ({{ config.get('TAK_SERVER_HOST') }})
+                            </div>
+                        {% endif %}
+                        {% if config.get('FR24_ENABLED') == 'true' %}
+                            <div class="feed-item">
+                                <span class="status-dot active"></span>
+                                FlightRadar24
+                            </div>
+                        {% endif %}
+                        {% if config.get('ADSBX_ENABLED') == 'true' %}
+                            <div class="feed-item">
+                                <span class="status-dot active"></span>
+                                ADS-B Exchange
+                            </div>
+                        {% endif %}
+                        {% if config.get('AIRPLANESLIVE_ENABLED') == 'true' %}
+                            <div class="feed-item">
+                                <span class="status-dot active"></span>
+                                Airplanes.Live
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="actions">
+                <button class="btn btn-primary" onclick="restartService()">🔄 Restart Service</button>
+                <button class="btn" onclick="viewLogs()">📋 View Logs</button>
+                <button class="btn" onclick="window.location.href='/settings'">⚙️ Settings</button>
+            </div>
+
+            <!-- Logs Display (hidden by default) -->
+            <div class="card" id="logs-container" style="display: none;">
+                <h3>Recent Logs</h3>
+                <pre id="logs-output"></pre>
+            </div>
+        </div>
+
+        <div id="status"></div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
