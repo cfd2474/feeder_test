@@ -44,38 +44,21 @@
                     <input type="text" id="site_name" placeholder="MyFeeder" value="{{ config.get('MLAT_SITE_NAME', 'TAK-ADSB-Feeder') }}">
                 </div>
                 
+                <div class="info-box" style="margin-top: 20px;">
+                    <h3>✓ TAK Server (Always Active)</h3>
+                    <p>Your feeder will automatically send all aircraft data to the TAK Server. No additional configuration needed.</p>
+                </div>
+                
                 <button class="btn btn-primary" onclick="nextStep(2)">Next →</button>
             </div>
 
-            <!-- Step 2: TAK Server Info -->
+            <!-- Step 2: Optional Aggregators -->
             <div class="step" id="step2">
-                <h2>Step 2: TAK Server</h2>
-                <p>TAK Server is always enabled as your primary feed</p>
-                
-                <div class="info-box">
-                    <h3>✓ TAK Server Configuration</h3>
-                    <p><strong>Status:</strong> Always Enabled (Hardcoded)</p>
-                    <p><strong>Primary IP:</strong> {{ config.get('TAK_SERVER_HOST_PRIMARY', '100.117.34.88') }}</p>
-                    <p><strong>Fallback IP:</strong> {{ config.get('TAK_SERVER_HOST_FALLBACK', '104.225.219.254') }}</p>
-                    <p><strong>Port:</strong> {{ config.get('TAK_SERVER_PORT', '30004') }}</p>
-                    <p><strong>Mode:</strong> Auto (with failover support)</p>
-                </div>
+                <h2>Step 2: Public Aggregators</h2>
+                <p>Optional: Share data with public aggregator services</p>
                 
                 <div class="info-note">
-                    <p>ℹ️ TAK Server receives all aircraft data automatically. Connection monitoring and failover will be available in a future update.</p>
-                </div>
-                
-                <button class="btn" onclick="prevStep(1)">← Back</button>
-                <button class="btn btn-primary" onclick="nextStep(3)">Next →</button>
-            </div>
-
-            <!-- Step 3: Optional Aggregators -->
-            <div class="step" id="step3">
-                <h2>Step 3: Public Aggregators</h2>
-                <p>Optional: Enable additional public aggregator feeds</p>
-                
-                <div class="info-note">
-                    <p>ℹ️ TAK Server is already configured and will receive data regardless of these settings.</p>
+                    <p>ℹ️ TAK Server is already configured and will receive all data. These are optional additional feeds.</p>
                 </div>
                 
                 <div class="aggregator-card">
@@ -120,7 +103,7 @@
                     </div>
                 </div>
                 
-                <button class="btn" onclick="prevStep(2)">← Back</button>
+                <button class="btn" onclick="prevStep(1)">← Back</button>
                 <button class="btn btn-success" onclick="saveAndStart()">Save & Start 🚀</button>
             </div>
         </div>

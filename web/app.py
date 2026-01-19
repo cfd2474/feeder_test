@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-TAK-ADSB-Feeder Web Interface
-Flask app for setup wizard and dashboard
+TAK-ADSB-Feeder Web Interface v2.1
+Flask app with TAK Server protection
 """
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
@@ -13,6 +13,15 @@ app = Flask(__name__)
 
 ENV_FILE = Path("/opt/adsb/config/.env")
 CONFIG_BUILDER = "/opt/adsb/scripts/config_builder.py"
+
+# TAK Server hardcoded defaults - NEVER override these from user input
+TAK_DEFAULTS = {
+    'TAK_ENABLED': 'true',
+    'TAK_SERVER_HOST_PRIMARY': '100.117.34.88',
+    'TAK_SERVER_HOST_FALLBACK': '104.225.219.254',
+    'TAK_SERVER_PORT': '30004',
+    'TAK_CONNECTION_MODE': 'auto'
+}
 
 def read_env():
     """Read .env file and return as dict"""
@@ -107,14 +116,30 @@ def get_config():
 
 @app.route('/api/config', methods=['POST'])
 def save_config():
-    """Save configuration"""
+    """
+    Save configuration
+    CRITICAL: Protect TAK Server settings from user override
+    """
     try:
         data = request.json
         env = read_env()
         
-        # Update env with new data
+        # PROTECT TAK SETTINGS - Always use hardcoded defaults
+        # Remove any TAK parameters from user input
+        tak_keys = ['TAK_ENABLED', 'TAK_SERVER_HOST', 'TAK_SERVER_HOST_PRIMARY', 
+                    'TAK_SERVER_HOST_FALLBACK', 'TAK_SERVER_PORT', 'TAK_CONNECTION_MODE']
+        
+        for key in tak_keys:
+            if key in data:
+                del data[key]  # Remove user-provided TAK settings
+        
+        # Update env with user data (TAK excluded)
         for key, value in data.items():
             env[key] = str(value)
+        
+        # Ensure TAK defaults are always present and correct
+        for key, value in TAK_DEFAULTS.items():
+            env[key] = value
         
         # Write to file
         write_env(env)

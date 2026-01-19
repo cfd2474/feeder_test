@@ -11,16 +11,17 @@ function prevStep(step) {
 // Save configuration and start service
 async function saveAndStart() {
     const config = {
+        // Location settings
         FEEDER_LAT: document.getElementById('lat').value,
         FEEDER_LONG: document.getElementById('lon').value,
         FEEDER_ALT_M: document.getElementById('alt').value,
         FEEDER_TZ: document.getElementById('tz').value,
         MLAT_SITE_NAME: document.getElementById('site_name').value,
         
-        TAK_ENABLED: document.getElementById('tak_enabled').checked ? 'true' : 'false',
-        TAK_SERVER_HOST: document.getElementById('tak_host').value,
-        TAK_SERVER_PORT: document.getElementById('tak_port').value,
+        // TAK Server is hardcoded - DO NOT send these parameters
+        // TAK_ENABLED, TAK_SERVER_HOST_*, TAK_SERVER_PORT will use defaults from env-template
         
+        // Optional aggregators only
         FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
         FR24_SHARING_KEY: document.getElementById('fr24_key').value,
         
