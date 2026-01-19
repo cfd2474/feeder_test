@@ -19,29 +19,109 @@
                 <h2>Step 1: Location</h2>
                 <p>Enter your receiver location</p>
                 
-                <div class="form-group">
-                    <label>Latitude</label>
-                    <input type="number" step="any" id="lat" placeholder="33.5539" value="{{ config.get('FEEDER_LAT', '') }}">
+                <div class="info-note" style="margin-bottom: 20px;">
+                    <p>📍 Need help finding your coordinates and elevation? 
+                        <a href="https://whatismyelevation.com/" target="_blank" style="color: #667eea; text-decoration: underline;">
+                            Click here to use What Is My Elevation
+                        </a>
+                    </p>
                 </div>
                 
                 <div class="form-group">
-                    <label>Longitude</label>
-                    <input type="number" step="any" id="lon" placeholder="-117.2139" value="{{ config.get('FEEDER_LONG', '') }}">
+                    <label>Latitude *</label>
+                    <input type="number" step="any" id="lat" placeholder="33.5539" value="{{ config.get('FEEDER_LAT', '') }}" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>Altitude (meters)</label>
-                    <input type="number" id="alt" placeholder="304" value="{{ config.get('FEEDER_ALT_M', '') }}">
+                    <label>Longitude *</label>
+                    <input type="number" step="any" id="lon" placeholder="-117.2139" value="{{ config.get('FEEDER_LONG', '') }}" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>Timezone</label>
-                    <input type="text" id="tz" placeholder="America/Los_Angeles" value="{{ config.get('FEEDER_TZ', 'UTC') }}">
+                    <label>Altitude (meters) *</label>
+                    <input type="number" id="alt" placeholder="304" value="{{ config.get('FEEDER_ALT_M', '') }}" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>Feeder Name</label>
-                    <input type="text" id="site_name" placeholder="MyFeeder" value="{{ config.get('MLAT_SITE_NAME', 'TAK-ADSB-Feeder') }}">
+                    <label>Timezone *</label>
+                    <select id="tz">
+                        <option value="">-- Select Timezone --</option>
+                        <optgroup label="US Timezones">
+                            <option value="America/New_York">Eastern Time (ET)</option>
+                            <option value="America/Chicago">Central Time (CT)</option>
+                            <option value="America/Denver">Mountain Time (MT)</option>
+                            <option value="America/Phoenix">Arizona Time (MST - no DST)</option>
+                            <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                            <option value="America/Anchorage">Alaska Time (AKT)</option>
+                            <option value="Pacific/Honolulu">Hawaii Time (HST)</option>
+                        </optgroup>
+                        <optgroup label="Canada">
+                            <option value="America/St_Johns">Newfoundland Time</option>
+                            <option value="America/Halifax">Atlantic Time</option>
+                            <option value="America/Toronto">Eastern Time</option>
+                            <option value="America/Winnipeg">Central Time</option>
+                            <option value="America/Edmonton">Mountain Time</option>
+                            <option value="America/Vancouver">Pacific Time</option>
+                        </optgroup>
+                        <optgroup label="Europe">
+                            <option value="Europe/London">London (GMT/BST)</option>
+                            <option value="Europe/Paris">Paris (CET/CEST)</option>
+                            <option value="Europe/Berlin">Berlin (CET/CEST)</option>
+                            <option value="Europe/Rome">Rome (CET/CEST)</option>
+                            <option value="Europe/Madrid">Madrid (CET/CEST)</option>
+                            <option value="Europe/Amsterdam">Amsterdam (CET/CEST)</option>
+                            <option value="Europe/Brussels">Brussels (CET/CEST)</option>
+                            <option value="Europe/Vienna">Vienna (CET/CEST)</option>
+                            <option value="Europe/Stockholm">Stockholm (CET/CEST)</option>
+                            <option value="Europe/Oslo">Oslo (CET/CEST)</option>
+                            <option value="Europe/Copenhagen">Copenhagen (CET/CEST)</option>
+                            <option value="Europe/Athens">Athens (EET/EEST)</option>
+                            <option value="Europe/Helsinki">Helsinki (EET/EEST)</option>
+                            <option value="Europe/Moscow">Moscow (MSK)</option>
+                        </optgroup>
+                        <optgroup label="Asia">
+                            <option value="Asia/Tokyo">Tokyo (JST)</option>
+                            <option value="Asia/Shanghai">Shanghai (CST)</option>
+                            <option value="Asia/Hong_Kong">Hong Kong (HKT)</option>
+                            <option value="Asia/Singapore">Singapore (SGT)</option>
+                            <option value="Asia/Dubai">Dubai (GST)</option>
+                            <option value="Asia/Seoul">Seoul (KST)</option>
+                            <option value="Asia/Bangkok">Bangkok (ICT)</option>
+                            <option value="Asia/Kolkata">India (IST)</option>
+                        </optgroup>
+                        <optgroup label="Australia & Pacific">
+                            <option value="Australia/Sydney">Sydney (AEDT/AEST)</option>
+                            <option value="Australia/Melbourne">Melbourne (AEDT/AEST)</option>
+                            <option value="Australia/Brisbane">Brisbane (AEST)</option>
+                            <option value="Australia/Perth">Perth (AWST)</option>
+                            <option value="Australia/Adelaide">Adelaide (ACDT/ACST)</option>
+                            <option value="Pacific/Auckland">Auckland (NZDT/NZST)</option>
+                        </optgroup>
+                        <optgroup label="South America">
+                            <option value="America/Sao_Paulo">São Paulo (BRT)</option>
+                            <option value="America/Buenos_Aires">Buenos Aires (ART)</option>
+                            <option value="America/Santiago">Santiago (CLT)</option>
+                            <option value="America/Bogota">Bogotá (COT)</option>
+                            <option value="America/Lima">Lima (PET)</option>
+                        </optgroup>
+                        <optgroup label="Africa">
+                            <option value="Africa/Cairo">Cairo (EET)</option>
+                            <option value="Africa/Johannesburg">Johannesburg (SAST)</option>
+                            <option value="Africa/Lagos">Lagos (WAT)</option>
+                            <option value="Africa/Nairobi">Nairobi (EAT)</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option value="UTC">UTC (Coordinated Universal Time)</option>
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Feeder Name *</label>
+                    <input type="text" id="site_name" placeholder="MyFeeder" value="{{ config.get('MLAT_SITE_NAME', 'TAK-Feeder').split('-', 1)[1] if '-' in config.get('MLAT_SITE_NAME', '') else config.get('MLAT_SITE_NAME', 'TAK-Feeder') }}" required>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Format: ZIPCODE-YourName (zip code will be added automatically)
+                    </small>
                 </div>
                 
                 <div class="info-box" style="margin-top: 20px;">
@@ -112,5 +192,15 @@
     </div>
 
     <script src="/static/js/setup.js"></script>
+    <script>
+        // Set timezone dropdown to current value
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentTz = "{{ config.get('FEEDER_TZ', 'UTC') }}";
+            const tzSelect = document.getElementById('tz');
+            if (currentTz) {
+                tzSelect.value = currentTz;
+            }
+        });
+    </script>
 </body>
 </html>

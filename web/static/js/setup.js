@@ -8,15 +8,85 @@ function prevStep(step) {
     nextStep(step);
 }
 
+// Get zip code from coordinates using reverse geocoding
+async function getZipCodeFromCoords(lat, lon) {
+    try {
+        // Use Nominatim (OpenStreetMap) reverse geocoding - free, no API key needed
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
+            {
+                headers: {
+                    'User-Agent': 'TAK-ADSB-Feeder/2.1'
+                }
+            }
+        );
+        
+        if (!response.ok) throw new Error('Geocoding failed');
+        
+        const data = await response.json();
+        
+        // Try to extract postal code from address
+        if (data.address) {
+            return data.address.postcode || data.address.postal_code || null;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Failed to get zip code:', error);
+        return null;
+    }
+}
+
 // Save configuration and start service
 async function saveAndStart() {
+    const lat = document.getElementById('lat').value;
+    const lon = document.getElementById('lon').value;
+    const alt = document.getElementById('alt').value;
+    const tz = document.getElementById('tz').value;
+    const siteName = document.getElementById('site_name').value.trim();
+    
+    // Validate required fields
+    if (!lat || !lon || !alt) {
+        showStatus('Please enter latitude, longitude, and altitude', 'error');
+        nextStep(1);
+        return;
+    }
+    
+    if (!tz) {
+        showStatus('Please select a timezone', 'error');
+        nextStep(1);
+        return;
+    }
+    
+    if (!siteName) {
+        showStatus('Please enter a feeder name', 'error');
+        nextStep(1);
+        return;
+    }
+    
+    showStatus('Looking up location information...', 'info');
+    
+    // Get zip code from coordinates
+    const zipCode = await getZipCodeFromCoords(lat, lon);
+    
+    let finalSiteName;
+    if (zipCode) {
+        // Format: ZIPCODE-Name
+        finalSiteName = `${zipCode}-${siteName}`;
+        showStatus(`Location found: ${zipCode}. Saving configuration...`, 'success');
+    } else {
+        // If zip code lookup fails, use default prefix
+        finalSiteName = `00000-${siteName}`;
+        showStatus('Could not determine zip code, using default. Saving configuration...', 'info');
+    }
+    
     const config = {
         // Location settings
-        FEEDER_LAT: document.getElementById('lat').value,
-        FEEDER_LONG: document.getElementById('lon').value,
-        FEEDER_ALT_M: document.getElementById('alt').value,
-        FEEDER_TZ: document.getElementById('tz').value,
-        MLAT_SITE_NAME: document.getElementById('site_name').value,
+        FEEDER_LAT: lat,
+        FEEDER_LONG: lon,
+        FEEDER_ALT_M: alt,
+        FEEDER_TZ: tz,
+        MLAT_SITE_NAME: finalSiteName,
         
         // TAK Server is hardcoded - DO NOT send these parameters
         // TAK_ENABLED, TAK_SERVER_HOST_*, TAK_SERVER_PORT will use defaults from env-template
@@ -31,15 +101,6 @@ async function saveAndStart() {
         AIRPLANESLIVE_ENABLED: document.getElementById('airplaneslive_enabled').checked ? 'true' : 'false',
         AIRPLANESLIVE_UUID: document.getElementById('airplaneslive_uuid').value
     };
-    
-    // Validate location
-    if (!config.FEEDER_LAT || !config.FEEDER_LONG) {
-        showStatus('Please enter your location', 'error');
-        nextStep(1);
-        return;
-    }
-    
-    showStatus('Saving configuration...', 'info');
     
     try {
         // Save config
@@ -60,11 +121,11 @@ async function saveAndStart() {
         
         if (!restartResponse.ok) throw new Error('Failed to restart service');
         
-        showStatus('✓ Setup complete! Redirecting to dashboard...', 'success');
+        showStatus(`✓ Setup complete! Feeder name: ${finalSiteName}. Redirecting to dashboard...`, 'success');
         
         setTimeout(() => {
             window.location.href = '/dashboard';
-        }, 2000);
+        }, 3000);
         
     } catch (error) {
         showStatus('Error: ' + error.message, 'error');
