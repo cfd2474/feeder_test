@@ -5,6 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings - TAK-ADSB</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .modal-header {
+            color: #d32f2f;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .modal-body {
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+        
+        .btn-danger {
+            background: #d32f2f;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #b71c1c;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -105,9 +166,8 @@
                         <p>Contact: <a href="mailto:michael.leckliter@yahoo.com" style="color: #667eea;">Michael Leckliter</a></p>
                     </div>
                     
-                    <div id="tailscale-status" style="margin-top: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; display: none;">
-                        <strong>Tailscale Status:</strong>
-                        <pre id="tailscale-status-text" style="margin-top: 5px; font-size: 0.9em;"></pre>
+                    <div id="tailscale-status" style="margin-top: 15px; padding: 15px; background: #f5f5f5; border-radius: 5px; display: none;">
+                        <div id="tailscale-status-content"></div>
                     </div>
                 </div>
             </div>
@@ -162,7 +222,29 @@
         <div id="status"></div>
     </div>
 
+    <!-- Disable Tailscale Confirmation Modal -->
+    <div id="disableModal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-header">⚠️ Disable Tailscale VPN?</h2>
+            <div class="modal-body">
+                <p><strong>Are you sure you want to disable Tailscale?</strong></p>
+                <p>This is <strong>not recommended</strong>. Disabling Tailscale will:</p>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>Force connection to TAK Server via public internet</li>
+                    <li>Remove secure VPN encryption</li>
+                    <li>Potentially reduce reliability</li>
+                </ul>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="cancelDisable()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDisable()">Yes, Disable Tailscale</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let originalTailscaleState = false;
+        
         // Set timezone dropdown
         document.addEventListener('DOMContentLoaded', function() {
             const currentTz = "{{ config.get('FEEDER_TZ', 'UTC') }}";
@@ -172,13 +254,44 @@
             const tailscaleCheckbox = document.getElementById('tailscale_enabled');
             const tailscaleConfig = document.getElementById('tailscale-config');
             
+            // Store initial state
+            originalTailscaleState = tailscaleCheckbox.checked;
+            
             function toggleTailscaleConfig() {
                 tailscaleConfig.style.display = tailscaleCheckbox.checked ? 'block' : 'none';
             }
             
-            tailscaleCheckbox.addEventListener('change', toggleTailscaleConfig);
+            // Intercept checkbox changes
+            tailscaleCheckbox.addEventListener('change', function(e) {
+                if (originalTailscaleState && !this.checked) {
+                    // User is trying to disable - show confirmation
+                    e.preventDefault();
+                    this.checked = true; // Keep it checked until confirmed
+                    showDisableModal();
+                } else {
+                    toggleTailscaleConfig();
+                }
+            });
+            
             toggleTailscaleConfig(); // Initial state
         });
+        
+        function showDisableModal() {
+            document.getElementById('disableModal').style.display = 'block';
+        }
+        
+        function cancelDisable() {
+            document.getElementById('disableModal').style.display = 'none';
+            // Checkbox stays checked
+        }
+        
+        function confirmDisable() {
+            document.getElementById('disableModal').style.display = 'none';
+            const checkbox = document.getElementById('tailscale_enabled');
+            checkbox.checked = false;
+            originalTailscaleState = false;
+            document.getElementById('tailscale-config').style.display = 'none';
+        }
         
         // Get zip code from coordinates
         async function getZipCodeFromCoords(lat, lon) {
@@ -205,6 +318,9 @@
         async function updateTailscale() {
             const tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
             const tailscaleKey = document.getElementById('tailscale_key').value.trim();
+            const siteName = document.getElementById('site_name').value.trim();
+            const lat = document.getElementById('lat').value;
+            const lon = document.getElementById('lon').value;
             
             if (!tailscaleEnabled) {
                 showStatus('Please enable Tailscale first', 'error');
@@ -218,12 +334,31 @@
             
             showStatus('Updating Tailscale configuration...', 'info');
             
+            // Get feeder name with zip code
+            let machineName = siteName;
+            if (lat && lon && siteName) {
+                const zipCode = await getZipCodeFromCoords(lat, lon);
+                if (zipCode) {
+                    machineName = `${zipCode}-${siteName}`;
+                } else {
+                    machineName = `00000-${siteName}`;
+                }
+            } else {
+                const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
+                if (currentFullName) {
+                    machineName = currentFullName;
+                }
+            }
+            
             try {
-                // Install/update Tailscale with new key
+                // Install/update Tailscale with new key and hostname
                 const response = await fetch('/api/tailscale/install', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ auth_key: tailscaleKey })
+                    body: JSON.stringify({ 
+                        auth_key: tailscaleKey,
+                        hostname: machineName
+                    })
                 });
                 
                 const result = await response.json();
@@ -231,16 +366,15 @@
                 if (result.success) {
                     showStatus('✓ Tailscale updated successfully!', 'success');
                     
-                    // Get status
-                    const statusResponse = await fetch('/api/tailscale/status');
-                    const statusData = await statusResponse.json();
-                    
-                    if (statusData.success) {
-                        const statusDiv = document.getElementById('tailscale-status');
-                        const statusText = document.getElementById('tailscale-status-text');
-                        statusDiv.style.display = 'block';
-                        statusText.textContent = statusData.status;
-                    }
+                    // Get and display status
+                    setTimeout(async () => {
+                        const statusResponse = await fetch('/api/tailscale/status');
+                        const statusData = await statusResponse.json();
+                        
+                        if (statusData.success) {
+                            displayTailscaleStatus(statusData);
+                        }
+                    }, 2000); // Wait 2 seconds for connection to establish
                     
                     // Save the key to config
                     const saveResponse = await fetch('/api/config', {
@@ -252,6 +386,8 @@
                         })
                     });
                     
+                    originalTailscaleState = true;
+                    
                 } else {
                     showStatus('Error: ' + result.message, 'error');
                 }
@@ -259,6 +395,46 @@
             } catch (error) {
                 showStatus('Error updating Tailscale: ' + error.message, 'error');
             }
+        }
+        
+        function displayTailscaleStatus(statusData) {
+            const statusDiv = document.getElementById('tailscale-status');
+            const contentDiv = document.getElementById('tailscale-status-content');
+            
+            // Parse status output to get IP
+            let statusHtml = '';
+            if (statusData.status && statusData.status.includes('100.')) {
+                // Extract IP from status
+                const lines = statusData.status.split('\n');
+                const ipLine = lines.find(line => line.includes('100.'));
+                if (ipLine) {
+                    const ip = ipLine.match(/100\.\d+\.\d+\.\d+/);
+                    if (ip) {
+                        statusHtml = `
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 2em;">✓</span>
+                                <div>
+                                    <div style="font-weight: bold; color: #4caf50;">Tailscale Active</div>
+                                    <div style="color: #666; font-size: 0.9em;">Device IP: ${ip[0]}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            } else {
+                statusHtml = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 2em;">⚠️</span>
+                        <div>
+                            <div style="font-weight: bold; color: #ff9800;">Tailscale Disabled</div>
+                            <div style="color: #666; font-size: 0.9em;">Using public IP fallback</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            contentDiv.innerHTML = statusHtml;
+            statusDiv.style.display = 'block';
         }
         
         async function saveSettings() {

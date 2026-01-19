@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TAK-ADSB-Feeder Web Interface v2.1
-Flask app with Tailscale management
+Flask app with Tailscale hostname management
 """
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
@@ -76,8 +76,8 @@ def rebuild_config():
     except:
         return False
 
-def install_tailscale(auth_key=None):
-    """Install and configure Tailscale"""
+def install_tailscale(auth_key=None, hostname=None):
+    """Install and configure Tailscale with optional hostname"""
     try:
         # Check if already installed
         check_result = subprocess.run(['which', 'tailscale'], 
@@ -93,9 +93,14 @@ def install_tailscale(auth_key=None):
             # Down first to clear previous connection
             subprocess.run(['tailscale', 'down'], timeout=10)
             
-            # Up with new key
-            result = subprocess.run(['tailscale', 'up', '--authkey', auth_key], 
-                                   capture_output=True, text=True, timeout=30)
+            # Build up command with optional hostname
+            cmd = ['tailscale', 'up', '--authkey', auth_key]
+            
+            if hostname:
+                cmd.extend(['--hostname', hostname])
+            
+            # Up with new key and hostname
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             
             if result.returncode != 0:
                 return {'success': False, 'message': f'Authentication failed: {result.stderr}'}
@@ -204,12 +209,13 @@ def save_config():
 
 @app.route('/api/tailscale/install', methods=['POST'])
 def api_install_tailscale():
-    """Install/update Tailscale with optional auth key"""
+    """Install/update Tailscale with optional auth key and hostname"""
     try:
         data = request.json
         auth_key = data.get('auth_key', None)
+        hostname = data.get('hostname', None)
         
-        result = install_tailscale(auth_key)
+        result = install_tailscale(auth_key, hostname)
         
         if result['success']:
             return jsonify(result)
