@@ -1,73 +1,55 @@
 # TAK-ADSB-Feeder
 
-Production-ready ADS-B feeder system using Docker containers for multiple aggregators.
+adsb.im clone with TAK Server integration built-in.
 
-Based on [adsb.im](https://github.com/dirkhh/adsb-feeder-image) production patterns, designed specifically for TAK Server integration.
-
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
-wget -O - https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install-tak-adsb-feeder.sh | sudo bash
+wget -O - https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 ```
 
-See [QUICKSTART.md](QUICKSTART.md) for detailed instructions.
-
-## ✨ Features
-
-- **Docker-based aggregators** - FR24, ADSBX, Airplanes.Live, RadarBox, PlaneFinder, OpenSky
-- **Dynamic compose selection** - Enable/disable via environment variables  
-- **Smart caching** - 10-second container/status cache
-- **Real feed monitoring** - Beast + MLAT connection tracking
-- **Flask REST API** - Complete management interface
-- **Production patterns** - Based on adsb.im's battle-tested code
-
-## 📖 Documentation
-
-- [Quick Start](QUICKSTART.md)
-- [Production Implementation](docs/PRODUCTION-IMPLEMENTATION.md)
-
-## 🏗️ Architecture
-
-```
-Native: readsb (RTL-SDR) → port 30005 Beast
-
-Docker Aggregators:
-  ├─ FR24, ADSBX, Airplanes.Live
-  ├─ RadarBox, PlaneFinder, OpenSky
-  └─ All connect via host.docker.internal:30005
-```
-
-## 🔧 Configuration
+## Configure
 
 ```bash
-sudo nano /opt/TAK_ADSB/config/.env
-
-# Location
-FEEDER_LAT=33.5539
-FEEDER_LONG=-117.2139  
-FEEDER_ALT_M=304
-
-# Enable feeds
-AF_IS_FR24_ENABLED=true
-FEEDER_FR24_SHARING_KEY=your_key
+sudo nano /opt/adsb/config/.env
 ```
 
-## 📦 What's Included
+Set location:
+- `FEEDER_LAT=33.5539`
+- `FEEDER_LONG=-117.2139`
+- `FEEDER_ALT_M=304`
+- `FEEDER_TZ=America/Los_Angeles`
 
-- Installer script with dependency management
-- Production Docker Compose configurations
-- Flask web API (Python 3)
-- Smart caching and status monitoring
-- Systemd service for auto-start
-- Complete aggregator templates
+Enable TAK Server:
+- `TAK_ENABLED=true`
+- `TAK_SERVER_HOST=your-tak-ip`
 
-## 🤝 Contributing
+Enable aggregators:
+- `FR24_ENABLED=true`
+- `FR24_SHARING_KEY=your_key`
 
-Issues and PRs welcome!
+## Start
 
-## 🙏 Acknowledgments
+```bash
+sudo systemctl start ultrafeeder
+```
 
-- [adsb.im](https://github.com/dirkhh/adsb-feeder-image) - Production patterns
-- [sdr-enthusiasts](https://github.com/sdr-enthusiasts) - Docker images
+## Access
 
-Built with ❤️ for the ADS-B community
+Map: `http://your-pi:8080`
+
+## Architecture
+
+Single ultrafeeder container includes:
+- readsb (RTL-SDR)
+- tar1090 (map)
+- TAK Server feed
+- All aggregators
+
+## Commands
+
+```bash
+sudo systemctl start ultrafeeder
+sudo systemctl stop ultrafeeder
+docker logs ultrafeeder
+```

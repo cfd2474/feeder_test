@@ -1,17 +1,43 @@
 version: '3.8'
 
 networks:
-  adsb_bridge:
+  adsb_net:
     driver: bridge
 
 services:
-  # Base placeholder service
-  # Actual aggregator services loaded dynamically from aggregators/*.yml
-  # based on AF_IS_*_ENABLED flags in .env
-  
-  placeholder:
-    image: hello-world
-    container_name: placeholder
-    restart: "no"
+  ultrafeeder:
+    image: ghcr.io/sdr-enthusiasts/docker-adsb-ultrafeeder:latest
+    container_name: ultrafeeder
+    hostname: ultrafeeder
+    restart: unless-stopped
     networks:
-      - adsb_bridge
+      - adsb_net
+    ports:
+      - "8080:80"
+      - "9273-9274:9273-9274"
+    environment:
+      - TZ=${FEEDER_TZ:-UTC}
+      - LAT=${FEEDER_LAT}
+      - LONG=${FEEDER_LONG}
+      - ALT=${FEEDER_ALT_M}m
+      - READSB_DEVICE_TYPE=rtlsdr
+      - READSB_RTLSDR_DEVICE=${READSB_DEVICE:-0}
+      - READSB_GAIN=${READSB_GAIN:-autogain}
+      - READSB_RX_LOCATION_ACCURACY=2
+      - READSB_STATS_RANGE=true
+      - MLAT_USER=${MLAT_SITE_NAME:-feeder}
+      - UPDATE_TAR1090=true
+      - TAR1090_ENABLE_AC_DB=true
+      - TAR1090_FLIGHTAWARELINKS=true
+      - TAR1090_SITESHOW=true
+      - ULTRAFEEDER_CONFIG=${ULTRAFEEDER_CONFIG}
+      - PROMETHEUS_ENABLE=true
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    volumes:
+      - /opt/adsb/ultrafeeder:/opt/adsb
+      - /run/readsb:/run/readsb
+      - /proc/diskstats:/proc/diskstats:ro
+    tmpfs:
+      - /run:exec,size=256M
+      - /tmp:size=128M
