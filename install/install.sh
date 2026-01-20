@@ -54,7 +54,9 @@ fi
 # Install Python and Flask
 echo "Installing Python dependencies..."
 apt-get update -qq
-apt-get install -y python3-flask python3-pip wget curl
+apt-get install -y python3-flask python3-pip wget curl rtl-sdr
+
+echo "✓ RTL-SDR tools installed"
 
 # Create directories
 echo "Creating directories..."

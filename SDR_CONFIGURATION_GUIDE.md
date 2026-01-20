@@ -1,435 +1,456 @@
-# SDR Configuration Feature
+# SDR Configuration Integration Guide
 
-## Overview
+## Changes Required
 
-New comprehensive SDR device detection and configuration system integrated into setup wizard and settings.
+### 1. Installer - Add rtl-sdr Package ✅ DONE
 
-## Setup Wizard Changes
+**File:** `install/install.sh`
 
-### New Page 1: SDR Configuration
-
-**Location:** `/setup/sdr` (setup-sdr.html)
-
-**Features:**
-- **Auto-Detection:** Automatically detects all connected RTL-SDR devices
-- **Interactive Table:** Shows device type, serial, configuration status
-- **Click-to-Configure:** Click any row to open configuration modal
-- **Real-Time Updates:** Table updates immediately after configuration
-
-**Detection Display:**
-```
-┌─────────────────────────────────────────────────────┐
-│ 🔍 Detecting SDR devices...                          │
-│ Please wait while we scan for connected receivers   │
-└─────────────────────────────────────────────────────┘
-```
-
-**Device Table:**
-```
-Type    | Serial | Use For  | Gain      | Bias Tee
---------|--------|----------|-----------|----------
-RTLSDR  | 1      | 1090 MHz | autogain  | -
-RTLSDR  | 2      | 978 MHz  | 49.6      | ✓ Enabled
-```
-
-### Configuration Modal
-
-When user clicks a device row:
-
-```
-┌────────────────────────────────────────┐
-│ Configure SDR Device                    │
-│ Device: RTLSDR - Serial: 00000001      │
-│                                         │
-│ Use For *                               │
-│ [1090 MHz (ADS-B)          ▼]          │
-│ Select the frequency this device will   │
-│ monitor                                 │
-│                                         │
-│ Gain                                    │
-│ [autogain                  ]            │
-│ Enter a value between 0 and 50, or     │
-│ use 'autogain' (recommended)           │
-│                                         │
-│ [✓] Enable Bias Tee                    │
-│ Only enable if you have an LNA that    │
-│ requires bias tee power                │
-│                                         │
-│ [💾 Save Configuration] [Cancel]        │
-└────────────────────────────────────────┘
-```
-
-**Fields:**
-- **Use For:** Dropdown with 1090 MHz or 978 MHz
-- **Gain:** Text input, accepts 0-50 or "autogain"
-- **Bias Tee:** Checkbox
-
-### Page Flow
-
-```
-Old Flow:
-/setup (Location) → Step 2 (Tailscale) → Step 3 (Aggregators)
-
-New Flow:
-/setup → /setup/sdr (SDR Config) → /setup/location → Step 2 → Step 3
-```
-
----
-
-## API Endpoints
-
-### GET /api/sdr/detect
-
-Detects connected RTL-SDR devices.
-
-**Response:**
-```json
-{
-  "success": true,
-  "devices": [
-    {
-      "index": 0,
-      "type": "rtlsdr",
-      "manufacturer": "Realtek",
-      "product": "RTL2832U",
-      "serial": "00000001",
-      "useFor": "1090",
-      "gain": "autogain",
-      "biastee": false
-    }
-  ]
-}
-```
-
-**Detection Method:**
+**Change:**
 ```bash
-rtl_test -t
+apt-get install -y python3-flask python3-pip wget curl rtl-sdr
 ```
 
-Parses output for device information.
+### 2. Setup Wizard - Add SDR as Step 1
 
-### POST /api/sdr/configure
+**File:** `web/templates/setup.html`
 
-Saves SDR configuration.
+**Current Steps:**
+- Step 1: Location
+- Step 2: Tailscale VPN Key
+- Step 3: Aggregator Settings
 
-**Request:**
-```json
-{
-  "devices": [
-    {
-      "index": 0,
-      "useFor": "1090",
-      "gain": "autogain",
-      "biastee": false
-    }
-  ]
-}
+**New Steps:**
+- Step 1: SDR Configuration (NEW)
+- Step 2: Location (was Step 1)
+- Step 3: Tailscale VPN Key (was Step 2)
+- Step 4: Aggregator Settings (was Step 3)
+
+**Implementation Approach:**
+
+Since setup.html is complex (266 lines), the best approach is to:
+
+**Option A: Insert SDR Step at Beginning**
+- Copy the SDR table/modal HTML from setup-sdr.html
+- Insert before current Step 1
+- Renumber all steps
+- Update JavaScript navigation
+
+**Option B: Use Separate Page (Current)**
+- Keep /setup/sdr as separate page
+- Redirect from / to /setup/sdr if no SDR configured
+- Then /setup/sdr redirects to /setup after configuration
+
+**Recommendation:** Option B is cleaner and already working!
+
+Just update the home route to always check SDR first:
+
+```python
+@app.route('/')
+def index():
+    env = read_env()
+    
+    # Check SDR first
+    if not env.get('READSB_DEVICE'):
+        return redirect(url_for('setup_sdr'))
+    
+    # Then location
+    if env.get('FEEDER_LAT', '0.0') == '0.0':
+        return redirect(url_for('setup'))
+    
+    return redirect(url_for('dashboard'))
 ```
 
-**Response:**
-```json
-{
-  "success": true
-}
+This creates the flow:
+```
+/ → /setup/sdr → /setup (location) → Step 2 → Step 3
 ```
 
-**Storage Format (.env):**
-```ini
-SDR_0=1090,autogain,false
-SDR_1=978,49.6,true
-READSB_DEVICE=0
-READSB_GAIN=autogain
-```
+### 3. Settings Page - Add SDR Configuration Section
 
----
+**File:** `web/templates/settings.html`
 
-## Settings Page Integration
-
-### SDR Configuration Section
-
-**To be added to settings.html:**
+**Add New Card:**
 
 ```html
-<!-- SDR Configuration Section -->
+<!-- SDR Devices Section -->
 <div class="card">
-    <h3>SDR Devices</h3>
+    <h3>📡 SDR Devices</h3>
+    <p>Configure Software Defined Radio receivers</p>
     
-    <button class="btn btn-secondary" onclick="detectSDRDevices()">
+    <button class="btn btn-secondary" onclick="detectSDRDevices()" id="detectBtn">
         🔍 Detect Devices
     </button>
     
-    <div id="sdrDevicesTable" style="margin-top: 20px;">
-        <!-- Same table as setup wizard -->
+    <div id="sdrDevicesSection" style="display: none; margin-top: 20px;">
+        <table class="sdr-table">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Serial</th>
+                    <th>Use For</th>
+                    <th>Gain</th>
+                    <th>Bias Tee</th>
+                </tr>
+            </thead>
+            <tbody id="sdrTableBody">
+                <!-- Populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+    
+    <div id="sdrStatus" style="display: none; margin-top: 15px;"></div>
+</div>
+```
+
+**Add JavaScript:**
+
+```javascript
+// SDR Configuration
+let sdrDevices = [];
+let currentSDRIndex = null;
+
+async function detectSDRDevices() {
+    const btn = document.getElementById('detectBtn');
+    const section = document.getElementById('sdrDevicesSection');
+    const status = document.getElementById('sdrStatus');
+    
+    btn.disabled = true;
+    btn.textContent = '🔍 Detecting...';
+    status.style.display = 'block';
+    status.textContent = 'Scanning for SDR devices...';
+    status.className = 'info';
+    
+    try {
+        const response = await fetch('/api/sdr/detect');
+        const data = await response.json();
+        
+        if (data.success && data.devices && data.devices.length > 0) {
+            sdrDevices = data.devices;
+            displaySDRDevices();
+            section.style.display = 'block';
+            status.textContent = `✓ Found ${data.devices.length} device(s)`;
+            status.className = 'success';
+        } else {
+            status.textContent = '⚠ No SDR devices detected';
+            status.className = 'error';
+            section.style.display = 'none';
+        }
+    } catch (error) {
+        status.textContent = 'Error detecting devices: ' + error.message;
+        status.className = 'error';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Detect Devices';
+    }
+}
+
+function displaySDRDevices() {
+    const tbody = document.getElementById('sdrTableBody');
+    tbody.innerHTML = '';
+    
+    sdrDevices.forEach((device, index) => {
+        const row = document.createElement('tr');
+        row.onclick = () => openSDRConfigModal(index);
+        row.style.cursor = 'pointer';
+        
+        if (device.use_for) {
+            row.style.background = '#f0fdf4';
+        }
+        
+        row.innerHTML = `
+            <td><strong>${device.type.toUpperCase()}</strong></td>
+            <td>${device.serial}</td>
+            <td>
+                ${device.use_for ? 
+                    `<span class="badge badge-${device.use_for}">${device.use_for} MHz</span>` : 
+                    '<span style="color: #9ca3af;">Not Configured</span>'
+                }
+            </td>
+            <td>${device.gain || 'autogain'}</td>
+            <td>${device.biastee ? '✓ Enabled' : '—'}</td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+
+function openSDRConfigModal(index) {
+    currentSDRIndex = index;
+    const device = sdrDevices[index];
+    
+    document.getElementById('sdrModalDeviceInfo').textContent = 
+        `${device.type.toUpperCase()} - Serial: ${device.serial}`;
+    
+    document.getElementById('sdrModalUseFor').value = device.use_for || '';
+    document.getElementById('sdrModalGain').value = device.gain || 'autogain';
+    document.getElementById('sdrModalBiasTee').checked = device.biastee || false;
+    
+    document.getElementById('sdrConfigModal').style.display = 'flex';
+}
+
+function closeSDRConfigModal() {
+    document.getElementById('sdrConfigModal').style.display = 'none';
+    currentSDRIndex = null;
+}
+
+async function saveSDRDeviceConfig() {
+    if (currentSDRIndex === null) return;
+    
+    const useFor = document.getElementById('sdrModalUseFor').value;
+    const gain = document.getElementById('sdrModalGain').value.trim();
+    const biastee = document.getElementById('sdrModalBiasTee').checked;
+    
+    // Validate
+    if (!useFor) {
+        alert('Please select a frequency (Use For)');
+        return;
+    }
+    
+    if (gain && gain !== 'autogain' && gain !== 'auto') {
+        const gainNum = parseFloat(gain);
+        if (isNaN(gainNum) || gainNum < 0 || gainNum > 50) {
+            alert('Gain must be between 0 and 50, or "autogain"');
+            return;
+        }
+    }
+    
+    // Update device
+    sdrDevices[currentSDRIndex].use_for = useFor;
+    sdrDevices[currentSDRIndex].gain = gain === 'auto' ? 'autogain' : gain;
+    sdrDevices[currentSDRIndex].biastee = biastee;
+    
+    // Save to backend
+    try {
+        const response = await fetch('/api/sdr/configure', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ devices: sdrDevices })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            closeSDRConfigModal();
+            displaySDRDevices();
+            showStatus('✓ SDR configuration saved. Restart services to apply.', 'success');
+        } else {
+            alert('Error saving configuration: ' + (result.message || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error saving configuration: ' + error.message);
+    }
+}
+```
+
+**Add Modal HTML (before closing </body>):**
+
+```html
+<!-- SDR Configuration Modal -->
+<div id="sdrConfigModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+        <h3>Configure SDR Device</h3>
+        
+        <div style="background: #f9fafb; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
+            <strong>Device:</strong> <span id="sdrModalDeviceInfo"></span>
+        </div>
+        
+        <div class="form-group">
+            <label>Use For *</label>
+            <select id="sdrModalUseFor" required>
+                <option value="">-- Select Frequency --</option>
+                <option value="1090">1090 MHz (ADS-B)</option>
+                <option value="978">978 MHz (UAT)</option>
+            </select>
+            <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 0.85em;">
+                Select the frequency this receiver will monitor
+            </p>
+        </div>
+        
+        <div class="form-group">
+            <label>Gain</label>
+            <input type="text" id="sdrModalGain" placeholder="autogain" value="autogain">
+            <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 0.85em;">
+                Enter a value between 0 and 50, or 'autogain' (recommended)
+            </p>
+        </div>
+        
+        <div class="form-group">
+            <label style="display: flex; align-items: center; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="sdrModalBiasTee" style="margin-right: 10px; width: 18px; height: 18px;">
+                <span>Enable Bias Tee</span>
+            </label>
+            <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 0.85em;">
+                Only enable if you have an LNA that requires bias tee power
+            </p>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
+            <button class="btn btn-primary" onclick="saveSDRDeviceConfig()">
+                💾 Save Configuration
+            </button>
+            <button class="btn btn-secondary" onclick="closeSDRConfigModal()">
+                Cancel
+            </button>
+        </div>
     </div>
 </div>
 ```
 
-**Behavior:**
-- Shows same detection and configuration interface as setup wizard
-- Users can reconfigure devices at any time
-- Changes require service restart to apply
+**Add CSS:**
 
----
+```css
+.sdr-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
 
-## Configuration Details
+.sdr-table th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-size: 0.9em;
+}
 
-### Gain Settings
+.sdr-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 0.9em;
+}
 
-**Options:**
-- `autogain` - Automatic gain adjustment (recommended)
-- `0` - Minimum gain
-- `49.6` - Maximum gain (typical)
-- `0-50` - Any value in between
+.sdr-table tr:last-child td {
+    border-bottom: none;
+}
 
-**Validation:**
-- Must be "autogain" or a number 0-50
-- Alert shown if invalid
+.sdr-table tbody tr:hover {
+    background: #f9fafb;
+}
 
-### Bias Tee
+.badge-1090 {
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
 
-**Purpose:** Provides power to external LNA
-
-**Warning:** Only enable if you have an LNA that requires it!
-
-**Technical:**
-- Sets `READSB_ENABLE_BIASTEE=ON` in config
-- Passes to ultrafeeder container
-
-### Frequency Options
-
-**1090 MHz (ADS-B):**
-- Standard commercial aircraft tracking
-- Most common use case
-- Mode S / ADS-B
-
-**978 MHz (UAT):**
-- US-specific
-- General aviation
-- Weather information
-- Requires separate container/config
-
----
-
-## Error Handling
-
-### No Devices Found
-
-Display:
-```
-⚠️ No SDR Devices Detected
-
-No RTL-SDR devices were found connected to this system.
-
-Please check:
-• RTL-SDR dongle is plugged in
-• USB connection is secure
-• RTL-SDR drivers are installed
-
-[🔄 Retry Detection] [Skip for Now →]
-```
-
-**Actions:**
-- **Retry:** Re-runs detection
-- **Skip:** Continues to location config (can configure SDR later)
-
-### Detection Timeout
-
-If `rtl_test` times out (>5 seconds):
-```json
-{
-  "success": false,
-  "error": "Detection timed out"
+.badge-978 {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.85em;
+    font-weight: 600;
 }
 ```
 
-### Missing Drivers
+### 4. Route Updates ✅ DONE
 
-If `rtl_test` not found:
-```json
-{
-  "success": false,
-  "error": "rtl_test not found"
-}
-```
+**File:** `web/app.py`
+
+Already updated to redirect from / to /setup/sdr if no SDR configured.
 
 ---
 
-## Multiple Device Support
+## Implementation Steps
 
-System supports multiple SDR devices:
+### Quick Implementation
 
-**Example Configuration:**
-```
-Device 0: 1090 MHz → Primary ADS-B receiver
-Device 1: 978 MHz → UAT receiver
-```
+**Keep the current two-page flow:**
 
-**Environment:**
-```ini
-SDR_0=1090,autogain,false
-SDR_1=978,49.6,true
-READSB_DEVICE=0
-```
+1. ✅ rtl-sdr added to installer
+2. ✅ /setup/sdr exists as separate page
+3. ✅ / redirects to /setup/sdr if no SDR config
+4. ✅ /setup/sdr redirects to /setup after config
+5. ⏳ **TODO:** Add SDR section to settings.html
 
-**Future Enhancement:**
-Could run multiple ultrafeeder instances for multi-frequency monitoring.
+This gives you:
+- Clean separation of concerns
+- Easy to maintain
+- Works exactly like requested
+- Just need to add settings integration
 
----
+### Files to Update
 
-## Visual Design
-
-### Table Styling
-
-**Unconfigured Row:**
-```
-Type    | Serial | Use For
-RTLSDR  | 1      | [Not Configured] ← Gray badge
-```
-
-**Configured Row (1090):**
-```
-Type    | Serial | Use For
-RTLSDR  | 1      | [1090 MHz] ← Blue badge, green background
-```
-
-**Configured Row (978):**
-```
-Type    | Serial | Use For
-RTLSDR  | 2      | [978 MHz] ← Yellow badge, green background
-```
-
-### Hover Effect
-
-Rows highlight on hover to indicate clickability.
-
-### Badge Colors
-
-- **Unconfigured:** Gray (#f3f4f6)
-- **1090 MHz:** Blue (#dbeafe / #1e40af)
-- **978 MHz:** Yellow (#fef3c7 / #92400e)
+**installer:** ✅ Done  
+**app.py routes:** ✅ Done  
+**setup-sdr.html:** ✅ Done  
+**settings.html:** ⏳ Need to add SDR section
 
 ---
 
-## Installation
-
-### Add to Existing System
+## Deployment
 
 ```bash
-cd /opt/adsb/web
+cd /opt/adsb
 
-# Download new files
-sudo wget https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/templates/setup-sdr.html -O templates/setup-sdr.html
+# Update installer
+sudo wget https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh -O install/install.sh
+
+# Install rtl-sdr if not already installed
+sudo apt-get install -y rtl-sdr
+
+# Update web files
+cd web
 sudo wget https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/app.py -O app.py
+sudo wget https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/templates/setup-sdr.html -O templates/setup-sdr.html
+sudo wget https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/templates/settings.html -O templates/settings.html
 
-# Restart web service
+# Restart
 sudo systemctl restart adsb-web
 ```
 
-### Test
-
-```bash
-# Test SDR detection
-curl http://localhost:5000/api/sdr/detect
-
-# Should return device list
-```
-
 ---
 
-## Dependencies
+## Testing
 
-### Required:
-- `rtl_test` - RTL-SDR command-line tool
-- `python3` - Flask backend
-- RTL-SDR drivers installed
-
-### Check Installation:
+### Test SDR Detection
 ```bash
 rtl_test -t
+# Should show connected devices
 ```
 
-Should show connected devices.
+### Test Wizard Flow
+1. Navigate to http://pi-ip:5000
+2. Should redirect to /setup/sdr (Step 1: SDR Config)
+3. Configure device
+4. Click "Apply Settings & Continue"
+5. Should go to /setup (Step 2: Location)
+6. Complete setup
 
----
-
-## Future Enhancements
-
-### Planned Features:
-1. **Antenna Configuration** - Cable loss, antenna type
-2. **PPM Correction** - Frequency correction settings
-3. **Filter Configuration** - Blacklisting/whitelisting
-4. **Performance Metrics** - Signal strength, message rate
-5. **Multi-Frequency Support** - Run both 1090 and 978 simultaneously
-6. **Device Health Monitoring** - Temperature, errors
-
-### Settings Page SDR Section:
-- Full device reconfiguration
-- Performance metrics display
-- Quick enable/disable without full config
-
----
-
-## Troubleshooting
-
-### Device Not Detected
-
-**Check USB:**
-```bash
-lsusb | grep RTL
-```
-
-**Check Drivers:**
-```bash
-rtl_test -t
-```
-
-**Check Permissions:**
-```bash
-sudo usermod -aG plugdev $USER
-```
-
-### Configuration Not Applying
-
-**Rebuild Config:**
-```bash
-cd /opt/adsb
-sudo python3 scripts/config_builder.py
-```
-
-**Restart Services:**
-```bash
-sudo systemctl restart ultrafeeder
-```
-
-### Gain Issues
-
-**Too High:** Causes overload, reduced performance
-**Too Low:** Weak signals, reduced range
-**Recommended:** Start with `autogain`, adjust if needed
+### Test Settings
+1. Navigate to Settings
+2. Find "SDR Devices" section
+3. Click "Detect Devices"
+4. Should show table with devices
+5. Click device row to reconfigure
+6. Save changes
 
 ---
 
 ## Summary
 
-**New Features:**
-✅ SDR device auto-detection
-✅ Interactive configuration table
-✅ Click-to-configure interface
-✅ Gain and bias tee settings
-✅ Multiple device support
-✅ Integration with setup wizard
-✅ API endpoints for detection/config
+**Status:**
+- ✅ rtl-sdr in installer
+- ✅ SDR detection API working
+- ✅ SDR wizard page working
+- ✅ Routes configured properly
+- ⏳ Settings integration (just need HTML/JS/CSS additions)
 
-**User Experience:**
-✅ Visual device status
-✅ One-click configuration
-✅ Clear validation messages
-✅ Skip option if no devices
+**Recommendation:**
+Keep the current flow with /setup/sdr as a separate page. It's cleaner and already working. Just add the SDR configuration section to settings.html using the code provided above.
 
-**Technical:**
-✅ Stores config in .env
-✅ Passes to ultrafeeder
-✅ Supports multiple frequencies
-✅ Validates input
-
-Ready for deployment! 🚀
+**Why this is better than integrating into setup.html:**
+- Cleaner code separation
+- Easier to maintain
+- No complex step renumbering
+- Modal already works perfectly
+- Detection logic isolated
+- Settings can reuse same components
