@@ -145,7 +145,7 @@ async function saveAndStart() {
     showStatus('Saving configuration...', 'info');
     
     try {
-        // Save config
+        // Save config first
         const response = await fetch('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -154,20 +154,11 @@ async function saveAndStart() {
         
         if (!response.ok) throw new Error('Failed to save configuration');
         
-        showStatus('Configuration saved! Starting service...', 'success');
+        showStatus('Configuration saved! Starting services...', 'success');
         
-        // Restart service
-        const restartResponse = await fetch('/api/service/restart', {
-            method: 'POST'
-        });
-        
-        if (!restartResponse.ok) throw new Error('Failed to restart service');
-        
-        showStatus(`✓ Setup complete! Feeder: ${finalSiteName}. Redirecting to dashboard...`, 'success');
-        
-        setTimeout(() => {
-            window.location.href = '/dashboard';
-        }, 3000);
+        // Redirect to loading page with config data
+        const configParam = encodeURIComponent(JSON.stringify(config));
+        window.location.href = `/loading?config=${configParam}`;
         
     } catch (error) {
         showStatus('Error: ' + error.message, 'error');

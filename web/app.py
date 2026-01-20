@@ -182,6 +182,11 @@ def setup():
     env = read_env()
     return render_template('setup.html', config=env)
 
+@app.route('/loading')
+def loading():
+    """Loading page with real-time status"""
+    return render_template('loading.html')
+
 @app.route('/dashboard')
 def dashboard():
     """Status dashboard"""

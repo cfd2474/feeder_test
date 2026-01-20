@@ -10,10 +10,12 @@
     <div class="container">
         <header>
             <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
+            <p style="margin: 5px 0 15px 0; color: #9ca3af; font-size: 0.9em;">Tactical Awareness Kit Network for Enhanced Tracking – Public Safety</p>
             <nav>
                 <a href="/dashboard" class="active">Dashboard</a>
                 <a href="/settings">Settings</a>
                 <a href="http://{{ request.host.split(':')[0] }}:8080" target="_blank">Map</a>
+                <button onclick="refreshDashboard()" class="btn btn-sm" style="margin-left: auto;">🔄 Refresh</button>
             </nav>
         </header>
 
@@ -91,6 +93,117 @@
         <div id="status"></div>
     </div>
 
+    <style>
+        header nav {
+            display: flex;
+            align-items: center;
+        }
+        
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-sm:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+        
+        .btn-sm:active {
+            transform: translateY(0);
+        }
+        
+        .refreshing {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .last-updated {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+    </style>
+
+    <div class="last-updated" id="lastUpdated">
+        Last updated: <span id="updateTime">Just now</span>
+    </div>
+
     <script src="/static/js/dashboard.js"></script>
+    <script>
+        let autoRefreshInterval;
+        let lastUpdateTime = new Date();
+        
+        function refreshDashboard() {
+            const btn = event ? event.target : null;
+            if (btn) {
+                btn.classList.add('refreshing');
+                btn.disabled = true;
+            }
+            
+            // Reload the page
+            location.reload();
+        }
+        
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const seconds = Math.floor((now - lastUpdateTime) / 1000);
+            
+            let timeText;
+            if (seconds < 60) {
+                timeText = `${seconds}s ago`;
+            } else if (seconds < 3600) {
+                const minutes = Math.floor(seconds / 60);
+                timeText = `${minutes}m ago`;
+            } else {
+                const hours = Math.floor(seconds / 3600);
+                timeText = `${hours}h ago`;
+            }
+            
+            document.getElementById('updateTime').textContent = timeText;
+        }
+        
+        // Auto-refresh every 10 seconds
+        function startAutoRefresh() {
+            // Update time display every second
+            setInterval(updateLastUpdateTime, 1000);
+            
+            // Auto-refresh page every 10 seconds
+            autoRefreshInterval = setInterval(() => {
+                console.log('Auto-refreshing dashboard...');
+                location.reload();
+            }, 10000);
+        }
+        
+        // Start auto-refresh when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            lastUpdateTime = new Date();
+            updateLastUpdateTime();
+            startAutoRefresh();
+        });
+        
+        // Clear interval when leaving page
+        window.addEventListener('beforeunload', () => {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+        });
+    </script>
 </body>
 </html>
