@@ -62,11 +62,14 @@ def get_docker_status():
 
 def restart_service():
     """Restart ultrafeeder service"""
+    import time
     try:
-        # Service runs as root, so no sudo needed
+        # Brief delay to prevent rapid-fire restarts
+        time.sleep(2)
+        
         result = subprocess.run(
             ['systemctl', 'restart', 'ultrafeeder'],
-            timeout=10,
+            timeout=30,  # Increased from 10 to 30 seconds for docker compose
             capture_output=True,
             text=True
         )
@@ -77,7 +80,7 @@ def restart_service():
             print(f"✗ Restart failed (code {result.returncode}): {result.stderr}")
             return False
     except subprocess.TimeoutExpired:
-        print("✗ Restart timed out after 10 seconds")
+        print("✗ Restart timed out after 30 seconds")
         return False
     except Exception as e:
         print(f"✗ Restart exception: {e}")
