@@ -1,20 +1,54 @@
 #!/bin/bash
 # TAKNET-PS-ADSB-Feeder One-Line Installer v2.1
-# wget -O - https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
+# curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
 
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then 
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  ⚠️  ERROR: Root privileges required"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "This installer must be run with sudo to:"
+    echo "  • Install Docker"
+    echo "  • Create systemd services"
+    echo "  • Configure system packages"
+    echo ""
+    echo "Please run with sudo:"
+    echo ""
+    echo "  curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash"
+    echo ""
+    echo "Or if you downloaded the script:"
+    echo ""
+    echo "  sudo bash install.sh"
+    echo ""
+    exit 1
+fi
+
+echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  TAKNET-PS-ADSB-Feeder Installer v2.1"
-echo "  Ultrafeeder + TAK + Web UI"
+echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
 
 # Install Docker
 if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."
     curl -fsSL https://get.docker.com | sh
+    systemctl daemon-reload
     systemctl enable docker
     systemctl start docker
+    
+    # Add user to docker group if SUDO_USER is set
+    if [ "$SUDO_USER" ]; then
+        usermod -aG docker $SUDO_USER
+        echo "✓ Added $SUDO_USER to docker group"
+    fi
+else
+    echo "✓ Docker already installed"
 fi
 
 # Install Python and Flask
