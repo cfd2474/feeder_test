@@ -595,13 +595,58 @@
                 
                 if (!response.ok) throw new Error('Failed to save');
                 
-                showStatus('✓ Saved! Feeder name: ' + finalSiteName + '. Restart service to apply.', 'success');
-                
-                setTimeout(() => location.reload(), 2000);
+                // Show save confirmation modal
+                showSaveModal(finalSiteName);
                 
             } catch (error) {
                 showStatus('Error: ' + error.message, 'error');
             }
+        }
+        
+        function showSaveModal(feederName) {
+            const modal = document.getElementById('saveConfirmModal');
+            const feederNameSpan = document.getElementById('savedFeederName');
+            feederNameSpan.textContent = feederName;
+            modal.style.display = 'flex';
+        }
+        
+        function closeSaveModal() {
+            const modal = document.getElementById('saveConfirmModal');
+            modal.style.display = 'none';
+        }
+        
+        async function restartServices() {
+            const modal = document.getElementById('saveConfirmModal');
+            const statusDiv = document.getElementById('restartStatus');
+            const btnContainer = document.getElementById('modalButtons');
+            
+            // Hide buttons, show status
+            btnContainer.style.display = 'none';
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<p>🔄 Restarting services...</p>';
+            
+            try {
+                const response = await fetch('/api/service/restart', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error('Failed to restart');
+                
+                statusDiv.innerHTML = '<p>✓ Services restarting! Redirecting to dashboard...</p>';
+                
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 2000);
+                
+            } catch (error) {
+                statusDiv.innerHTML = '<p class="error">✗ Error: ' + error.message + '</p>';
+                btnContainer.style.display = 'block';
+            }
+        }
+        
+        function notNowRestart() {
+            closeSaveModal();
+            showStatus('✓ Configuration saved. Remember to restart services to apply changes.', 'success');
         }
         
         function showStatus(message, type) {
@@ -611,5 +656,59 @@
             status.style.display = 'block';
         }
     </script>
+    
+    <!-- Save Confirmation Modal -->
+    <div id="saveConfirmModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2>✓ Configuration Saved</h2>
+            <p>Feeder name: <strong id="savedFeederName"></strong></p>
+            
+            <div class="info-box" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; color: #92400e;">
+                    ⚠️ <strong>Changes to feeds require a service restart to apply.</strong>
+                </p>
+            </div>
+            
+            <p>Would you like to restart services now?</p>
+            
+            <div id="restartStatus" style="display: none; text-align: center; padding: 20px;"></div>
+            
+            <div id="modalButtons" style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="restartServices()">
+                    🔄 Yes, Restart Services
+                </button>
+                <button class="btn btn-secondary" onclick="notNowRestart()">
+                    ⏸️ Not Now
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+            transform: translateY(-2px);
+        }
+        
+        #restartStatus p {
+            font-size: 1.1em;
+            margin: 10px 0;
+        }
+        
+        #restartStatus .error {
+            color: #dc2626;
+        }
+    </style>
 </body>
 </html>
