@@ -1,11 +1,11 @@
 #!/bin/bash
-# TAK-ADSB-Feeder One-Line Installer v2.1
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.1
 # wget -O - https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAK-ADSB-Feeder Installer v2.1"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.1"
 echo "  Ultrafeeder + TAK + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -51,7 +51,7 @@ chmod +x /opt/adsb/web/app.py
 echo "Creating ultrafeeder service..."
 cat > /etc/systemd/system/ultrafeeder.service << 'SVCEOF'
 [Unit]
-Description=TAK-ADSB Ultrafeeder
+Description=TAKNET-PS-ADSB Ultrafeeder
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target
@@ -75,7 +75,7 @@ SVCEOF
 echo "Creating web interface service..."
 cat > /etc/systemd/system/adsb-web.service << 'WEBSVC'
 [Unit]
-Description=TAK-ADSB Web Interface
+Description=TAKNET-PS-ADSB Web Interface
 After=network.target
 
 [Service]

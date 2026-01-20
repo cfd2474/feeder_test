@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings - TAK-ADSB</title>
+    <title>Settings - TAKNET-PS-ADSB</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         /* Modal styles */
@@ -70,7 +70,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🛩️ TAK-ADSB-Feeder</h1>
+            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
             <nav>
                 <a href="/dashboard">Dashboard</a>
                 <a href="/settings" class="active">Settings</a>
@@ -135,7 +135,7 @@
             <div class="card">
                 <h3>Tailscale VPN</h3>
                 <div class="info-note" style="margin-bottom: 15px;">
-                    <p>ℹ️ Tailscale provides secure VPN connection to TAK Server aggregator</p>
+                    <p>ℹ️ Tailscale provides secure VPN connection to TAKNET-PS Server aggregator</p>
                 </div>
                 
                 <div class="form-group">
@@ -190,17 +190,17 @@
             </div>
 
             <div class="card">
-                <h3>TAK Server</h3>
+                <h3>TAKNET-PS Server</h3>
                 <div class="form-group">
                     <label>
-                        <input type="checkbox" id="tak_enabled" {{ 'checked' if config.get('TAK_ENABLED', 'true') == 'true' else '' }}>
-                        Enable TAK Server Feed
+                        <input type="checkbox" id="tak_enabled" {{ 'checked' if config.get('TAKNET_PS_ENABLED', 'true') == 'true' else '' }}>
+                        Enable TAKNET-PS Server Feed
                     </label>
                 </div>
                 <div class="form-group" style="margin-top: 10px;">
                     <label>
-                        <input type="checkbox" id="tak_mlat_enabled" {{ 'checked' if config.get('TAK_MLAT_ENABLED', 'true') == 'true' else '' }}>
-                        Enable TAK Server MLAT
+                        <input type="checkbox" id="tak_mlat_enabled" {{ 'checked' if config.get('TAKNET_PS_MLAT_ENABLED', 'true') == 'true' else '' }}>
+                        Enable TAKNET-PS Server MLAT
                     </label>
                     <small style="color: #666; display: block; margin-top: 5px; margin-left: 25px;">
                         Multilateration for improved position accuracy
@@ -256,7 +256,7 @@
                 <p><strong>Are you sure you want to disable Tailscale?</strong></p>
                 <p>This is <strong>not recommended</strong>. Disabling Tailscale will:</p>
                 <ul style="margin: 10px 0; padding-left: 20px;">
-                    <li>Force connection to TAK Server via public internet</li>
+                    <li>Force connection to TAKNET-PS Server via public internet</li>
                     <li>Remove secure VPN encryption</li>
                     <li>Potentially reduce reliability</li>
                 </ul>
@@ -271,7 +271,7 @@
     <!-- Disable MLAT Confirmation Modal -->
     <div id="disableMlatModal" class="modal">
         <div class="modal-content">
-            <h2 class="modal-header">⚠️ Disable TAK Server MLAT?</h2>
+            <h2 class="modal-header">⚠️ Disable TAKNET-PS Server MLAT?</h2>
             <div class="modal-body">
                 <p><strong>Are you sure you want to disable MLAT?</strong></p>
                 <p>This is <strong>not recommended</strong>. Disabling MLAT will:</p>
@@ -393,7 +393,7 @@
             try {
                 const response = await fetch(
                     `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
-                    { headers: { 'User-Agent': 'TAK-ADSB-Feeder/2.1' } }
+                    { headers: { 'User-Agent': 'TAKNET-PS-ADSB-Feeder/2.1' } }
                 );
                 
                 if (!response.ok) throw new Error('Geocoding failed');
@@ -576,8 +576,8 @@
                 TAILSCALE_ENABLED: document.getElementById('tailscale_enabled').checked ? 'true' : 'false',
                 TAILSCALE_AUTH_KEY: document.getElementById('tailscale_key').value.trim(),
                 
-                TAK_ENABLED: document.getElementById('tak_enabled').checked ? 'true' : 'false',
-                TAK_MLAT_ENABLED: document.getElementById('tak_mlat_enabled').checked ? 'true' : 'false',
+                TAKNET_PS_ENABLED: document.getElementById('tak_enabled').checked ? 'true' : 'false',
+                TAKNET_PS_MLAT_ENABLED: document.getElementById('tak_mlat_enabled').checked ? 'true' : 'false',
                 
                 FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
                 FR24_SHARING_KEY: document.getElementById('fr24_key').value,

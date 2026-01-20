@@ -1,78 +1,43 @@
-# TAK-ADSB-Feeder v2.1
+# TAKNET-PS-ADSB-Feeder v2.1
 
-**adsb.im clone with hardcoded TAK Server priority**
+**Tactical Awareness Kit Network for Enhanced Tracking – Public Safety**
 
-## 🎯 What Makes This Different
+## Features
 
-- ✅ **TAK Server always enabled** - No configuration needed
-- ✅ **Automatic failover** - Primary (Tailscale) → Fallback (Public IP)
-- ✅ **Web setup wizard** - Configure location and optional feeds
-- ✅ **Production-ready** - Based on adsb.im architecture
+- 🎯 **TAKNET-PS Server Priority Feed** - Hardcoded as primary aggregator
+- 📡 **Beast & MLAT Feeds** - Dual data streams for maximum accuracy  
+- 🔐 **Tailscale VPN** - Secure encrypted connection with auto-failover
+- 🌐 **Web UI** - Complete setup wizard and settings management
+- 🔄 **Auto-Configuration** - Missing settings automatically repaired
+- ⚠️ **Disable Protection** - Confirmation modals prevent accidental disabling
 
-## 🚀 Quick Start
-
-```bash
-wget -O - https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
-```
-
-Open browser: **http://your-pi-ip:5000**
-
-## ✨ Features
-
-### TAK Server (Hardcoded Priority)
-- Always feeds your TAK aggregator
-- Primary IP: 100.117.34.88 (Tailscale)
-- Fallback IP: 104.225.219.254 (Public)
-- Auto-selects best connection
-- Can't be disabled
-
-### Optional Public Aggregators
-- FlightRadar24
-- ADS-B Exchange
-- Airplanes.Live
-- RadarBox
-- PlaneFinder
-- OpenSky Network
-
-## 📖 Documentation
-
-- [Phase 1 Details](PHASE1-README.md) - TAK hardcoded implementation
-- [Installation Guide](#installation)
-- [Configuration](#configuration)
-
-## 🏗️ Architecture
-
-```
-RTL-SDR → readsb → Ultrafeeder
-                      ├─→ TAK Server (Priority, Always On)
-                      ├─→ FlightRadar24 (Optional)
-                      ├─→ ADS-B Exchange (Optional)
-                      └─→ Other feeds (Optional)
-```
-
-## 📝 Configuration
-
-Only location is required:
+## Quick Install
 
 ```bash
-FEEDER_LAT=33.5539
-FEEDER_LONG=-117.2139
-FEEDER_ALT_M=304
+curl -sSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | bash
 ```
 
-TAK Server is pre-configured and always active.
+## What's TAKNET-PS?
 
-## 🌐 Access Points
+TAKNET-PS (Tactical Awareness Kit Network for Enhanced Tracking – Public Safety) is an aircraft tracking aggregation network designed for:
+- Emergency response coordination
+- Public safety operations
+- Enhanced situational awareness
+- Multilateration tracking accuracy
 
-- Setup/Dashboard: `http://your-pi:5000`
-- Live Map: `http://your-pi:8080`
+While compatible with TAK (Team Awareness Kit), TAKNET-PS provides broader capabilities for public safety and tracking applications beyond traditional tactical operations.
 
-## 🔮 Roadmap
+## Configuration
 
-- **Phase 1** ✅ - TAK Server hardcoded with failover
-- **Phase 2** 🚧 - Active connection monitoring
-- **Phase 3** 📋 - Auto-update system
+TAKNET-PS settings are **hardcoded and auto-configured**:
 
-## 📜 License
+```ini
+TAKNET_PS_ENABLED=true
+TAKNET_PS_SERVER_HOST_PRIMARY=100.117.34.88
+TAKNET_PS_SERVER_HOST_FALLBACK=104.225.219.254
+TAKNET_PS_SERVER_PORT=30004
+TAKNET_PS_MLAT_ENABLED=true
+TAKNET_PS_MLAT_PORT=30105
+```
 
-MIT
+Missing settings are **automatically repaired** on every config rebuild!

@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TAK-ADSB Dashboard</title>
+    <title>TAKNET-PS-ADSB Dashboard</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🛩️ TAK-ADSB-Feeder</h1>
+            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
             <nav>
                 <a href="/dashboard" class="active">Dashboard</a>
                 <a href="/settings">Settings</a>
@@ -46,10 +46,10 @@
                 <div class="card">
                     <h3>Active Feeds</h3>
                     <div id="active-feeds">
-                        {% if config.get('TAK_ENABLED') == 'true' and config.get('TAK_SERVER_HOST') %}
+                        {% if config.get('TAKNET_PS_ENABLED') == 'true' and config.get('TAKNET_PS_SERVER_HOST') %}
                             <div class="feed-item">
                                 <span class="status-dot active"></span>
-                                TAK Server ({{ config.get('TAK_SERVER_HOST') }})
+                                TAKNET-PS Server ({{ config.get('TAKNET_PS_SERVER_HOST') }})
                             </div>
                         {% endif %}
                         {% if config.get('FR24_ENABLED') == 'true' %}

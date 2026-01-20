@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TAK-ADSB Setup</title>
+    <title>TAKNET-PS-ADSB Setup</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🛩️ TAK-ADSB-Feeder</h1>
+            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
             <p>Setup Wizard</p>
         </header>
 
@@ -130,11 +130,11 @@
             <!-- Step 2: Tailscale Setup -->
             <div class="step" id="step2">
                 <h2>Step 2: Tailscale VPN</h2>
-                <p>Secure connection to TAK Server aggregator</p>
+                <p>Secure connection to TAKNET-PS Server aggregator</p>
                 
                 <div class="info-box" style="margin-bottom: 20px; background: #e8f5e9; border-left: 4px solid #4caf50;">
                     <h3 style="color: #2e7d32;">✓ Recommended: Tailscale VPN</h3>
-                    <p>Tailscale is the <strong>preferred method</strong> to reach the TAK Server aggregator. It provides:</p>
+                    <p>Tailscale is the <strong>preferred method</strong> to reach the TAKNET-PS Server aggregator. It provides:</p>
                     <ul style="margin: 10px 0; padding-left: 20px;">
                         <li>Secure encrypted connection</li>
                         <li>Direct network access to aggregator</li>
@@ -169,8 +169,8 @@
                 </div>
                 
                 <div class="info-box" style="margin-top: 20px;">
-                    <h3>✓ TAK Server (Always Active)</h3>
-                    <p>Your feeder will automatically connect to the TAK Server aggregator via:</p>
+                    <h3>✓ TAKNET-PS Server (Always Active)</h3>
+                    <p>Your feeder will automatically connect to the TAKNET-PS Server aggregator via:</p>
                     <ul style="margin: 10px 0; padding-left: 20px;">
                         <li><strong>Primary:</strong> Tailscale VPN (if enabled)</li>
                         <li><strong>Fallback:</strong> Public IP (automatic failover)</li>
@@ -187,7 +187,7 @@
                 <p>Optional: Share data with public aggregator services</p>
                 
                 <div class="info-note">
-                    <p>ℹ️ TAK Server is already configured and will receive all data. These are optional additional feeds.</p>
+                    <p>ℹ️ TAKNET-PS Server is already configured and will receive all data. These are optional additional feeds.</p>
                 </div>
                 
                 <div class="aggregator-card">

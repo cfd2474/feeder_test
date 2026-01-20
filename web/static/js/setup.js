@@ -16,7 +16,7 @@ async function getZipCodeFromCoords(lat, lon) {
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
             {
                 headers: {
-                    'User-Agent': 'TAK-ADSB-Feeder/2.1'
+                    'User-Agent': 'TAKNET-PS-ADSB-Feeder/2.1'
                 }
             }
         );
@@ -128,8 +128,8 @@ async function saveAndStart() {
         TAILSCALE_ENABLED: tailscaleEnabled ? 'true' : 'false',
         TAILSCALE_AUTH_KEY: tailscaleKey || '',
         
-        // TAK Server is hardcoded - DO NOT send these parameters
-        // TAK_ENABLED, TAK_SERVER_HOST_*, TAK_SERVER_PORT will use defaults from env-template
+        // TAKNET-PS Server is hardcoded - DO NOT send these parameters
+        // TAKNET_PS_ENABLED, TAKNET_PS_SERVER_HOST_*, TAKNET_PS_SERVER_PORT will use defaults from env-template
         
         // Optional aggregators only
         FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',

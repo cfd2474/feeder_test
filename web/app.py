@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TAK-ADSB-Feeder Web Interface v2.1
+TAKNET-PS-ADSB-Feeder Web Interface v2.1
 Flask app with Tailscale hostname management
 """
 
@@ -14,12 +14,12 @@ app = Flask(__name__)
 ENV_FILE = Path("/opt/adsb/config/.env")
 CONFIG_BUILDER = "/opt/adsb/scripts/config_builder.py"
 
-# TAK Server hardcoded connection details - NEVER allow user to change these
+# TAKNET-PS Server hardcoded connection details - NEVER allow user to change these
 TAK_PROTECTED_SETTINGS = {
-    'TAK_SERVER_HOST_PRIMARY': '100.117.34.88',
-    'TAK_SERVER_HOST_FALLBACK': '104.225.219.254',
-    'TAK_SERVER_PORT': '30004',
-    'TAK_CONNECTION_MODE': 'auto'
+    'TAKNET_PS_SERVER_HOST_PRIMARY': '100.117.34.88',
+    'TAKNET_PS_SERVER_HOST_FALLBACK': '104.225.219.254',
+    'TAKNET_PS_SERVER_PORT': '30004',
+    'TAKNET_PS_CONNECTION_MODE': 'auto'
 }
 
 def read_env():
@@ -172,17 +172,17 @@ def get_config():
 def save_config():
     """
     Save configuration
-    CRITICAL: User can only toggle TAK_ENABLED, cannot change connection details
+    CRITICAL: User can only toggle TAKNET_PS_ENABLED, cannot change connection details
     """
     try:
         data = request.json
         env = read_env()
         
         # PROTECT TAK CONNECTION SETTINGS
-        # User can only change TAK_ENABLED (on/off), nothing else
-        tak_protected_keys = ['TAK_SERVER_HOST', 'TAK_SERVER_HOST_PRIMARY', 
-                              'TAK_SERVER_HOST_FALLBACK', 'TAK_SERVER_PORT', 
-                              'TAK_CONNECTION_MODE']
+        # User can only change TAKNET_PS_ENABLED (on/off), nothing else
+        tak_protected_keys = ['TAKNET_PS_SERVER_HOST', 'TAKNET_PS_SERVER_HOST_PRIMARY', 
+                              'TAKNET_PS_SERVER_HOST_FALLBACK', 'TAKNET_PS_SERVER_PORT', 
+                              'TAKNET_PS_CONNECTION_MODE']
         
         # Remove any protected TAK settings from user input
         for key in tak_protected_keys:
