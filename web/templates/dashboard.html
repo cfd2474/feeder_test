@@ -32,7 +32,23 @@
                                 <span class="status-text">{{ docker.get('ultrafeeder', 'Unknown') }}</span>
                             </div>
                         {% else %}
-                            <p class="text-muted">Container not running</p>
+                            <p class="text-muted">ultrafeeder not running</p>
+                        {% endif %}
+                        
+                        {% if config.get('FR24_ENABLED') == 'true' %}
+                            {% if docker.get('fr24') %}
+                                <div class="status-item">
+                                    <span class="status-dot {% if 'Up' in docker.get('fr24') %}active{% else %}inactive{% endif %}"></span>
+                                    <span>fr24</span>
+                                    <span class="status-text">{{ docker.get('fr24', 'Unknown') }}</span>
+                                </div>
+                            {% else %}
+                                <div class="status-item">
+                                    <span class="status-dot inactive"></span>
+                                    <span>fr24</span>
+                                    <span class="status-text">Not running</span>
+                                </div>
+                            {% endif %}
                         {% endif %}
                     </div>
                 </div>

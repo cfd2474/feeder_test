@@ -151,12 +151,13 @@ def build_config(env_vars):
     else:
         print("ℹ TAKNET-PS Server: Disabled (not recommended)")
     
-    # FlightRadar24
+    # FlightRadar24 - Uses dedicated container, not ultrafeeder
+    # The FR24 container connects directly to ultrafeeder's Beast output
     if env_vars.get('FR24_ENABLED', '').lower() == 'true':
         if env_vars.get('FR24_SHARING_KEY', '').strip():
-            config_parts.append("adsb,feed.flightradar24.com,30004,beast_reduce_plus_out")
-            config_parts.append("mlat,mlat.flightradar24.com,31090,39000")
-            print("✓ FlightRadar24")
+            print("✓ FlightRadar24 (via dedicated container)")
+        else:
+            print("⚠ FlightRadar24 enabled but no sharing key provided")
     
     # ADS-B Exchange
     if env_vars.get('ADSBX_ENABLED', '').lower() == 'true':
