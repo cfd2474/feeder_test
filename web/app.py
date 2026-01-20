@@ -63,17 +63,50 @@ def get_docker_status():
 def restart_service():
     """Restart ultrafeeder service"""
     try:
-        subprocess.run(['systemctl', 'restart', 'ultrafeeder'], timeout=10)
-        return True
-    except:
+        # Service runs as root, so no sudo needed
+        result = subprocess.run(
+            ['systemctl', 'restart', 'ultrafeeder'],
+            timeout=10,
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            print("✓ Ultrafeeder service restarted")
+            return True
+        else:
+            print(f"✗ Restart failed (code {result.returncode}): {result.stderr}")
+            return False
+    except subprocess.TimeoutExpired:
+        print("✗ Restart timed out after 10 seconds")
+        return False
+    except Exception as e:
+        print(f"✗ Restart exception: {e}")
         return False
 
 def rebuild_config():
     """Run config_builder.py"""
     try:
-        subprocess.run(['python3', CONFIG_BUILDER], timeout=5)
-        return True
-    except:
+        result = subprocess.run(
+            ['python3', CONFIG_BUILDER],
+            timeout=10,
+            capture_output=True,
+            text=True,
+            cwd='/opt/adsb'
+        )
+        if result.returncode == 0:
+            print("✓ Config rebuilt successfully")
+            print(result.stdout)
+            return True
+        else:
+            print(f"✗ Config rebuild failed (code {result.returncode})")
+            print(f"stderr: {result.stderr}")
+            print(f"stdout: {result.stdout}")
+            return False
+    except subprocess.TimeoutExpired:
+        print("✗ Config rebuild timed out after 10 seconds")
+        return False
+    except Exception as e:
+        print(f"✗ Config rebuild exception: {e}")
         return False
 
 def install_tailscale(auth_key=None, hostname=None):
@@ -239,15 +272,23 @@ def api_restart_service():
     """Restart ultrafeeder service"""
     try:
         # Rebuild config first
-        rebuild_config()
+        config_ok = rebuild_config()
+        if not config_ok:
+            return jsonify({
+                'success': False, 
+                'message': 'Configuration rebuild failed. Check logs for details.'
+            }), 500
         
         # Restart service
         if restart_service():
             return jsonify({'success': True, 'message': 'Service restarting'})
         else:
-            return jsonify({'success': False, 'message': 'Failed to restart'}), 500
+            return jsonify({
+                'success': False, 
+                'message': 'Failed to restart ultrafeeder service. Check journalctl -u ultrafeeder for details.'
+            }), 500
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': f'Exception: {str(e)}'}), 500
 
 @app.route('/api/status', methods=['GET'])
 def api_status():
