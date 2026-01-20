@@ -173,15 +173,24 @@ def index():
     """Main page - check if configured"""
     env = read_env()
     
+    # Check if SDR is configured
+    if not env.get('READSB_DEVICE'):
+        return redirect(url_for('setup_sdr'))
+    
     # Check if basic config exists
     if env.get('FEEDER_LAT', '0.0') == '0.0':
         return redirect(url_for('setup'))
     
     return redirect(url_for('dashboard'))
 
+@app.route('/setup/sdr')
+def setup_sdr():
+    """Setup wizard - Step 1: SDR Configuration"""
+    return render_template('setup-sdr.html')
+
 @app.route('/setup')
 def setup():
-    """Setup wizard"""
+    """Setup wizard - Step 2: Location Configuration"""
     env = read_env()
     return render_template('setup.html', config=env)
 
@@ -204,6 +213,92 @@ def settings():
     return render_template('settings.html', config=env)
 
 # API Endpoints
+
+# SDR Configuration APIs
+@app.route('/api/sdr/detect', methods=['GET'])
+def api_sdr_detect():
+    """Detect connected SDR devices"""
+    import re
+    try:
+        # Run rtl_test to detect devices
+        result = subprocess.run(
+            ['rtl_test', '-t'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        output = result.stderr + result.stdout
+        devices = []
+        
+        # Parse output
+        device_pattern = r'(\d+):\s+([^,]+),\s+([^,]+),\s+SN:\s+(\S+)'
+        matches = re.findall(device_pattern, output)
+        
+        for match in matches:
+            index, manufacturer, product, serial = match
+            device = {
+                'index': int(index),
+                'type': 'rtlsdr',
+                'manufacturer': manufacturer.strip(),
+                'product': product.strip(),
+                'serial': serial.strip()
+            }
+            
+            # Check if already configured
+            env = read_env()
+            device_key = f'SDR_{index}'
+            if device_key in env:
+                config = env[device_key].split(',')
+                if len(config) >= 3:
+                    device['useFor'] = config[0]
+                    device['gain'] = config[1]
+                    device['biastee'] = config[2] == 'true'
+            
+            devices.append(device)
+        
+        return jsonify({'success': True, 'devices': devices})
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'devices': [], 'error': 'Detection timed out'}), 500
+    except FileNotFoundError:
+        return jsonify({'success': False, 'devices': [], 'error': 'rtl_test not found'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'devices': [], 'error': str(e)}), 500
+
+@app.route('/api/sdr/configure', methods=['POST'])
+def api_sdr_configure():
+    """Save SDR configuration"""
+    try:
+        data = request.json
+        devices = data.get('devices', [])
+        
+        env = read_env()
+        
+        # Save each configured device
+        for device in devices:
+            if device.get('useFor'):
+                index = device.get('index')
+                use_for = device.get('useFor', '')
+                gain = device.get('gain', 'autogain')
+                biastee = 'true' if device.get('biastee', False) else 'false'
+                
+                # Store as SDR_0=1090,autogain,false
+                env[f'SDR_{index}'] = f"{use_for},{gain},{biastee}"
+                
+                # Set primary device (first 1090 device found)
+                if use_for == '1090' and 'READSB_DEVICE' not in env:
+                    env['READSB_DEVICE'] = str(index)
+                    env['READSB_GAIN'] = gain
+                    if biastee == 'true':
+                        env['READSB_ENABLE_BIASTEE'] = 'ON'
+        
+        write_env(env)
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/config', methods=['GET'])
 def get_config():
     """Get current configuration"""
