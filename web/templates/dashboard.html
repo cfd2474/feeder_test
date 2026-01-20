@@ -48,10 +48,22 @@
                 <div class="card">
                     <h3>Active Feeds</h3>
                     <div id="active-feeds">
-                        {% if config.get('TAKNET_PS_ENABLED') == 'true' and config.get('TAKNET_PS_SERVER_HOST') %}
+                        {% if config.get('TAKNET_PS_ENABLED') == 'true' %}
                             <div class="feed-item">
                                 <span class="status-dot active"></span>
-                                TAKNET-PS Server ({{ config.get('TAKNET_PS_SERVER_HOST') }})
+                                <div>
+                                    <strong>TAKNET-PS Server</strong>
+                                    <div style="font-size: 0.85em; color: #9ca3af; margin-top: 2px;">
+                                        {% if config.get('TAKNET_PS_SERVER_HOST_PRIMARY') %}
+                                            Primary: {{ config.get('TAKNET_PS_SERVER_HOST_PRIMARY') }}:{{ config.get('TAKNET_PS_SERVER_PORT', '30004') }}
+                                        {% endif %}
+                                    </div>
+                                    {% if config.get('TAKNET_PS_MLAT_ENABLED') == 'true' %}
+                                        <div style="font-size: 0.85em; color: #9ca3af;">
+                                            MLAT: {{ config.get('TAKNET_PS_SERVER_HOST_PRIMARY') }}:{{ config.get('TAKNET_PS_MLAT_PORT', '30105') }}
+                                        </div>
+                                    {% endif %}
+                                </div>
                             </div>
                         {% endif %}
                         {% if config.get('FR24_ENABLED') == 'true' %}
@@ -71,6 +83,9 @@
                                 <span class="status-dot active"></span>
                                 Airplanes.Live
                             </div>
+                        {% endif %}
+                        {% if not config.get('TAKNET_PS_ENABLED') and not config.get('FR24_ENABLED') and not config.get('ADSBX_ENABLED') and not config.get('AIRPLANESLIVE_ENABLED') %}
+                            <p class="text-muted">No feeds configured</p>
                         {% endif %}
                     </div>
                 </div>
