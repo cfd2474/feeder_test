@@ -302,7 +302,7 @@
                 const row = document.createElement('tr');
                 row.onclick = () => openConfigModal(index);
                 
-                if (device.use_for) {
+                if (device.useFor) {
                     row.classList.add('configured');
                 }
                 
@@ -310,8 +310,8 @@
                     <td><strong>${device.type.toUpperCase()}</strong></td>
                     <td>${device.serial}</td>
                     <td>
-                        ${device.use_for ? 
-                            `<span class="badge badge-${device.use_for}">${device.use_for} MHz</span>` : 
+                        ${device.useFor ? 
+                            `<span class="badge badge-${device.useFor}">${device.useFor} MHz</span>` : 
                             '<span class="badge badge-unconfigured">Not Configured</span>'
                         }
                     </td>
@@ -330,7 +330,7 @@
             document.getElementById('modalDeviceInfo').textContent = 
                 `${device.type.toUpperCase()} - Serial: ${device.serial}`;
             
-            document.getElementById('modalUseFor').value = device.use_for || '';
+            document.getElementById('modalUseFor').value = device.useFor || '';
             document.getElementById('modalGain').value = device.gain || 'autogain';
             document.getElementById('modalBiasTee').checked = device.biastee || false;
             
@@ -374,7 +374,7 @@
         
         async function applySDRSettings() {
             // Check if at least one device is configured
-            const configured = devices.filter(d => d.use_for);
+            const configured = devices.filter(d => d.useFor);
             
             if (configured.length === 0) {
                 alert('Please configure at least one SDR device before continuing');

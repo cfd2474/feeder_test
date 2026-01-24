@@ -733,7 +733,7 @@
                 const row = document.createElement('tr');
                 row.onclick = () => openSDRConfigModal(index);
                 
-                if (device.use_for) {
+                if (device.useFor) {
                     row.classList.add('configured');
                 }
                 
@@ -741,8 +741,8 @@
                     <td><strong>${device.type.toUpperCase()}</strong></td>
                     <td>${device.serial}</td>
                     <td>
-                        ${device.use_for ? 
-                            `<span class="badge-${device.use_for}">${device.use_for} MHz</span>` : 
+                        ${device.useFor ? 
+                            `<span class="badge-${device.useFor}">${device.useFor} MHz</span>` : 
                             '<span style="color: #9ca3af;">Not Configured</span>'
                         }
                     </td>
@@ -761,7 +761,7 @@
             document.getElementById('sdrModalDeviceInfo').textContent = 
                 `${device.type.toUpperCase()} - Serial: ${device.serial}`;
             
-            document.getElementById('sdrModalUseFor').value = device.use_for || '';
+            document.getElementById('sdrModalUseFor').value = device.useFor || '';
             document.getElementById('sdrModalGain').value = device.gain || 'autogain';
             document.getElementById('sdrModalBiasTee').checked = device.biastee || false;
             

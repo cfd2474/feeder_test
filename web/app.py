@@ -242,7 +242,10 @@ def api_sdr_detect():
                 'type': 'rtlsdr',
                 'manufacturer': manufacturer.strip(),
                 'product': product.strip(),
-                'serial': serial.strip()
+                'serial': serial.strip(),
+                'useFor': '',  # Default empty
+                'gain': 'autogain',  # Default
+                'biastee': False  # Default
             }
             
             # Check if already configured
@@ -253,7 +256,7 @@ def api_sdr_detect():
                 if len(config) >= 3:
                     device['useFor'] = config[0]
                     device['gain'] = config[1]
-                    device['biastee'] = config[2] == 'true'
+                    device['biastee'] = config[2].lower() == 'true'
             
             devices.append(device)
         

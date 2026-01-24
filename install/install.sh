@@ -54,9 +54,61 @@ fi
 # Install Python and Flask
 echo "Installing Python dependencies..."
 apt-get update -qq
-apt-get install -y python3-flask python3-pip wget curl rtl-sdr
+apt-get install -y python3-flask python3-pip wget curl rtl-sdr vnstat
 
 echo "✓ RTL-SDR tools installed"
+
+# Configure vnstat for 30-day retention
+echo "Configuring vnstat for network monitoring..."
+systemctl enable vnstat
+systemctl start vnstat
+
+# Set vnstat to 30-day retention
+if [ -f /etc/vnstat.conf ]; then
+    sed -i 's/MonthRotate 12/MonthRotate 1/' /etc/vnstat.conf
+    sed -i 's/DayGraphDays 7/DayGraphDays 30/' /etc/vnstat.conf
+fi
+
+echo "✓ vnstat configured (30-day retention)"
+
+# Create remote user with sudo privileges (Tailscale-only access)
+echo "Creating remote user..."
+if ! id "remote" &>/dev/null; then
+    useradd -m -s /bin/bash remote
+    echo "remote:adsb" | chpasswd
+    
+    # Add to sudo group
+    usermod -aG sudo remote
+    
+    # Create sudoers file for adsb project commands
+    cat > /etc/sudoers.d/remote-adsb << 'SUDOEOF'
+# Remote user sudo privileges for ADSB project
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart ultrafeeder
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart adsb-web
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop ultrafeeder
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop adsb-web
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl start ultrafeeder
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl start adsb-web
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl status ultrafeeder
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl status adsb-web
+remote ALL=(ALL) NOPASSWD: /usr/bin/docker ps
+remote ALL=(ALL) NOPASSWD: /usr/bin/docker logs *
+remote ALL=(ALL) NOPASSWD: /usr/bin/docker compose -f /opt/adsb/config/docker-compose.yml *
+remote ALL=(ALL) NOPASSWD: /usr/bin/docker restart ultrafeeder
+remote ALL=(ALL) NOPASSWD: /usr/bin/docker restart fr24
+remote ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u ultrafeeder *
+remote ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u adsb-web *
+remote ALL=(ALL) NOPASSWD: /usr/bin/vnstat *
+remote ALL=(ALL) NOPASSWD: /usr/bin/python3 /opt/adsb/scripts/config_builder.py
+SUDOEOF
+    
+    chmod 0440 /etc/sudoers.d/remote-adsb
+    
+    echo "✓ User 'remote' created with password 'adsb'"
+    echo "  Tailscale-only access recommended (configure SSH to allow)"
+else
+    echo "✓ User 'remote' already exists"
+fi
 
 # Create directories
 echo "Creating directories..."
