@@ -185,13 +185,36 @@
                 addStatusLine('✓', `Feeder: ${config.MLAT_SITE_NAME || 'TAK-Feeder'}`, 'success');
                 updateProgress(1);
                 
-                // Step 2: Tailscale Configuration (if enabled)
+                // Step 2: Install & Configure Tailscale (if enabled)
                 if (config.TAILSCALE_ENABLED === 'true' && config.TAILSCALE_AUTH_KEY) {
-                    addStatusLine('🔐', 'Configuring Tailscale VPN...', 'pending');
-                    addStatusLine('ℹ', 'This may take 30-60 seconds on first setup...', 'info');
-                    await sleep(3000);
-                    addStatusLine('✓', 'Tailscale VPN configured successfully', 'success');
-                    addStatusLine('ℹ', `Connected to Tailscale network`, 'info');
+                    addStatusLine('🔐', 'Installing Tailscale VPN...', 'pending');
+                    addStatusLine('ℹ', 'This may take 30-90 seconds on first install...', 'info');
+                    
+                    try {
+                        const tailscaleResponse = await fetch('/api/tailscale/install', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                auth_key: config.TAILSCALE_AUTH_KEY,
+                                hostname: config.MLAT_SITE_NAME
+                            })
+                        });
+                        
+                        const tailscaleResult = await tailscaleResponse.json();
+                        
+                        if (tailscaleResult.success) {
+                            addStatusLine('✓', 'Tailscale VPN installed and configured', 'success');
+                            addStatusLine('ℹ', 'Connected to Tailscale network', 'info');
+                        } else {
+                            addStatusLine('⚠', `Tailscale setup had issues: ${tailscaleResult.message}`, 'info');
+                            addStatusLine('ℹ', 'Continuing with public IP fallback', 'info');
+                        }
+                    } catch (error) {
+                        addStatusLine('⚠', 'Tailscale installation failed', 'info');
+                        addStatusLine('ℹ', 'Continuing with public IP fallback', 'info');
+                    }
+                } else if (config.TAILSCALE_ENABLED === 'true') {
+                    addStatusLine('ℹ', 'Tailscale enabled but no auth key provided', 'info');
                 }
                 updateProgress(2);
                 

@@ -29,17 +29,20 @@
                 
                 <div class="form-group">
                     <label>Latitude *</label>
-                    <input type="number" step="any" id="lat" placeholder="33.5539" value="{{ config.get('FEEDER_LAT', '') }}" required>
+                    <input type="number" step="any" id="lat" placeholder="33.5539" 
+                        value="{% if config.get('FEEDER_LAT', '0.0') not in ['0.0', '0', ''] %}{{ config.get('FEEDER_LAT') }}{% endif %}" required>
                 </div>
                 
                 <div class="form-group">
                     <label>Longitude *</label>
-                    <input type="number" step="any" id="lon" placeholder="-117.2139" value="{{ config.get('FEEDER_LONG', '') }}" required>
+                    <input type="number" step="any" id="lon" placeholder="-117.2139" 
+                        value="{% if config.get('FEEDER_LONG', '0.0') not in ['0.0', '0', ''] %}{{ config.get('FEEDER_LONG') }}{% endif %}" required>
                 </div>
                 
                 <div class="form-group">
                     <label>Altitude (meters) *</label>
-                    <input type="number" id="alt" placeholder="304" value="{{ config.get('FEEDER_ALT_M', '') }}" required>
+                    <input type="number" id="alt" placeholder="304" 
+                        value="{% if config.get('FEEDER_ALT_M', '0') not in ['0', ''] %}{{ config.get('FEEDER_ALT_M') }}{% endif %}" required>
                 </div>
                 
                 <div class="form-group">
@@ -118,7 +121,8 @@
                 
                 <div class="form-group">
                     <label>Feeder Name *</label>
-                    <input type="text" id="site_name" placeholder="MyFeeder" value="{{ config.get('MLAT_SITE_NAME', 'TAK-Feeder').split('-', 1)[1] if '-' in config.get('MLAT_SITE_NAME', '') else config.get('MLAT_SITE_NAME', 'TAK-Feeder') }}" required>
+                    <input type="text" id="site_name" placeholder="MyFeeder" 
+                        value="{% if config.get('MLAT_SITE_NAME', 'TAKNET-PS-ADSB-Feeder') != 'TAKNET-PS-ADSB-Feeder' and config.get('MLAT_SITE_NAME', 'TAK-Feeder') != 'TAK-Feeder' %}{{ config.get('MLAT_SITE_NAME', '').split('-', 1)[1] if '-' in config.get('MLAT_SITE_NAME', '') else config.get('MLAT_SITE_NAME', '') }}{% endif %}" required>
                     <small style="color: #666; display: block; margin-top: 5px;">
                         Format: ZIPCODE-YourName (zip code will be added automatically)
                     </small>

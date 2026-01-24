@@ -97,22 +97,12 @@ async function saveAndStart() {
         showStatus('Could not determine zip code, using default. Processing configuration...', 'info');
     }
     
-    // Check Tailscale setup
+    // Check Tailscale setup (just validate, don't install yet)
     const tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
     const tailscaleKey = document.getElementById('tailscale_key').value.trim();
     
-    // If Tailscale enabled with key, install it first
-    if (tailscaleEnabled && tailscaleKey) {
-        showStatus('Installing Tailscale VPN...', 'info');
-        const tailscaleResult = await installTailscale(tailscaleKey);
-        
-        if (!tailscaleResult.success) {
-            showStatus(`Tailscale setup failed: ${tailscaleResult.message}. Continuing with public IP fallback.`, 'error');
-            // Continue anyway - will use public IP
-        } else {
-            showStatus('✓ Tailscale installed successfully!', 'success');
-        }
-    } else if (tailscaleEnabled && !tailscaleKey) {
+    // Just validate, installation will happen in loading screen
+    if (tailscaleEnabled && !tailscaleKey) {
         showStatus('Tailscale enabled but no key provided. You can configure it later in Settings.', 'info');
     }
     

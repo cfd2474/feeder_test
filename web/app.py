@@ -173,14 +173,27 @@ def index():
     """Main page - check if configured"""
     env = read_env()
     
-    # Check if SDR is configured
-    if not env.get('READSB_DEVICE'):
+    # ALWAYS check SDR first (even on fresh install)
+    # If no SDR device configured, go to SDR wizard
+    sdr_configured = False
+    if env.get('READSB_DEVICE'):
+        sdr_configured = True
+    else:
+        # Check if any SDR_X entries exist
+        for key in env.keys():
+            if key.startswith('SDR_'):
+                sdr_configured = True
+                break
+    
+    if not sdr_configured:
         return redirect(url_for('setup_sdr'))
     
-    # Check if basic config exists
-    if env.get('FEEDER_LAT', '0.0') == '0.0':
+    # Then check if location is configured
+    # Default env has FEEDER_LAT=0.0, so check if it's still default
+    if env.get('FEEDER_LAT', '0.0') == '0.0' or env.get('FEEDER_LAT', '0') == '0':
         return redirect(url_for('setup'))
     
+    # Everything configured, go to dashboard
     return redirect(url_for('dashboard'))
 
 @app.route('/setup/sdr')

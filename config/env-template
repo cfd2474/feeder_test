@@ -12,10 +12,10 @@ FEEDER_ALT_M=0
 MLAT_SITE_NAME=TAKNET-PS-ADSB-Feeder
 
 # ============================================
-# RTL-SDR Configuration
+# RTL-SDR Configuration (Configured via wizard)
 # ============================================
-READSB_DEVICE=0
-READSB_GAIN=autogain
+# READSB_DEVICE=
+# READSB_GAIN=autogain
 
 # ============================================
 # Tailscale VPN (Optional but Recommended)
