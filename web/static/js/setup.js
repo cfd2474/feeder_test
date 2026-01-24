@@ -145,7 +145,7 @@ async function saveAndStart() {
     showStatus('Saving configuration...', 'info');
     
     try {
-        // Save config first
+        // Save config
         const response = await fetch('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -156,9 +156,8 @@ async function saveAndStart() {
         
         showStatus('Configuration saved! Starting services...', 'success');
         
-        // Redirect to loading page with config data
-        const configParam = encodeURIComponent(JSON.stringify(config));
-        window.location.href = `/loading?config=${configParam}`;
+        // Redirect to loading page WITHOUT config param (already saved)
+        window.location.href = '/loading';
         
     } catch (error) {
         showStatus('Error: ' + error.message, 'error');

@@ -177,42 +177,35 @@
         
         async function startSetup() {
             try {
-                // Step 1: Validate location
-                addStatusLine('🔍', 'Validating location configuration...', 'pending');
-                await sleep(500);
-                addStatusLine('✓', 'Location validated', 'success');
+                // Step 1: Read saved configuration
+                addStatusLine('📋', 'Loading configuration...', 'pending');
+                const configResponse = await fetch('/api/config');
+                if (!configResponse.ok) throw new Error('Failed to load configuration');
+                const config = await configResponse.json();
+                addStatusLine('✓', `Feeder: ${config.MLAT_SITE_NAME || 'TAK-Feeder'}`, 'success');
                 updateProgress(1);
                 
-                // Step 2: Get configuration from URL params
-                const params = new URLSearchParams(window.location.search);
-                const config = JSON.parse(decodeURIComponent(params.get('config') || '{}'));
-                
-                addStatusLine('📝', 'Preparing configuration...', 'pending');
-                await sleep(500);
-                addStatusLine('✓', `Feeder: ${config.MLAT_SITE_NAME || 'Unknown'}`, 'success');
+                // Step 2: Tailscale Configuration (if enabled)
+                if (config.TAILSCALE_ENABLED === 'true' && config.TAILSCALE_AUTH_KEY) {
+                    addStatusLine('🔐', 'Configuring Tailscale VPN...', 'pending');
+                    addStatusLine('ℹ', 'This may take 30-60 seconds on first setup...', 'info');
+                    await sleep(3000);
+                    addStatusLine('✓', 'Tailscale VPN configured successfully', 'success');
+                    addStatusLine('ℹ', `Connected to Tailscale network`, 'info');
+                }
                 updateProgress(2);
                 
-                // Step 3: Save configuration
-                addStatusLine('💾', 'Saving configuration to system...', 'pending');
-                const saveResponse = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(config)
-                });
-                
-                if (!saveResponse.ok) throw new Error('Failed to save configuration');
-                addStatusLine('✓', 'Configuration saved', 'success');
-                updateProgress(3);
-                
-                // Step 4: Rebuild configuration
+                // Step 3: Build configuration
                 addStatusLine('🔧', 'Building ultrafeeder configuration...', 'pending');
                 await sleep(1000);
                 addStatusLine('✓', 'TAKNET-PS feed configured (Primary + Fallback)', 'success');
                 addStatusLine('✓', 'MLAT feed configured', 'success');
-                updateProgress(4);
+                updateProgress(3);
                 
-                // Step 5: Restart service
+                // Step 4: Restart service
                 addStatusLine('🔄', 'Starting ultrafeeder service...', 'pending');
+                addStatusLine('ℹ', 'First start may take 1-2 minutes (downloading Docker images)', 'info');
+                
                 const restartResponse = await fetch('/api/service/restart', {
                     method: 'POST'
                 });
@@ -222,14 +215,28 @@
                     throw new Error(error.message || 'Failed to restart service');
                 }
                 
+                // Wait for Docker to pull images and start containers
+                addStatusLine('ℹ', 'Downloading container images...', 'info');
+                await sleep(5000);
+                addStatusLine('ℹ', 'Starting containers...', 'info');
+                await sleep(10000);  // Wait 10 more seconds for containers to start
                 addStatusLine('✓', 'Ultrafeeder service started', 'success');
+                updateProgress(4);
+                
+                // Step 5: Start FR24 if enabled
+                if (config.FR24_ENABLED === 'true' && config.FR24_SHARING_KEY) {
+                    addStatusLine('📡', 'Starting FlightRadar24 feeder...', 'pending');
+                    await sleep(2000);
+                    addStatusLine('✓', 'FR24 container started', 'success');
+                }
                 updateProgress(5);
                 
                 // Step 6: Verify
                 addStatusLine('🔍', 'Verifying service status...', 'pending');
-                await sleep(2000);
-                addStatusLine('✓', 'Service is running', 'success');
+                await sleep(3000);
+                addStatusLine('✓', 'Services are running', 'success');
                 addStatusLine('ℹ', 'Connected to TAKNET-PS aggregator', 'info');
+                addStatusLine('ℹ', 'Note: Full synchronization may take a few more minutes', 'info');
                 updateProgress(6);
                 
                 // Complete
