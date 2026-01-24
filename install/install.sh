@@ -128,8 +128,10 @@ chmod +x /opt/adsb/scripts/config_builder.py
 echo "Installing Web UI..."
 wget -q $REPO/web/app.py -O /opt/adsb/web/app.py
 wget -q $REPO/web/templates/setup.html -O /opt/adsb/web/templates/setup.html
+wget -q $REPO/web/templates/setup-sdr.html -O /opt/adsb/web/templates/setup-sdr.html
 wget -q $REPO/web/templates/dashboard.html -O /opt/adsb/web/templates/dashboard.html
 wget -q $REPO/web/templates/settings.html -O /opt/adsb/web/templates/settings.html
+wget -q $REPO/web/templates/loading.html -O /opt/adsb/web/templates/loading.html
 wget -q $REPO/web/static/css/style.css -O /opt/adsb/web/static/css/style.css
 wget -q $REPO/web/static/js/setup.js -O /opt/adsb/web/static/js/setup.js
 wget -q $REPO/web/static/js/dashboard.js -O /opt/adsb/web/static/js/dashboard.js
@@ -191,6 +193,11 @@ if [ "$SUDO_USER" ]; then
     chown -R $SUDO_USER:$SUDO_USER /opt/adsb
 fi
 
+# Download SSH Tailscale configuration script
+echo "Downloading SSH configuration script..."
+wget -q $REPO/configure-ssh-tailscale.sh -O /opt/adsb/configure-ssh-tailscale.sh
+chmod +x /opt/adsb/configure-ssh-tailscale.sh
+
 # Get IP address
 IP=$(hostname -I | awk '{print $1}')
 
@@ -214,4 +221,17 @@ echo "Manual commands (if needed):"
 echo "   • Start: sudo systemctl start ultrafeeder"
 echo "   • Restart: sudo systemctl restart ultrafeeder"
 echo "   • Logs: sudo docker logs ultrafeeder"
+echo ""
+echo "📡 Remote Access:"
+echo "   • User: remote"
+echo "   • Password: adsb"
+echo "   • Limited sudo privileges for ADSB commands"
+echo ""
+echo "🔒 To restrict 'remote' user to Tailscale network only:"
+echo "   cd /opt/adsb"
+echo "   sudo ./configure-ssh-tailscale.sh"
+echo ""
+echo "📊 Network Monitoring:"
+echo "   • vnstat configured (30-day retention)"
+echo "   • Usage: vnstat -d (daily stats)"
 echo ""
