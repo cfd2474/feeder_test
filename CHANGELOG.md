@@ -1,0 +1,217 @@
+# Changelog
+
+All notable changes to TAKNET-PS ADSB Feeder.
+
+---
+
+## [2.8] - 2026-01-25
+
+### Added
+- **mDNS Support** - Access device via `taknet-ps.local` hostname
+- **Nginx Reverse Proxy** - Clean URL paths (`/web`, `/map`, `/fr24`)
+- **WiFi Hotspot** - Automatic fallback when no network detected
+  - SSID: TAKNET-PS (no password)
+  - Auto-activates after 30 seconds without network
+  - Auto-deactivates when network restored
+- **Captive Portal** - Beautiful WiFi configuration wizard
+  - Network scanner with signal strength
+  - Manual SSID entry
+  - 5-second countdown before reboot
+  - Automatic retry on connection failure
+- **Network Monitoring Service** - Continuous connectivity checking
+- **Avahi mDNS Daemon** - Broadcasts hostname on network
+
+### Changed
+- Installer now includes network configuration
+- Root URL redirects to `/web`
+- Port 80 now default (Nginx proxy)
+
+### Fixed
+- Installer here-document terminator (AVAHIEOF)
+
+### Platform
+- **Tested on:** Raspberry Pi OS Lite 64-bit (Bookworm)
+- **Compatible:** Raspberry Pi 3/4/5
+
+---
+
+## [2.7] - 2026-01-24
+
+### Fixed
+- **Critical:** SDR configuration save bug
+  - Property name mismatch (`use_for` vs `useFor`)
+  - Configuration now saves to table properly
+  - Can proceed past SDR wizard step
+
+### Changed
+- Consistent property naming in JavaScript (`useFor` everywhere)
+
+### Files Modified
+- `web/templates/setup-sdr.html` (line 367)
+- `web/templates/settings.html` (line 798)
+
+---
+
+## [2.6] - 2026-01-24
+
+### Fixed
+- Wizard now starts with SDR configuration (not skipped)
+- Tailscale installation moved to loading screen (not footer)
+- Location fields use placeholders (not pre-filled with defaults)
+- Feeder name not pre-filled on fresh install
+
+### Changed
+- `env-template`: Removed `READSB_DEVICE=0` default
+- Improved home route redirect logic
+- setup.js: Removed Tailscale install (moved to loading.html)
+- setup.html: Added Jinja conditionals for default values
+
+### Files Modified
+- `config/env-template`
+- `web/app.py`
+- `web/static/js/setup.js`
+- `web/templates/loading.html`
+- `web/templates/setup.html`
+
+---
+
+## [2.5] - 2026-01-24
+
+### Fixed
+- Loading screen timing issues
+- False "service failed to start" errors
+- Tailscale progress now visible in loading window
+
+### Changed
+- Increased Docker pull wait time (2s → 15s)
+- Added informational messages about timing
+- Better error handling in loading screen
+
+### Added
+- Tailscale progress step in loading screen
+- Status messages for Docker image download
+- Note about full synchronization time
+
+### Files Modified
+- `web/templates/loading.html`
+
+---
+
+## [2.4] - 2026-01-23
+
+### Fixed
+- Setup wizard redirect URL overflow
+- Loading screen not appearing after "Save & Start"
+
+### Changed
+- Config saved to backend before redirect
+- Loading page reads config from API (not URL params)
+- Clean redirect to `/loading` without parameters
+
+### Files Modified
+- `web/static/js/setup.js`
+- `web/templates/loading.html`
+
+---
+
+## [2.3] - 2026-01-22
+
+### Added
+- SDR configuration wizard (`/setup/sdr`)
+- Auto-detection of RTL-SDR devices
+- Interactive device configuration
+- vnstat network monitoring (30-day retention)
+- Remote user (`remote` / `adsb`)
+- Limited sudo privileges for remote user
+- Optional SSH restriction script
+
+### Files Added
+- `web/templates/setup-sdr.html`
+- `configure-ssh-tailscale.sh`
+
+### Changed
+- Wizard flow now includes SDR setup
+- Home route checks SDR configuration first
+
+---
+
+## [2.2] - 2026-01-20
+
+### Added
+- FlightRadar24 dedicated container
+- MLAT support for FR24
+- Auto-start services on boot
+
+### Changed
+- Separate FR24 from main ultrafeeder
+- Improved service dependencies
+
+---
+
+## [2.1] - 2026-01-18
+
+### Added
+- Initial web UI release
+- Flask-based configuration interface
+- Setup wizard (Location, Tailscale, Aggregators)
+- Dashboard with service status
+- Settings page
+- Loading screen with progress
+- systemd services
+
+### Features
+- Docker Compose setup
+- Ultrafeeder container
+- TAKNET-PS integration (primary + fallback)
+- MLAT support
+- Tailscale VPN support
+- Multiple aggregator support
+
+### Files
+- Complete web application
+- Docker configuration
+- Config builder script
+- Systemd services
+
+---
+
+## [2.0] - 2026-01-15
+
+### Added
+- Docker-based deployment
+- Automated installer
+- Environment-based configuration
+- TAKNET-PS aggregator integration
+
+---
+
+## [1.0] - 2025-12-01
+
+### Initial Release
+- Basic ADS-B feeder
+- Manual configuration
+- Single aggregator support
+
+---
+
+## Version Format
+
+Format: `[MAJOR.MINOR]` - `YYYY-MM-DD`
+
+- **MAJOR**: Breaking changes or major features
+- **MINOR**: New features, bug fixes, improvements
+
+### Categories
+- **Added**: New features
+- **Changed**: Changes in existing functionality
+- **Deprecated**: Soon-to-be removed features
+- **Removed**: Removed features
+- **Fixed**: Bug fixes
+- **Security**: Security-related changes
+- **Platform**: Target platform information
+
+---
+
+**Current Version:** 2.8
+**Last Updated:** January 25, 2026
+**Maintained by:** cfd2474

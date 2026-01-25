@@ -1,43 +1,109 @@
-# TAKNET-PS-ADSB-Feeder v2.1
+# TAKNET-PS ADSB Feeder
 
-**Tactical Awareness Kit Network for Enhanced Tracking – Public Safety**
+**Complete ADS-B Aircraft Tracking System for Raspberry Pi**
 
-## Features
+[![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-red)](https://www.raspberrypi.org/)
+[![OS](https://img.shields.io/badge/OS-Raspberry%20Pi%20OS%20Bookworm-blue)](https://www.raspberrypi.com/software/)
+[![Version](https://img.shields.io/badge/version-2.8-orange)](CHANGELOG.md)
 
-- 🎯 **TAKNET-PS Server Priority Feed** - Hardcoded as primary aggregator
-- 📡 **Beast & MLAT Feeds** - Dual data streams for maximum accuracy  
-- 🔐 **Tailscale VPN** - Secure encrypted connection with auto-failover
-- 🌐 **Web UI** - Complete setup wizard and settings management
-- 🔄 **Auto-Configuration** - Missing settings automatically repaired
-- ⚠️ **Disable Protection** - Confirmation modals prevent accidental disabling
+Feed aircraft data to TAKNET-PS aggregator while optionally sharing with public services like FlightRadar24, ADS-B Exchange, and more.
 
-## Quick Install
+---
+
+## ✨ Features
+
+### Core Features
+- 🛩️ **Ultrafeeder** - Advanced ADS-B receiver and aggregator
+- 📡 **RTL-SDR Support** - Auto-detection and configuration
+- 🗺️ **Live Map** - Real-time aircraft tracking (tar1090)
+- 🌐 **Web Configuration** - Complete setup wizard
+- 📊 **Network Monitoring** - 30-day bandwidth tracking (vnstat)
+
+### Network Features (v2.8)
+- 🏠 **mDNS Hostname** - Access via `taknet-ps.local`
+- 🔀 **Nginx Reverse Proxy** - Clean URLs (`/web`, `/map`, `/fr24`)
+- 📶 **WiFi Hotspot** - Automatic fallback with captive portal
+- 🔌 **Auto-Recovery** - Restarts hotspot if network fails
+
+### Feed Destinations
+- 🎯 **TAKNET-PS** - Primary aggregator (hardcoded, always enabled)
+- ✈️ **FlightRadar24** - Dedicated container with MLAT
+- 🌍 **ADS-B Exchange** - Public aggregator
+- 🛫 **Airplanes.Live** - Community aggregator
+
+### Security & Access
+- 🔐 **Tailscale VPN** - Secure connection to TAKNET-PS network
+- 👤 **Remote User** - Limited sudo access for remote management
+- 🔒 **SSH Restrictions** - Optional Tailscale-only access
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+**Hardware:**
+- Raspberry Pi 3/4/5
+- RTL-SDR USB dongle
+- MicroSD card (16GB+)
+- Stable power supply (2.5A+)
+
+**Software:**
+- **Raspberry Pi OS Lite 64-bit (Bookworm)**
+- Fresh installation recommended
+
+### Installation
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
+cd /opt/adsb
+sudo bash configure-network.sh
+sudo reboot
 ```
 
-## What's TAKNET-PS?
+After reboot: **http://taknet-ps.local/web**
 
-TAKNET-PS (Tactical Awareness Kit Network for Enhanced Tracking – Public Safety) is an aircraft tracking aggregation network designed for:
-- Emergency response coordination
-- Public safety operations
-- Enhanced situational awareness
-- Multilateration tracking accuracy
+---
 
-While compatible with TAK (Team Awareness Kit), TAKNET-PS provides broader capabilities for public safety and tracking applications beyond traditional tactical operations.
+## 📋 Documentation
 
-## Configuration
+- **[Installation Guide](docs/INSTALLATION.md)** - Detailed setup
+- **[Configuration Guide](docs/CONFIGURATION.md)** - All settings
+- **[Network Guide](docs/NETWORK.md)** - mDNS & hotspot
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues
+- **[Changelog](CHANGELOG.md)** - Version history
 
-TAKNET-PS settings are **hardcoded and auto-configured**:
+---
 
-```ini
-TAKNET_PS_ENABLED=true
-TAKNET_PS_SERVER_HOST_PRIMARY=100.117.34.88
-TAKNET_PS_SERVER_HOST_FALLBACK=104.225.219.254
-TAKNET_PS_SERVER_PORT=30004
-TAKNET_PS_MLAT_ENABLED=true
-TAKNET_PS_MLAT_PORT=30105
+## 🌐 Access URLs
+
+```
+http://taknet-ps.local/web   → Web UI
+http://taknet-ps.local/map   → Aircraft Map  
+http://taknet-ps.local/fr24  → FlightRadar24 Stats
 ```
 
-Missing settings are **automatically repaired** on every config rebuild!
+---
+
+## 📶 WiFi Hotspot
+
+No network? No problem!
+
+1. Device starts hotspot: **TAKNET-PS** (no password)
+2. Connect with phone/laptop
+3. Captive portal opens automatically
+4. Select WiFi & enter password
+5. Device reboots and connects
+6. If fails: Hotspot restarts
+
+---
+
+## 📧 Support
+
+- **Issues:** [GitHub Issues](https://github.com/cfd2474/feeder_test/issues)
+
+---
+
+**Made for Raspberry Pi OS Bookworm 64-bit**
+
+Version 2.8 | January 25, 2026
