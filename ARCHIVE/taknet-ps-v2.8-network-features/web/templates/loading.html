@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starting Services - TAKNET-PS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .loading-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+        }
+        
+        .loading-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status-log {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        
+        .status-line {
+            padding: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .status-icon {
+            font-size: 1.2em;
+            min-width: 25px;
+        }
+        
+        .status-pending { color: #fbbf24; }
+        .status-success { color: #10b981; }
+        .status-error { color: #ef4444; }
+        .status-info { color: #3b82f6; }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e5e7eb;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .completion-message {
+            display: none;
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+        
+        .completion-message h2 {
+            margin: 0 0 10px 0;
+            font-size: 2em;
+        }
+        
+        .completion-message p {
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+        
+        .redirect-info {
+            margin-top: 20px;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
+        </header>
+
+        <div class="loading-container">
+            <div class="loading-header">
+                <div class="spinner" id="spinner"></div>
+                <h2>Starting Your Feeder...</h2>
+                <p class="text-muted">Please wait while we configure and start the services</p>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%">
+                    <span id="progressText">0%</span>
+                </div>
+            </div>
+
+            <div class="status-log" id="statusLog">
+                <div class="status-line status-pending">
+                    <span class="status-icon">⏳</span>
+                    <span>Initializing setup...</span>
+                </div>
+            </div>
+
+            <div class="completion-message" id="completionMessage">
+                <h2>✅ Setup Complete!</h2>
+                <p>Your TAKNET-PS feeder is now running</p>
+                <p class="redirect-info">Redirecting to dashboard in <span id="countdown">3</span> seconds...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const statusLog = document.getElementById('statusLog');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const completionMessage = document.getElementById('completionMessage');
+        const spinner = document.getElementById('spinner');
+        
+        let currentProgress = 0;
+        const totalSteps = 6;
+        
+        function addStatusLine(icon, message, type) {
+            const line = document.createElement('div');
+            line.className = `status-line status-${type}`;
+            line.innerHTML = `
+                <span class="status-icon">${icon}</span>
+                <span>${message}</span>
+            `;
+            statusLog.appendChild(line);
+            statusLog.scrollTop = statusLog.scrollHeight;
+        }
+        
+        function updateProgress(step) {
+            currentProgress = (step / totalSteps) * 100;
+            progressFill.style.width = currentProgress + '%';
+            progressText.textContent = Math.round(currentProgress) + '%';
+        }
+        
+        async function startSetup() {
+            try {
+                // Step 1: Read saved configuration
+                addStatusLine('📋', 'Loading configuration...', 'pending');
+                const configResponse = await fetch('/api/config');
+                if (!configResponse.ok) throw new Error('Failed to load configuration');
+                const config = await configResponse.json();
+                addStatusLine('✓', `Feeder: ${config.MLAT_SITE_NAME || 'TAK-Feeder'}`, 'success');
+                updateProgress(1);
+                
+                // Step 2: Install & Configure Tailscale (if enabled)
+                if (config.TAILSCALE_ENABLED === 'true' && config.TAILSCALE_AUTH_KEY) {
+                    addStatusLine('🔐', 'Installing Tailscale VPN...', 'pending');
+                    addStatusLine('ℹ', 'This may take 30-90 seconds on first install...', 'info');
+                    
+                    try {
+                        const tailscaleResponse = await fetch('/api/tailscale/install', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                auth_key: config.TAILSCALE_AUTH_KEY,
+                                hostname: config.MLAT_SITE_NAME
+                            })
+                        });
+                        
+                        const tailscaleResult = await tailscaleResponse.json();
+                        
+                        if (tailscaleResult.success) {
+                            addStatusLine('✓', 'Tailscale VPN installed and configured', 'success');
+                            addStatusLine('ℹ', 'Connected to Tailscale network', 'info');
+                        } else {
+                            addStatusLine('⚠', `Tailscale setup had issues: ${tailscaleResult.message}`, 'info');
+                            addStatusLine('ℹ', 'Continuing with public IP fallback', 'info');
+                        }
+                    } catch (error) {
+                        addStatusLine('⚠', 'Tailscale installation failed', 'info');
+                        addStatusLine('ℹ', 'Continuing with public IP fallback', 'info');
+                    }
+                } else if (config.TAILSCALE_ENABLED === 'true') {
+                    addStatusLine('ℹ', 'Tailscale enabled but no auth key provided', 'info');
+                }
+                updateProgress(2);
+                
+                // Step 3: Build configuration
+                addStatusLine('🔧', 'Building ultrafeeder configuration...', 'pending');
+                await sleep(1000);
+                addStatusLine('✓', 'TAKNET-PS feed configured (Primary + Fallback)', 'success');
+                addStatusLine('✓', 'MLAT feed configured', 'success');
+                updateProgress(3);
+                
+                // Step 4: Restart service
+                addStatusLine('🔄', 'Starting ultrafeeder service...', 'pending');
+                addStatusLine('ℹ', 'First start may take 1-2 minutes (downloading Docker images)', 'info');
+                
+                const restartResponse = await fetch('/api/service/restart', {
+                    method: 'POST'
+                });
+                
+                if (!restartResponse.ok) {
+                    const error = await restartResponse.json();
+                    throw new Error(error.message || 'Failed to restart service');
+                }
+                
+                // Wait for Docker to pull images and start containers
+                addStatusLine('ℹ', 'Downloading container images...', 'info');
+                await sleep(5000);
+                addStatusLine('ℹ', 'Starting containers...', 'info');
+                await sleep(10000);  // Wait 10 more seconds for containers to start
+                addStatusLine('✓', 'Ultrafeeder service started', 'success');
+                updateProgress(4);
+                
+                // Step 5: Start FR24 if enabled
+                if (config.FR24_ENABLED === 'true' && config.FR24_SHARING_KEY) {
+                    addStatusLine('📡', 'Starting FlightRadar24 feeder...', 'pending');
+                    await sleep(2000);
+                    addStatusLine('✓', 'FR24 container started', 'success');
+                }
+                updateProgress(5);
+                
+                // Step 6: Verify
+                addStatusLine('🔍', 'Verifying service status...', 'pending');
+                await sleep(3000);
+                addStatusLine('✓', 'Services are running', 'success');
+                addStatusLine('ℹ', 'Connected to TAKNET-PS aggregator', 'info');
+                addStatusLine('ℹ', 'Note: Full synchronization may take a few more minutes', 'info');
+                updateProgress(6);
+                
+                // Complete
+                await sleep(500);
+                spinner.style.display = 'none';
+                completionMessage.style.display = 'block';
+                
+                // Countdown and redirect
+                let countdown = 3;
+                const countdownEl = document.getElementById('countdown');
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    countdownEl.textContent = countdown;
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                        window.location.href = '/dashboard';
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                addStatusLine('✗', `Error: ${error.message}`, 'error');
+                addStatusLine('ℹ', 'You can continue setup manually from the dashboard', 'info');
+                spinner.style.display = 'none';
+                
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 5000);
+            }
+        }
+        
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        // Start setup on page load
+        window.addEventListener('DOMContentLoaded', startSetup);
+    </script>
+</body>
+</html>

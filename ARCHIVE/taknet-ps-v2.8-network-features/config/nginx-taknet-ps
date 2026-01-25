@@ -1,0 +1,146 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name taknet-ps.local taknet-ps _;
+
+    # Access log
+    access_log /var/log/nginx/taknet-ps-access.log;
+    error_log /var/log/nginx/taknet-ps-error.log;
+
+    # Root redirects to /web
+    location = / {
+        return 301 /web;
+    }
+
+    # Web UI (Flask on port 5000)
+    location /web {
+        # Redirect /web to /web/ for proper path handling
+        rewrite ^/web$ /web/ permanent;
+        
+        # Strip /web prefix and pass to Flask
+        rewrite ^/web/(.*)$ /$1 break;
+        
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        
+        # WebSocket support
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Proxy headers
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Tar1090 Map (port 8080)
+    location /map {
+        # Redirect /map to /map/ for proper path handling
+        rewrite ^/map$ /map/ permanent;
+        
+        # Strip /map prefix and pass to tar1090
+        rewrite ^/map/(.*)$ /$1 break;
+        
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        
+        # WebSocket support for live updates
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Proxy headers
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # WiFi Portal (direct pass-through, no prefix stripping)
+    location /wifi-portal {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # API endpoints (direct pass-through)
+    location /api/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Static files (direct pass-through to Flask)
+    location /static/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+    }
+
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+
+    # Captive portal detection endpoints (iOS, Android, Windows)
+    location /generate_204 {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+    }
+
+    location /gen_204 {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+    }
+
+    location /ncsi.txt {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+    }
+
+    location /connecttest.txt {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+    }
+
+    location /hotspot-detect.html {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+    }
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Disable nginx version in headers
+    server_tokens off;
+
+    # Error pages
+    error_page 502 503 504 /50x.html;
+    location = /50x.html {
+        return 503 "Service temporarily unavailable. Please wait...";
+        add_header Content-Type text/plain;
+    }
+}

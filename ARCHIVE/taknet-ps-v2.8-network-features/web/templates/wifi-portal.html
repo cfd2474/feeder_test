@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAKNET-PS WiFi Setup</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        
+        .portal-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+            padding: 40px;
+        }
+        
+        .portal-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .portal-header h1 {
+            color: #1e3a8a;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+        }
+        
+        .portal-header p {
+            color: #64748b;
+            margin: 0;
+            font-size: 14px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #fef3c7;
+            color: #92400e;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+        
+        .network-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .network-item {
+            padding: 15px;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .network-item:last-child {
+            border-bottom: none;
+        }
+        
+        .network-item:hover {
+            background: #f1f5f9;
+        }
+        
+        .network-item.selected {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .network-name {
+            font-weight: 600;
+            color: #1e293b;
+            flex: 1;
+        }
+        
+        .network-signal {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #64748b;
+            font-size: 13px;
+        }
+        
+        .signal-bars {
+            display: flex;
+            gap: 2px;
+            align-items: flex-end;
+        }
+        
+        .signal-bar {
+            width: 3px;
+            background: #cbd5e1;
+            border-radius: 1px;
+        }
+        
+        .signal-bar.active {
+            background: #3b82f6;
+        }
+        
+        .lock-icon {
+            color: #64748b;
+            font-size: 16px;
+        }
+        
+        .password-section {
+            display: none;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s;
+        }
+        
+        .password-section.visible {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #334155;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .manual-entry-toggle {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .manual-entry-toggle button {
+            background: none;
+            border: none;
+            color: #3b82f6;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: underline;
+        }
+        
+        .connect-btn {
+            width: 100%;
+            padding: 14px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .connect-btn:hover {
+            background: #2563eb;
+        }
+        
+        .connect-btn:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+        }
+        
+        .refresh-btn {
+            width: 100%;
+            padding: 10px;
+            background: white;
+            color: #3b82f6;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        .countdown-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .countdown-modal.visible {
+            display: flex;
+        }
+        
+        .countdown-content {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        .countdown-number {
+            font-size: 72px;
+            font-weight: bold;
+            color: #3b82f6;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f4f6;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="portal-container">
+        <div class="portal-header">
+            <h1>🛜 TAKNET-PS</h1>
+            <p>WiFi Network Configuration</p>
+            <div class="status-badge">
+                ⚠️ No Network Connection
+            </div>
+        </div>
+        
+        <button class="refresh-btn" onclick="refreshNetworks()">
+            <span id="refreshText">🔄 Scan for Networks</span>
+        </button>
+        
+        <div class="network-list" id="networkList">
+            <div style="padding: 40px; text-align: center; color: #64748b;">
+                <div class="spinner" style="margin: 0 auto 15px;"></div>
+                <p>Scanning for WiFi networks...</p>
+            </div>
+        </div>
+        
+        <div class="password-section" id="passwordSection">
+            <div class="form-group">
+                <label for="selectedNetwork">Selected Network:</label>
+                <input type="text" id="selectedNetwork" readonly>
+            </div>
+            <div class="form-group">
+                <label for="wifiPassword">Password:</label>
+                <input type="password" id="wifiPassword" placeholder="Enter WiFi password">
+            </div>
+        </div>
+        
+        <div class="manual-entry-toggle">
+            <button onclick="toggleManualEntry()">Enter network manually</button>
+        </div>
+        
+        <div class="password-section" id="manualSection">
+            <div class="form-group">
+                <label for="manualSSID">Network Name (SSID):</label>
+                <input type="text" id="manualSSID" placeholder="Enter network name">
+            </div>
+            <div class="form-group">
+                <label for="manualPassword">Password:</label>
+                <input type="password" id="manualPassword" placeholder="Enter password (leave blank for open networks)">
+            </div>
+        </div>
+        
+        <button class="connect-btn" id="connectBtn" onclick="connectToWifi()" disabled>
+            Connect to Network
+        </button>
+    </div>
+    
+    <!-- Countdown Modal -->
+    <div class="countdown-modal" id="countdownModal">
+        <div class="countdown-content">
+            <h2 style="color: #1e3a8a; margin-top: 0;">Connecting to Network</h2>
+            <p style="color: #64748b; margin-bottom: 10px;">The device will reboot and attempt to connect.</p>
+            <p style="color: #64748b; font-size: 13px;">If connection fails, the hotspot will restart automatically.</p>
+            <div class="countdown-number" id="countdownNumber">5</div>
+            <p style="color: #94a3b8; font-size: 13px; margin: 0;">Rebooting in <span id="countdownText">5</span> seconds...</p>
+        </div>
+    </div>
+    
+    <script>
+        let selectedSSID = null;
+        let manualMode = false;
+        
+        // Load networks on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            scanNetworks();
+        });
+        
+        async function scanNetworks() {
+            const networkList = document.getElementById('networkList');
+            networkList.innerHTML = `
+                <div style="padding: 40px; text-align: center; color: #64748b;">
+                    <div class="spinner" style="margin: 0 auto 15px;"></div>
+                    <p>Scanning for WiFi networks...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/wifi/scan');
+                const data = await response.json();
+                
+                if (data.success && data.networks.length > 0) {
+                    displayNetworks(data.networks);
+                } else {
+                    networkList.innerHTML = `
+                        <div style="padding: 40px; text-align: center; color: #64748b;">
+                            <p>No WiFi networks found</p>
+                            <p style="font-size: 13px;">Try manual entry or move closer to a network</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                networkList.innerHTML = `
+                    <div style="padding: 40px; text-align: center; color: #dc2626;">
+                        <p>Error scanning networks</p>
+                        <p style="font-size: 13px;">Please try again or use manual entry</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayNetworks(networks) {
+            const networkList = document.getElementById('networkList');
+            networkList.innerHTML = networks.map(network => {
+                const signalBars = getSignalBars(network.signal);
+                const lockIcon = network.security !== 'Open' ? '🔒' : '';
+                
+                return `
+                    <div class="network-item" onclick="selectNetwork('${escapeHtml(network.ssid)}', ${network.security !== 'Open'})">
+                        <div class="network-name">${escapeHtml(network.ssid)}</div>
+                        <div class="network-signal">
+                            <span class="lock-icon">${lockIcon}</span>
+                            <div class="signal-bars">${signalBars}</div>
+                            <span>${network.signal}%</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function getSignalBars(signal) {
+            const bars = [];
+            const heights = [8, 12, 16, 20];
+            const threshold = [25, 50, 75, 100];
+            
+            for (let i = 0; i < 4; i++) {
+                const active = signal >= threshold[i] ? 'active' : '';
+                bars.push(`<div class="signal-bar ${active}" style="height: ${heights[i]}px;"></div>`);
+            }
+            return bars.join('');
+        }
+        
+        function selectNetwork(ssid, requiresPassword) {
+            selectedSSID = ssid;
+            manualMode = false;
+            
+            // Update UI
+            document.querySelectorAll('.network-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            // Show password section if needed
+            const passwordSection = document.getElementById('passwordSection');
+            const manualSection = document.getElementById('manualSection');
+            const selectedNetworkInput = document.getElementById('selectedNetwork');
+            const passwordInput = document.getElementById('wifiPassword');
+            const connectBtn = document.getElementById('connectBtn');
+            
+            selectedNetworkInput.value = ssid;
+            passwordInput.value = '';
+            
+            if (requiresPassword) {
+                passwordSection.classList.add('visible');
+                manualSection.classList.remove('visible');
+                connectBtn.disabled = false;
+            } else {
+                passwordSection.classList.remove('visible');
+                manualSection.classList.remove('visible');
+                connectBtn.disabled = false;
+            }
+        }
+        
+        function toggleManualEntry() {
+            manualMode = !manualMode;
+            const passwordSection = document.getElementById('passwordSection');
+            const manualSection = document.getElementById('manualSection');
+            const connectBtn = document.getElementById('connectBtn');
+            
+            if (manualMode) {
+                selectedSSID = null;
+                document.querySelectorAll('.network-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                passwordSection.classList.remove('visible');
+                manualSection.classList.add('visible');
+                connectBtn.disabled = false;
+            } else {
+                manualSection.classList.remove('visible');
+                connectBtn.disabled = true;
+            }
+        }
+        
+        async function refreshNetworks() {
+            const refreshText = document.getElementById('refreshText');
+            refreshText.innerHTML = '<span class="spinner"></span> Scanning...';
+            await scanNetworks();
+            refreshText.innerHTML = '🔄 Scan for Networks';
+        }
+        
+        async function connectToWifi() {
+            const connectBtn = document.getElementById('connectBtn');
+            
+            let ssid, password;
+            
+            if (manualMode) {
+                ssid = document.getElementById('manualSSID').value.trim();
+                password = document.getElementById('manualPassword').value;
+                
+                if (!ssid) {
+                    alert('Please enter a network name');
+                    return;
+                }
+            } else {
+                if (!selectedSSID) {
+                    alert('Please select a network');
+                    return;
+                }
+                ssid = selectedSSID;
+                password = document.getElementById('wifiPassword').value;
+            }
+            
+            // Disable button
+            connectBtn.disabled = true;
+            connectBtn.innerHTML = '<span class="spinner"></span> Connecting...';
+            
+            try {
+                const response = await fetch('/api/wifi/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ssid, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show countdown modal
+                    showCountdown();
+                } else {
+                    alert('Connection failed: ' + data.message);
+                    connectBtn.disabled = false;
+                    connectBtn.innerHTML = 'Connect to Network';
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                connectBtn.disabled = false;
+                connectBtn.innerHTML = 'Connect to Network';
+            }
+        }
+        
+        function showCountdown() {
+            const modal = document.getElementById('countdownModal');
+            const numberDisplay = document.getElementById('countdownNumber');
+            const textDisplay = document.getElementById('countdownText');
+            
+            modal.classList.add('visible');
+            
+            let countdown = 5;
+            const interval = setInterval(() => {
+                countdown--;
+                numberDisplay.textContent = countdown;
+                textDisplay.textContent = countdown;
+                
+                if (countdown <= 0) {
+                    clearInterval(interval);
+                    numberDisplay.textContent = '🔄';
+                    textDisplay.parentElement.innerHTML = 'Rebooting now...';
+                }
+            }, 1000);
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

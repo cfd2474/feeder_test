@@ -1,0 +1,16 @@
+[Unit]
+Description=TAKNET-PS WiFi Connection Manager
+After=network-online.target
+Wants=network-online.target
+Before=ultrafeeder.service adsb-web.service
+
+[Service]
+Type=simple
+ExecStart=/opt/adsb/scripts/wifi-manager.sh check
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

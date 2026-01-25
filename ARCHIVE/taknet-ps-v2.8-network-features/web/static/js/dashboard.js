@@ -1,0 +1,90 @@
+// Auto-refresh status every 10 seconds
+let autoRefresh = setInterval(updateStatus, 10000);
+
+async function updateStatus() {
+    try {
+        const response = await fetch('/api/status');
+        const data = await response.json();
+        
+        // Update container status
+        const container = document.getElementById('container-status');
+        if (data.docker && data.docker.ultrafeeder) {
+            const isRunning = data.docker.ultrafeeder.includes('Up');
+            container.innerHTML = `
+                <div class="status-item">
+                    <span class="status-dot ${isRunning ? 'active' : 'inactive'}"></span>
+                    <span>ultrafeeder</span>
+                    <span class="status-text">${data.docker.ultrafeeder}</span>
+                </div>
+            `;
+        }
+        
+        // Update feeds
+        const feedsContainer = document.getElementById('active-feeds');
+        if (data.feeds && data.feeds.length > 0) {
+            feedsContainer.innerHTML = data.feeds.map(feed => `
+                <div class="feed-item">
+                    <span class="status-dot active"></span>
+                    ${feed}
+                </div>
+            `).join('');
+        }
+        
+    } catch (error) {
+        console.error('Failed to update status:', error);
+    }
+}
+
+async function restartService() {
+    if (!confirm('Restart the ultrafeeder service?')) return;
+    
+    showStatus('Restarting service...', 'info');
+    
+    try {
+        const response = await fetch('/api/service/restart', {
+            method: 'POST'
+        });
+        
+        if (!response.ok) throw new Error('Failed to restart service');
+        
+        showStatus('✓ Service restarted successfully', 'success');
+        
+        // Refresh status after a delay
+        setTimeout(updateStatus, 3000);
+        
+    } catch (error) {
+        showStatus('Error: ' + error.message, 'error');
+    }
+}
+
+async function viewLogs() {
+    const logsContainer = document.getElementById('logs-container');
+    const logsOutput = document.getElementById('logs-output');
+    
+    if (logsContainer.style.display === 'none') {
+        logsContainer.style.display = 'block';
+        logsOutput.textContent = 'Loading logs...';
+        
+        try {
+            // In production, this would fetch from an API endpoint
+            // For now, just show a message
+            logsOutput.textContent = 'To view logs, run:\nsudo docker logs ultrafeeder\n\nOr SSH into your Pi and check logs directly.';
+            
+        } catch (error) {
+            logsOutput.textContent = 'Failed to load logs: ' + error.message;
+        }
+    } else {
+        logsContainer.style.display = 'none';
+    }
+}
+
+function showStatus(message, type) {
+    const status = document.getElementById('status');
+    status.textContent = message;
+    status.className = type;
+    status.style.display = 'block';
+    
+    setTimeout(() => {
+        status.style.display = 'none';
+    }, 5000);
+}

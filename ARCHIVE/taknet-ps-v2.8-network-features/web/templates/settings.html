@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - TAKNET-PS-ADSB</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .modal-header {
+            color: #d32f2f;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .modal-body {
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+        
+        .btn-danger {
+            background: #d32f2f;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #b71c1c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
+            <nav>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/settings" class="active">Settings</a>
+                <a href="http://{{ request.host.split(':')[0] }}:8080" target="_blank">Map</a>
+            </nav>
+        </header>
+
+        <div class="dashboard">
+            <h2>Configuration</h2>
+            <p class="text-muted">Edit your feeder configuration</p>
+            
+            <!-- SDR Devices Section -->
+            <div class="card">
+                <h3>📡 SDR Devices</h3>
+                <p>Configure Software Defined Radio receivers</p>
+                
+                <button class="btn btn-secondary" onclick="detectSDRDevices()" id="detectSDRBtn" style="margin-top: 15px;">
+                    🔍 Detect Devices
+                </button>
+                
+                <div id="sdrDevicesSection" style="display: none; margin-top: 20px;">
+                    <table class="sdr-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Serial</th>
+                                <th>Use For</th>
+                                <th>Gain</th>
+                                <th>Bias Tee</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sdrTableBody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="sdrStatus" style="display: none; margin-top: 15px;"></div>
+            </div>
+
+            <div class="card">
+                <h3>Location</h3>
+                <div class="form-group">
+                    <label>Latitude</label>
+                    <input type="number" step="any" id="lat" value="{{ config.get('FEEDER_LAT', '') }}">
+                </div>
+                <div class="form-group">
+                    <label>Longitude</label>
+                    <input type="number" step="any" id="lon" value="{{ config.get('FEEDER_LONG', '') }}">
+                </div>
+                <div class="form-group">
+                    <label>Altitude (meters)</label>
+                    <input type="number" id="alt" value="{{ config.get('FEEDER_ALT_M', '') }}">
+                </div>
+                <div class="form-group">
+                    <label>Timezone</label>
+                    <select id="tz">
+                        <option value="">-- Select Timezone --</option>
+                        <optgroup label="US Timezones">
+                            <option value="America/New_York">Eastern Time (ET)</option>
+                            <option value="America/Chicago">Central Time (CT)</option>
+                            <option value="America/Denver">Mountain Time (MT)</option>
+                            <option value="America/Phoenix">Arizona Time (MST - no DST)</option>
+                            <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                            <option value="America/Anchorage">Alaska Time (AKT)</option>
+                            <option value="Pacific/Honolulu">Hawaii Time (HST)</option>
+                        </optgroup>
+                        <optgroup label="Canada">
+                            <option value="America/Toronto">Eastern Time</option>
+                            <option value="America/Vancouver">Pacific Time</option>
+                        </optgroup>
+                        <optgroup label="Europe">
+                            <option value="Europe/London">London (GMT/BST)</option>
+                            <option value="Europe/Paris">Paris (CET/CEST)</option>
+                            <option value="Europe/Berlin">Berlin (CET/CEST)</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option value="UTC">UTC</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Feeder Name</label>
+                    <input type="text" id="site_name" value="{{ config.get('MLAT_SITE_NAME', 'TAK-Feeder').split('-', 1)[1] if '-' in config.get('MLAT_SITE_NAME', '') else config.get('MLAT_SITE_NAME', 'TAK-Feeder') }}">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Current: {{ config.get('MLAT_SITE_NAME', 'Not set') }}
+                    </small>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Tailscale VPN</h3>
+                <div class="info-note" style="margin-bottom: 15px;">
+                    <p>ℹ️ Tailscale provides secure VPN connection to TAKNET-PS Server aggregator</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="tailscale_enabled" {{ 'checked' if config.get('TAILSCALE_ENABLED', 'false') == 'true' else '' }}>
+                        Enable Tailscale VPN
+                    </label>
+                </div>
+                
+                <div id="tailscale-config" style="display: none; margin-top: 15px;">
+                    {% if config.get('TAILSCALE_AUTH_KEY', '') %}
+                    <div class="info-box" style="background: #e8f5e9; border-left: 4px solid #4caf50; margin-bottom: 15px;">
+                        <p style="margin: 0;">✓ Tailscale auth key is configured</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Enter New Key Checkbox -->
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="enter_new_key">
+                            Enter New Tailscale Key
+                        </label>
+                    </div>
+                    
+                    <!-- New Key Input (only shown when checkbox is checked) -->
+                    <div id="new-key-section" style="display: none; margin-top: 15px;">
+                        <div class="form-group">
+                            <label>Insert NEW Tailscale Auth Key</label>
+                            <input type="text" id="tailscale_key" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx">
+                            <small style="color: #666; display: block; margin-top: 5px;">
+                                Enter a new key to re-register this device with Tailscale
+                            </small>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 15px;">
+                            <button class="btn btn-primary" onclick="updateTailscale()">🔄 Apply New Tailscale Key</button>
+                            <small style="color: #666; display: block; margin-top: 5px;">
+                                This will restart Tailscale with the new authentication key
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="info-note" style="margin-top: 15px;">
+                        <p><strong>Need a Tailscale auth key?</strong></p>
+                        <p>Contact: <a href="mailto:michael.leckliter@yahoo.com" style="color: #667eea;">Michael Leckliter</a></p>
+                    </div>
+                    
+                    <div id="tailscale-status" style="margin-top: 15px; padding: 15px; background: #f5f5f5; border-radius: 5px; display: none;">
+                        <div id="tailscale-status-content"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>TAKNET-PS Server</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="tak_enabled" {{ 'checked' if config.get('TAKNET_PS_ENABLED', 'true') == 'true' else '' }}>
+                        Enable TAKNET-PS Server Feed
+                    </label>
+                </div>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>
+                        <input type="checkbox" id="tak_mlat_enabled" {{ 'checked' if config.get('TAKNET_PS_MLAT_ENABLED', 'true') == 'true' else '' }}>
+                        Enable TAKNET-PS Server MLAT
+                    </label>
+                    <small style="color: #666; display: block; margin-top: 5px; margin-left: 25px;">
+                        Multilateration for improved position accuracy
+                    </small>
+                </div>
+                <div class="info-note" style="margin-top: 10px;">
+                    <p>ℹ️ Connection details managed automatically with Tailscale failover</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>FlightRadar24</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="fr24_enabled" {{ 'checked' if config.get('FR24_ENABLED') == 'true' else '' }}>
+                        Enable FR24
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Sharing Key</label>
+                    <input type="text" id="fr24_key" value="{{ config.get('FR24_SHARING_KEY', '') }}">
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>ADS-B Exchange</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="adsbx_enabled" {{ 'checked' if config.get('ADSBX_ENABLED') == 'true' else '' }}>
+                        Enable ADSBX
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>UUID</label>
+                    <input type="text" id="adsbx_uuid" value="{{ config.get('ADSBX_UUID', '') }}">
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-success" onclick="saveSettings()">💾 Save Configuration</button>
+                <button class="btn" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
+            </div>
+        </div>
+
+        <div id="status"></div>
+    </div>
+
+    <!-- Disable Tailscale Confirmation Modal -->
+    <div id="disableModal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-header">⚠️ Disable Tailscale VPN?</h2>
+            <div class="modal-body">
+                <p><strong>Are you sure you want to disable Tailscale?</strong></p>
+                <p>This is <strong>not recommended</strong>. Disabling Tailscale will:</p>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>Force connection to TAKNET-PS Server via public internet</li>
+                    <li>Remove secure VPN encryption</li>
+                    <li>Potentially reduce reliability</li>
+                </ul>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="cancelDisable()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDisable()">Yes, Disable Tailscale</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disable MLAT Confirmation Modal -->
+    <div id="disableMlatModal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-header">⚠️ Disable TAKNET-PS Server MLAT?</h2>
+            <div class="modal-body">
+                <p><strong>Are you sure you want to disable MLAT?</strong></p>
+                <p>This is <strong>not recommended</strong>. Disabling MLAT will:</p>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>Reduce position accuracy for aircraft without ADS-B</li>
+                    <li>Limit multilateration coverage</li>
+                    <li>Decrease overall tracking quality</li>
+                </ul>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="cancelMlatDisable()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmMlatDisable()">Yes, Disable MLAT</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let originalTailscaleState = false;
+        let originalMlatState = false;
+        
+        // Set timezone dropdown
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentTz = "{{ config.get('FEEDER_TZ', 'UTC') }}";
+            document.getElementById('tz').value = currentTz;
+            
+            // Show/hide Tailscale config section
+            const tailscaleCheckbox = document.getElementById('tailscale_enabled');
+            const tailscaleConfig = document.getElementById('tailscale-config');
+            const enterNewKeyCheckbox = document.getElementById('enter_new_key');
+            const newKeySection = document.getElementById('new-key-section');
+            const mlatCheckbox = document.getElementById('tak_mlat_enabled');
+            
+            // Store initial states
+            originalTailscaleState = tailscaleCheckbox.checked;
+            originalMlatState = mlatCheckbox.checked;
+            
+            function toggleTailscaleConfig() {
+                tailscaleConfig.style.display = tailscaleCheckbox.checked ? 'block' : 'none';
+                if (!tailscaleCheckbox.checked) {
+                    // Also hide new key section if Tailscale disabled
+                    enterNewKeyCheckbox.checked = false;
+                    newKeySection.style.display = 'none';
+                }
+            }
+            
+            function toggleNewKeySection() {
+                newKeySection.style.display = enterNewKeyCheckbox.checked ? 'block' : 'none';
+                // Clear the key field when hiding
+                if (!enterNewKeyCheckbox.checked) {
+                    document.getElementById('tailscale_key').value = '';
+                }
+            }
+            
+            // Intercept Tailscale checkbox changes
+            tailscaleCheckbox.addEventListener('change', function(e) {
+                if (originalTailscaleState && !this.checked) {
+                    // User is trying to disable - show confirmation
+                    e.preventDefault();
+                    this.checked = true; // Keep it checked until confirmed
+                    showDisableModal();
+                } else {
+                    toggleTailscaleConfig();
+                }
+            });
+            
+            // Handle enter new key checkbox
+            enterNewKeyCheckbox.addEventListener('change', toggleNewKeySection);
+            
+            // Intercept MLAT checkbox changes
+            mlatCheckbox.addEventListener('change', function(e) {
+                if (originalMlatState && !this.checked) {
+                    // User is trying to disable MLAT - show confirmation
+                    e.preventDefault();
+                    this.checked = true; // Keep it checked until confirmed
+                    showMlatDisableModal();
+                }
+            });
+            
+            toggleTailscaleConfig(); // Initial state
+        });
+        
+        function showDisableModal() {
+            document.getElementById('disableModal').style.display = 'block';
+        }
+        
+        function cancelDisable() {
+            document.getElementById('disableModal').style.display = 'none';
+            // Checkbox stays checked
+        }
+        
+        function confirmDisable() {
+            document.getElementById('disableModal').style.display = 'none';
+            const checkbox = document.getElementById('tailscale_enabled');
+            checkbox.checked = false;
+            originalTailscaleState = false;
+            document.getElementById('tailscale-config').style.display = 'none';
+            document.getElementById('enter_new_key').checked = false;
+            document.getElementById('new-key-section').style.display = 'none';
+        }
+        
+        function showMlatDisableModal() {
+            document.getElementById('disableMlatModal').style.display = 'block';
+        }
+        
+        function cancelMlatDisable() {
+            document.getElementById('disableMlatModal').style.display = 'none';
+            // Checkbox stays checked
+        }
+        
+        function confirmMlatDisable() {
+            document.getElementById('disableMlatModal').style.display = 'none';
+            const checkbox = document.getElementById('tak_mlat_enabled');
+            checkbox.checked = false;
+            originalMlatState = false;
+        }
+        
+        // Get zip code from coordinates
+        async function getZipCodeFromCoords(lat, lon) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
+                    { headers: { 'User-Agent': 'TAKNET-PS-ADSB-Feeder/2.1' } }
+                );
+                
+                if (!response.ok) throw new Error('Geocoding failed');
+                const data = await response.json();
+                
+                if (data.address) {
+                    return data.address.postcode || data.address.postal_code || null;
+                }
+                return null;
+            } catch (error) {
+                console.error('Failed to get zip code:', error);
+                return null;
+            }
+        }
+        
+        // Update Tailscale configuration
+        async function updateTailscale() {
+            const tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
+            const tailscaleKey = document.getElementById('tailscale_key').value.trim();
+            const siteName = document.getElementById('site_name').value.trim();
+            const lat = document.getElementById('lat').value;
+            const lon = document.getElementById('lon').value;
+            
+            if (!tailscaleEnabled) {
+                showStatus('Please enable Tailscale first', 'error');
+                return;
+            }
+            
+            if (!tailscaleKey) {
+                showStatus('Please enter a Tailscale auth key', 'error');
+                return;
+            }
+            
+            showStatus('Updating Tailscale configuration...', 'info');
+            
+            // Get feeder name with zip code
+            let machineName = siteName;
+            if (lat && lon && siteName) {
+                const zipCode = await getZipCodeFromCoords(lat, lon);
+                if (zipCode) {
+                    machineName = `${zipCode}-${siteName}`;
+                } else {
+                    machineName = `00000-${siteName}`;
+                }
+            } else {
+                const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
+                if (currentFullName) {
+                    machineName = currentFullName;
+                }
+            }
+            
+            try {
+                // Install/update Tailscale with new key and hostname
+                const response = await fetch('/api/tailscale/install', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        auth_key: tailscaleKey,
+                        hostname: machineName
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus('✓ Tailscale updated successfully!', 'success');
+                    
+                    // Get and display status
+                    setTimeout(async () => {
+                        const statusResponse = await fetch('/api/tailscale/status');
+                        const statusData = await statusResponse.json();
+                        
+                        if (statusData.success) {
+                            displayTailscaleStatus(statusData);
+                        }
+                    }, 2000); // Wait 2 seconds for connection to establish
+                    
+                    // Save the key to config
+                    const saveResponse = await fetch('/api/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            TAILSCALE_ENABLED: 'true',
+                            TAILSCALE_AUTH_KEY: tailscaleKey
+                        })
+                    });
+                    
+                    originalTailscaleState = true;
+                    
+                    // Clear the input and uncheck "Enter New Key"
+                    document.getElementById('tailscale_key').value = '';
+                    document.getElementById('enter_new_key').checked = false;
+                    document.getElementById('new-key-section').style.display = 'none';
+                    
+                } else {
+                    showStatus('Error: ' + result.message, 'error');
+                }
+                
+            } catch (error) {
+                showStatus('Error updating Tailscale: ' + error.message, 'error');
+            }
+        }
+        
+        function displayTailscaleStatus(statusData) {
+            const statusDiv = document.getElementById('tailscale-status');
+            const contentDiv = document.getElementById('tailscale-status-content');
+            
+            // Parse status output to get IP
+            let statusHtml = '';
+            if (statusData.status && statusData.status.includes('100.')) {
+                // Extract IP from status
+                const lines = statusData.status.split('\n');
+                const ipLine = lines.find(line => line.includes('100.'));
+                if (ipLine) {
+                    const ip = ipLine.match(/100\.\d+\.\d+\.\d+/);
+                    if (ip) {
+                        statusHtml = `
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 2em;">✓</span>
+                                <div>
+                                    <div style="font-weight: bold; color: #4caf50;">Tailscale Active</div>
+                                    <div style="color: #666; font-size: 0.9em;">Device IP: ${ip[0]}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            } else {
+                statusHtml = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 2em;">⚠️</span>
+                        <div>
+                            <div style="font-weight: bold; color: #ff9800;">Tailscale Disabled</div>
+                            <div style="color: #666; font-size: 0.9em;">Using public IP fallback</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            contentDiv.innerHTML = statusHtml;
+            statusDiv.style.display = 'block';
+        }
+        
+        async function saveSettings() {
+            const lat = document.getElementById('lat').value;
+            const lon = document.getElementById('lon').value;
+            const siteName = document.getElementById('site_name').value.trim();
+            
+            showStatus('Saving...', 'info');
+            
+            // Get current full site name to check if we need to update zip
+            const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
+            let finalSiteName = currentFullName;
+            
+            // If coordinates changed, look up new zip code
+            if (lat && lon && siteName) {
+                const zipCode = await getZipCodeFromCoords(lat, lon);
+                if (zipCode) {
+                    finalSiteName = `${zipCode}-${siteName}`;
+                } else if (!finalSiteName.includes('-')) {
+                    finalSiteName = `00000-${siteName}`;
+                }
+            } else if (siteName && !currentFullName.includes('-')) {
+                finalSiteName = `00000-${siteName}`;
+            } else if (siteName) {
+                // Keep existing zip, update name only
+                const parts = currentFullName.split('-');
+                if (parts.length > 1) {
+                    finalSiteName = `${parts[0]}-${siteName}`;
+                }
+            }
+            
+            const config = {
+                FEEDER_LAT: lat,
+                FEEDER_LONG: lon,
+                FEEDER_ALT_M: document.getElementById('alt').value,
+                FEEDER_TZ: document.getElementById('tz').value,
+                MLAT_SITE_NAME: finalSiteName,
+                
+                TAILSCALE_ENABLED: document.getElementById('tailscale_enabled').checked ? 'true' : 'false',
+                TAILSCALE_AUTH_KEY: document.getElementById('tailscale_key').value.trim(),
+                
+                TAKNET_PS_ENABLED: document.getElementById('tak_enabled').checked ? 'true' : 'false',
+                TAKNET_PS_MLAT_ENABLED: document.getElementById('tak_mlat_enabled').checked ? 'true' : 'false',
+                
+                FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
+                FR24_SHARING_KEY: document.getElementById('fr24_key').value,
+                
+                ADSBX_ENABLED: document.getElementById('adsbx_enabled').checked ? 'true' : 'false',
+                ADSBX_UUID: document.getElementById('adsbx_uuid').value
+            };
+            
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                if (!response.ok) throw new Error('Failed to save');
+                
+                // Show save confirmation modal
+                showSaveModal(finalSiteName);
+                
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            }
+        }
+        
+        function showSaveModal(feederName) {
+            const modal = document.getElementById('saveConfirmModal');
+            const feederNameSpan = document.getElementById('savedFeederName');
+            feederNameSpan.textContent = feederName;
+            modal.style.display = 'flex';
+        }
+        
+        function closeSaveModal() {
+            const modal = document.getElementById('saveConfirmModal');
+            modal.style.display = 'none';
+        }
+        
+        async function restartServices() {
+            const modal = document.getElementById('saveConfirmModal');
+            const statusDiv = document.getElementById('restartStatus');
+            const btnContainer = document.getElementById('modalButtons');
+            
+            // Hide buttons, show status
+            btnContainer.style.display = 'none';
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<p>🔄 Restarting services...</p>';
+            
+            try {
+                const response = await fetch('/api/service/restart', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) throw new Error('Failed to restart');
+                
+                statusDiv.innerHTML = '<p>✓ Services restarting! Redirecting to dashboard...</p>';
+                
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 2000);
+                
+            } catch (error) {
+                statusDiv.innerHTML = '<p class="error">✗ Error: ' + error.message + '</p>';
+                btnContainer.style.display = 'block';
+            }
+        }
+        
+        function notNowRestart() {
+            closeSaveModal();
+            showStatus('✓ Configuration saved. Remember to restart services to apply changes.', 'success');
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = type;
+            status.style.display = 'block';
+        }
+        
+        // SDR Configuration Functions
+        let sdrDevices = [];
+        let currentSDRIndex = null;
+        
+        async function detectSDRDevices() {
+            const btn = document.getElementById('detectSDRBtn');
+            const section = document.getElementById('sdrDevicesSection');
+            const status = document.getElementById('sdrStatus');
+            
+            btn.disabled = true;
+            btn.textContent = '🔍 Detecting...';
+            status.style.display = 'block';
+            status.textContent = 'Scanning for SDR devices...';
+            status.className = 'info';
+            
+            try {
+                const response = await fetch('/api/sdr/detect');
+                const data = await response.json();
+                
+                if (data.success && data.devices && data.devices.length > 0) {
+                    sdrDevices = data.devices;
+                    displaySDRDevices();
+                    section.style.display = 'block';
+                    status.textContent = `✓ Found ${data.devices.length} device(s)`;
+                    status.className = 'success';
+                } else {
+                    status.textContent = '⚠ No SDR devices detected';
+                    status.className = 'error';
+                    section.style.display = 'none';
+                }
+            } catch (error) {
+                status.textContent = 'Error detecting devices: ' + error.message;
+                status.className = 'error';
+                section.style.display = 'none';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Detect Devices';
+            }
+        }
+        
+        function displaySDRDevices() {
+            const tbody = document.getElementById('sdrTableBody');
+            tbody.innerHTML = '';
+            
+            sdrDevices.forEach((device, index) => {
+                const row = document.createElement('tr');
+                row.onclick = () => openSDRConfigModal(index);
+                
+                if (device.useFor) {
+                    row.classList.add('configured');
+                }
+                
+                row.innerHTML = `
+                    <td><strong>${device.type.toUpperCase()}</strong></td>
+                    <td>${device.serial}</td>
+                    <td>
+                        ${device.useFor ? 
+                            `<span class="badge-${device.useFor}">${device.useFor} MHz</span>` : 
+                            '<span style="color: #9ca3af;">Not Configured</span>'
+                        }
+                    </td>
+                    <td>${device.gain || 'autogain'}</td>
+                    <td>${device.biastee ? '✓ Enabled' : '—'}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+        
+        function openSDRConfigModal(index) {
+            currentSDRIndex = index;
+            const device = sdrDevices[index];
+            
+            document.getElementById('sdrModalDeviceInfo').textContent = 
+                `${device.type.toUpperCase()} - Serial: ${device.serial}`;
+            
+            document.getElementById('sdrModalUseFor').value = device.useFor || '';
+            document.getElementById('sdrModalGain').value = device.gain || 'autogain';
+            document.getElementById('sdrModalBiasTee').checked = device.biastee || false;
+            
+            document.getElementById('sdrConfigModal').style.display = 'flex';
+        }
+        
+        function closeSDRConfigModal() {
+            document.getElementById('sdrConfigModal').style.display = 'none';
+            currentSDRIndex = null;
+        }
+        
+        async function saveSDRDeviceConfig() {
+            if (currentSDRIndex === null) return;
+            
+            const useFor = document.getElementById('sdrModalUseFor').value;
+            const gain = document.getElementById('sdrModalGain').value.trim();
+            const biastee = document.getElementById('sdrModalBiasTee').checked;
+            
+            // Validate
+            if (!useFor) {
+                alert('Please select a frequency (Use For)');
+                return;
+            }
+            
+            if (gain && gain !== 'autogain' && gain !== 'auto') {
+                const gainNum = parseFloat(gain);
+                if (isNaN(gainNum) || gainNum < 0 || gainNum > 50) {
+                    alert('Gain must be between 0 and 50, or "autogain"');
+                    return;
+                }
+            }
+            
+            // Update device
+            sdrDevices[currentSDRIndex].useFor = useFor;
+            sdrDevices[currentSDRIndex].gain = gain === 'auto' ? 'autogain' : gain;
+            sdrDevices[currentSDRIndex].biastee = biastee;
+            
+            // Save to backend
+            try {
+                const response = await fetch('/api/sdr/configure', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ devices: sdrDevices })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeSDRConfigModal();
+                    displaySDRDevices();
+                    showStatus('✓ SDR configuration saved. Restart services to apply.', 'success');
+                } else {
+                    alert('Error saving configuration: ' + (result.message || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error saving configuration: ' + error.message);
+            }
+        }
+    </script>
+    
+    <!-- Save Confirmation Modal -->
+    <div id="saveConfirmModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2>✓ Configuration Saved</h2>
+            <p>Feeder name: <strong id="savedFeederName"></strong></p>
+            
+            <div class="info-box" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; color: #92400e;">
+                    ⚠️ <strong>Changes to feeds require a service restart to apply.</strong>
+                </p>
+            </div>
+            
+            <p>Would you like to restart services now?</p>
+            
+            <div id="restartStatus" style="display: none; text-align: center; padding: 20px;"></div>
+            
+            <div id="modalButtons" style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="restartServices()">
+                    🔄 Yes, Restart Services
+                </button>
+                <button class="btn btn-secondary" onclick="notNowRestart()">
+                    ⏸️ Not Now
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SDR Configuration Modal -->
+    <div id="sdrConfigModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>Configure SDR Device</h3>
+            
+            <div style="background: #f9fafb; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 0.9em; color: #6b7280;">
+                <strong>Device:</strong> <span id="sdrModalDeviceInfo"></span>
+            </div>
+            
+            <div class="form-group">
+                <label>Use For *</label>
+                <select id="sdrModalUseFor" required>
+                    <option value="">-- Select Frequency --</option>
+                    <option value="1090">1090 MHz (ADS-B)</option>
+                    <option value="978">978 MHz (UAT)</option>
+                </select>
+                <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 0.85em;">
+                    Select the frequency this receiver will monitor
+                </p>
+            </div>
+            
+            <div class="form-group">
+                <label>Gain</label>
+                <input type="text" id="sdrModalGain" placeholder="autogain" value="autogain">
+                <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 0.85em;">
+                    Enter a value between 0 and 50, or 'autogain' (recommended)
+                </p>
+            </div>
+            
+            <div class="form-group">
+                <label style="display: flex; align-items: center; cursor: pointer; user-select: none;">
+                    <input type="checkbox" id="sdrModalBiasTee" style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
+                    <span>Enable Bias Tee</span>
+                </label>
+                <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 0.85em;">
+                    Only enable if you have an LNA that requires bias tee power
+                </p>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 25px;">
+                <button class="btn btn-primary" onclick="saveSDRDeviceConfig()">
+                    💾 Save Configuration
+                </button>
+                <button class="btn btn-secondary" onclick="closeSDRConfigModal()">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+            transform: translateY(-2px);
+        }
+        
+        #restartStatus p {
+            font-size: 1.1em;
+            margin: 10px 0;
+        }
+        
+        #restartStatus .error {
+            color: #dc2626;
+        }
+        
+        /* SDR Table Styles */
+        .sdr-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .sdr-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-size: 0.9em;
+        }
+        
+        .sdr-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.9em;
+        }
+        
+        .sdr-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .sdr-table tbody tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .sdr-table tbody tr:hover {
+            background: #f9fafb;
+        }
+        
+        .sdr-table tbody tr.configured {
+            background: #f0fdf4;
+        }
+        
+        .badge-1090 {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .badge-978 {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+    </style>
+</body>
+</html>
