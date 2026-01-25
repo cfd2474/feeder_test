@@ -78,7 +78,7 @@ publish-addresses=yes
 publish-hinfo=yes
 publish-workstation=yes
 publish-domain=yes
-EOF
+AVAHIEOF
 
 systemctl enable avahi-daemon
 systemctl restart avahi-daemon
