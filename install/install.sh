@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.8
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.1
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,20 +29,10 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.8"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.1"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
-echo "  + Network Discovery & WiFi Hotspot"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-
-# Detect OS
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    OS=$ID
-else
-    echo "Cannot detect OS. This installer supports Debian/Ubuntu/Raspberry Pi OS."
-    exit 1
-fi
 
 # Install Docker
 if ! command -v docker &> /dev/null; then
@@ -61,295 +51,396 @@ else
     echo "✓ Docker already installed"
 fi
 
-# Install system packages
-echo "Installing system packages..."
-apt-get update
-apt-get install -y \
-    rtl-sdr \
-    python3-pip \
-    python3-flask \
-    python3-requests \
-    python3-dotenv \
-    vnstat \
-    curl \
-    wget \
-    git \
-    avahi-daemon \
-    nginx \
-    hostapd \
-    dnsmasq \
-    dhcpcd5 \
-    network-manager
+# Install Python and Flask
+echo "Installing Python dependencies..."
+apt-get update -qq
+apt-get install -y python3-flask python3-pip wget curl rtl-sdr vnstat nginx avahi-daemon avahi-utils libnss-mdns hostapd dnsmasq iptables wireless-tools rfkill
 
-echo "✓ System packages installed"
+echo "✓ All packages installed"
 
-# Configure mDNS hostname
-echo "Configuring mDNS hostname (taknet-ps.local)..."
+# Configure mDNS (taknet-ps.local)
+echo "Configuring mDNS hostname..."
 hostnamectl set-hostname taknet-ps
+sed -i '/127.0.1.1/d' /etc/hosts
+echo "127.0.1.1    taknet-ps" >> /etc/hosts
 
-# Ensure avahi-daemon is enabled and started
+cat > /etc/avahi/avahi-daemon.conf << 'AVAHIEOF'
+[server]
+host-name=taknet-ps
+domain-name=local
+use-ipv4=yes
+use-ipv6=no
+allow-interfaces=wlan0,eth0
+deny-interfaces=ap0
+
+[publish]
+publish-addresses=yes
+publish-hinfo=yes
+publish-workstation=yes
+publish-domain=yes
+EOF
+
 systemctl enable avahi-daemon
-systemctl start avahi-daemon
+systemctl restart avahi-daemon
 
-echo "✓ mDNS configured - device accessible at taknet-ps.local"
+echo "✓ mDNS configured (taknet-ps.local)"
 
-# Create directory structure
-echo "Creating directory structure..."
-mkdir -p /opt/adsb/{config,scripts,web/{templates,static/{css,js}}}
-mkdir -p /opt/adsb/config/ultrafeeder
+# Configure vnstat for 30-day retention
+echo "Configuring vnstat for network monitoring..."
+systemctl enable vnstat
+systemctl start vnstat
 
-# Create web directory structure
-echo "Setting up web application..."
-
-# Download web files
-cd /opt/adsb/web
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/app.py -O app.py
-
-mkdir -p templates static/css static/js
-
-cd templates
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/templates/setup-sdr.html -O setup-sdr.html
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/templates/setup.html -O setup.html
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/templates/loading.html -O loading.html
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/templates/dashboard.html -O dashboard.html
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/templates/settings.html -O settings.html
-
-cd ../static/css
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/static/css/style.css -O style.css
-
-cd ../js
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/static/js/setup.js -O setup.js
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/web/static/js/dashboard.js -O dashboard.js
-
-echo "✓ Web files downloaded"
-
-# Download config files
-cd /opt/adsb/config
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/config/docker-compose.yml -O docker-compose.yml
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/config/env-template -O env-template
-
-# Create .env if it doesn't exist
-if [ ! -f .env ]; then
-    cp env-template .env
-    echo "✓ Created initial .env file"
-else
-    echo "✓ Existing .env file preserved"
+# Set vnstat to 30-day retention
+if [ -f /etc/vnstat.conf ]; then
+    sed -i 's/MonthRotate 12/MonthRotate 1/' /etc/vnstat.conf
+    sed -i 's/DayGraphDays 7/DayGraphDays 30/' /etc/vnstat.conf
 fi
 
-# Download scripts
-cd /opt/adsb/scripts
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/scripts/config_builder.py -O config_builder.py
-chmod +x config_builder.py
+echo "✓ vnstat configured (30-day retention)"
 
-echo "✓ Configuration files downloaded"
+# Create remote user with sudo privileges (Tailscale-only access)
+echo "Creating remote user..."
+if ! id "remote" &>/dev/null; then
+    useradd -m -s /bin/bash remote
+    echo "remote:adsb" | chpasswd
+    
+    # Add to sudo group
+    usermod -aG sudo remote
+    
+    # Create sudoers file for adsb project commands
+    cat > /etc/sudoers.d/remote-adsb << 'SUDOEOF'
+# Remote user sudo privileges for ADSB project
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart ultrafeeder
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart adsb-web
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop ultrafeeder
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop adsb-web
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl start ultrafeeder
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl start adsb-web
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl status ultrafeeder
+remote ALL=(ALL) NOPASSWD: /usr/bin/systemctl status adsb-web
+remote ALL=(ALL) NOPASSWD: /usr/bin/docker ps
+remote ALL=(ALL) NOPASSWD: /usr/bin/docker logs *
+remote ALL=(ALL) NOPASSWD: /usr/bin/docker compose -f /opt/adsb/config/docker-compose.yml *
+remote ALL=(ALL) NOPASSWD: /usr/bin/docker restart ultrafeeder
+remote ALL=(ALL) NOPASSWD: /usr/bin/docker restart fr24
+remote ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u ultrafeeder *
+remote ALL=(ALL) NOPASSWD: /usr/bin/journalctl -u adsb-web *
+remote ALL=(ALL) NOPASSWD: /usr/bin/vnstat *
+remote ALL=(ALL) NOPASSWD: /usr/bin/python3 /opt/adsb/scripts/config_builder.py
+SUDOEOF
+    
+    chmod 0440 /etc/sudoers.d/remote-adsb
+    
+    echo "✓ User 'remote' created with password 'adsb'"
+    echo "  Tailscale-only access recommended (configure SSH to allow)"
+else
+    echo "✓ User 'remote' already exists"
+fi
+
+# Create directories
+echo "Creating directories..."
+mkdir -p /opt/adsb/{config,scripts,ultrafeeder,web/{templates,static/{css,js}}}
+
+# Download files
+echo "Downloading configuration files..."
+REPO="https://raw.githubusercontent.com/cfd2474/feeder_test/main"
+
+# Config files
+wget -q $REPO/config/docker-compose.yml -O /opt/adsb/config/docker-compose.yml
+wget -q $REPO/config/env-template -O /opt/adsb/config/.env
+wget -q $REPO/scripts/config_builder.py -O /opt/adsb/scripts/config_builder.py
+chmod +x /opt/adsb/scripts/config_builder.py
+
+# Web UI files
+echo "Installing Web UI..."
+wget -q $REPO/web/app.py -O /opt/adsb/web/app.py
+wget -q $REPO/web/templates/setup.html -O /opt/adsb/web/templates/setup.html
+wget -q $REPO/web/templates/setup-sdr.html -O /opt/adsb/web/templates/setup-sdr.html
+wget -q $REPO/web/templates/dashboard.html -O /opt/adsb/web/templates/dashboard.html
+wget -q $REPO/web/templates/settings.html -O /opt/adsb/web/templates/settings.html
+wget -q $REPO/web/templates/loading.html -O /opt/adsb/web/templates/loading.html
+wget -q $REPO/web/static/css/style.css -O /opt/adsb/web/static/css/style.css
+wget -q $REPO/web/static/js/setup.js -O /opt/adsb/web/static/js/setup.js
+wget -q $REPO/web/static/js/dashboard.js -O /opt/adsb/web/static/js/dashboard.js
+chmod +x /opt/adsb/web/app.py
 
 # Configure Nginx reverse proxy
 echo "Configuring Nginx reverse proxy..."
-cat > /etc/nginx/sites-available/taknet-ps << 'EOF'
+cat > /etc/nginx/sites-available/taknet-ps << 'NGINXEOF'
 server {
     listen 80 default_server;
-    listen [::]:80 default_server;
     server_name taknet-ps.local taknet-ps _;
-
-    # Root redirects to /web
-    location = / {
-        return 301 /web;
-    }
-
-    # Web UI (Flask on port 5000)
-    location /web {
-        rewrite ^/web$ /web/ permanent;
-        rewrite ^/web/(.*)$ /$1 break;
+    
+    client_max_body_size 10M;
+    
+    # Root and /web -> Flask (port 5000)
+    location / {
         proxy_pass http://127.0.0.1:5000;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 300;
+        proxy_read_timeout 300;
     }
-
-    # Tar1090 Map (port 8080)
+    
+    location /web {
+        rewrite ^/web(/.*)$ $1 break;
+        rewrite ^/web$ / break;
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+    
+    # /map -> tar1090 (port 8080)
     location /map {
-        rewrite ^/map$ /map/ permanent;
-        rewrite ^/map/(.*)$ /$1 break;
+        rewrite ^/map(/.*)$ $1 break;
+        rewrite ^/map$ / break;
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    # Health check endpoint
-    location /health {
-        access_log off;
-        return 200 "OK";
-        add_header Content-Type text/plain;
+        proxy_buffering off;
     }
 }
-EOF
+NGINXEOF
 
-# Remove default nginx site
 rm -f /etc/nginx/sites-enabled/default
-
-# Enable our site
 ln -sf /etc/nginx/sites-available/taknet-ps /etc/nginx/sites-enabled/
-
-# Test nginx config
-nginx -t
-
-# Enable and start nginx
 systemctl enable nginx
 systemctl restart nginx
 
-echo "✓ Nginx configured - taknet-ps.local/web and taknet-ps.local/map"
+echo "✓ Nginx configured (taknet-ps.local/, /web, /map)"
 
-# Create systemd service for web UI
-cat > /etc/systemd/system/adsb-web.service << 'EOF'
+# Install WiFi Hotspot Manager
+echo "Installing WiFi hotspot manager..."
+mkdir -p /opt/adsb/wifi-manager/templates
+
+# WiFi check script
+cat > /opt/adsb/wifi-manager/check-connection.sh << 'CHECKEOF'
+#!/bin/bash
+for i in {1..3}; do
+    if ip addr show | grep -q "inet.*brd.*scope global"; then
+        if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1 || ping -c 1 -W 3 1.1.1.1 >/dev/null 2>&1; then
+            exit 0
+        fi
+    fi
+    [ $i -lt 3 ] && sleep 2
+done
+exit 1
+CHECKEOF
+
+chmod +x /opt/adsb/wifi-manager/check-connection.sh
+
+# Hotspot start script
+cat > /opt/adsb/wifi-manager/start-hotspot.sh << 'STARTEOF'
+#!/bin/bash
+systemctl stop wpa_supplicant 2>/dev/null || true
+rfkill unblock wifi
+ip link set wlan0 down
+ip addr flush dev wlan0
+ip addr add 192.168.4.1/24 dev wlan0
+ip link set wlan0 up
+
+cat > /etc/hostapd/hostapd.conf << EOF
+interface=wlan0
+driver=nl80211
+ssid=TAKNET-PS
+hw_mode=g
+channel=6
+wmm_enabled=0
+macaddr_acl=0
+auth_algs=1
+ignore_broadcast_ssid=0
+EOF
+
+cat > /etc/dnsmasq.conf << EOF
+interface=wlan0
+bind-interfaces
+server=8.8.8.8
+dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
+address=/#/192.168.4.1
+EOF
+
+systemctl unmask hostapd dnsmasq
+systemctl enable hostapd dnsmasq
+systemctl restart hostapd dnsmasq
+
+iptables -t nat -F
+iptables -F
+iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j DNAT --to-destination 192.168.4.1:5001
+iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 443 -j DNAT --to-destination 192.168.4.1:5001
+STARTEOF
+
+chmod +x /opt/adsb/wifi-manager/start-hotspot.sh
+
+# Hotspot stop script
+cat > /opt/adsb/wifi-manager/stop-hotspot.sh << 'STOPEOF'
+#!/bin/bash
+systemctl stop hostapd dnsmasq 2>/dev/null || true
+systemctl disable hostapd dnsmasq 2>/dev/null || true
+iptables -t nat -F
+iptables -F
+ip addr flush dev wlan0 2>/dev/null || true
+systemctl restart wpa_supplicant 2>/dev/null || true
+STOPEOF
+
+chmod +x /opt/adsb/wifi-manager/stop-hotspot.sh
+
+# Download captive portal files from GitHub
+wget -q $REPO/wifi-manager/captive-portal.py -O /opt/adsb/wifi-manager/captive-portal.py || echo "Note: Captive portal will use built-in version"
+wget -q $REPO/wifi-manager/templates/wifi-setup.html -O /opt/adsb/wifi-manager/templates/wifi-setup.html || echo "Note: WiFi template will use built-in version"
+chmod +x /opt/adsb/wifi-manager/captive-portal.py
+
+# Network monitor script
+cat > /opt/adsb/wifi-manager/network-monitor.sh << 'MONITOREOF'
+#!/bin/bash
+sleep 60  # Wait for boot
+while true; do
+    if ! /opt/adsb/wifi-manager/check-connection.sh; then
+        systemctl stop wpa_supplicant 2>/dev/null || true
+        /opt/adsb/wifi-manager/start-hotspot.sh
+        systemctl start captive-portal
+        while true; do
+            sleep 300
+        done
+    fi
+    sleep 30
+done
+MONITOREOF
+
+chmod +x /opt/adsb/wifi-manager/network-monitor.sh
+
+# Create systemd services
+cat > /etc/systemd/system/captive-portal.service << 'PORTALEOF'
 [Unit]
-Description=TAKNET-PS ADS-B Web Configuration Interface
+Description=TAKNET-PS WiFi Captive Portal
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/adsb/wifi-manager
+ExecStart=/usr/bin/python3 /opt/adsb/wifi-manager/captive-portal.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+PORTALEOF
+
+cat > /etc/systemd/system/network-monitor.service << 'MONITOREOF'
+[Unit]
+Description=TAKNET-PS Network Monitor
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/adsb/wifi-manager/network-monitor.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+MONITOREOF
+
+systemctl daemon-reload
+systemctl enable network-monitor captive-portal
+
+echo "✓ WiFi hotspot manager installed"
+
+# Create ultrafeeder systemd service
+echo "Creating ultrafeeder service..."
+cat > /etc/systemd/system/ultrafeeder.service << 'SVCEOF'
+[Unit]
+Description=TAKNET-PS-ADSB Ultrafeeder
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/adsb/config
+EnvironmentFile=/opt/adsb/config/.env
+ExecStartPre=/usr/bin/python3 /opt/adsb/scripts/config_builder.py
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+# Create web UI systemd service
+echo "Creating web interface service..."
+cat > /etc/systemd/system/adsb-web.service << 'WEBSVC'
+[Unit]
+Description=TAKNET-PS-ADSB Web Interface
 After=network.target
 
 [Service]
 Type=simple
 User=root
 WorkingDirectory=/opt/adsb/web
-Environment="FLASK_APP=app.py"
 ExecStart=/usr/bin/python3 /opt/adsb/web/app.py
 Restart=always
 RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-EOF
-
-# Create systemd service for ultrafeeder with config builder
-cat > /etc/systemd/system/ultrafeeder.service << 'EOF'
-[Unit]
-Description=TAKNET-PS Ultrafeeder ADS-B Service
-After=network.target docker.service
-Requires=docker.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=/opt/adsb/config
-ExecStartPre=/usr/bin/python3 /opt/adsb/scripts/config_builder.py
-ExecStart=/usr/bin/docker compose up -d
-ExecStop=/usr/bin/docker compose down
-Restart=on-failure
-RestartSec=30
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Reload systemd
-systemctl daemon-reload
+WEBSVC
 
 # Enable services
-systemctl enable adsb-web
+systemctl daemon-reload
 systemctl enable ultrafeeder
+systemctl enable adsb-web
 
-# Start web UI immediately
+# Start web UI (but not ultrafeeder - needs config first)
 systemctl start adsb-web
 
-echo "✓ Systemd services configured"
-
-# Enable vnstat monitoring
-echo "Configuring network monitoring..."
-systemctl enable vnstat
-systemctl start vnstat
-
-# Create remote-adsb user for SSH access
-if ! id -u remote-adsb &>/dev/null; then
-    echo "Creating remote-adsb user..."
-    useradd -m -s /bin/bash remote-adsb
-    
-    # Set password
-    echo "remote-adsb:adsb2024" | chpasswd
-    
-    # Create sudoers file for limited privileges
-    cat > /etc/sudoers.d/remote-adsb << 'EOSUDO'
-# Allow remote-adsb user to manage ADS-B services
-remote-adsb ALL=(ALL) NOPASSWD: /bin/systemctl restart ultrafeeder
-remote-adsb ALL=(ALL) NOPASSWD: /bin/systemctl restart adsb-web
-remote-adsb ALL=(ALL) NOPASSWD: /bin/systemctl status ultrafeeder
-remote-adsb ALL=(ALL) NOPASSWD: /bin/systemctl status adsb-web
-remote-adsb ALL=(ALL) NOPASSWD: /bin/journalctl -u ultrafeeder *
-remote-adsb ALL=(ALL) NOPASSWD: /bin/journalctl -u adsb-web *
-remote-adsb ALL=(ALL) NOPASSWD: /usr/bin/docker ps *
-remote-adsb ALL=(ALL) NOPASSWD: /usr/bin/docker logs *
-remote-adsb ALL=(ALL) NOPASSWD: /usr/bin/docker compose *
-remote-adsb ALL=(ALL) NOPASSWD: /usr/bin/vnstat *
-EOSUDO
-    
-    chmod 440 /etc/sudoers.d/remote-adsb
-    echo "✓ Created remote-adsb user (password: adsb2024)"
-else
-    echo "✓ remote-adsb user already exists"
+# Set permissions
+if [ "$SUDO_USER" ]; then
+    chown -R $SUDO_USER:$SUDO_USER /opt/adsb
 fi
 
-# Install WiFi hotspot components
-echo "Installing WiFi hotspot components..."
+# Download SSH Tailscale configuration script
+echo "Downloading SSH configuration script..."
+wget -q $REPO/configure-ssh-tailscale.sh -O /opt/adsb/configure-ssh-tailscale.sh
+chmod +x /opt/adsb/configure-ssh-tailscale.sh
 
-# Download WiFi management scripts
-cd /opt/adsb/scripts
-wget -q https://raw.githubusercontent.com/cfd2474/feeder_test/main/scripts/wifi-manager.sh -O wifi-manager.sh
-chmod +x wifi-manager.sh
+# Get IP address
+IP=$(hostname -I | awk '{print $1}')
 
-# Create WiFi hotspot systemd service
-cat > /etc/systemd/system/taknet-wifi-manager.service << 'EOF'
-[Unit]
-Description=TAKNET-PS WiFi Connection Manager
-After=network.target
-Before=ultrafeeder.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/opt/adsb/scripts/wifi-manager.sh check
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable taknet-wifi-manager
-
-echo "✓ WiFi hotspot manager installed"
-
+# Done
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ✅ Installation Complete!"
+echo "✓ Installation complete!"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "Next steps:"
+echo "🌐 Open your browser and go to:"
 echo ""
-echo "  1. Access web interface:"
-echo "     http://taknet-ps.local/web"
-echo "     (or http://$(hostname -I | awk '{print $1}')/web)"
+echo "   http://$IP:5000"
 echo ""
-echo "  2. Configure your ADS-B receiver through the wizard"
+echo "   Complete the setup wizard to configure your feeder."
 echo ""
-echo "  3. Access tar1090 map:"
-echo "     http://taknet-ps.local/map"
+echo "After setup, you can access:"
+echo "   • Setup/Dashboard: http://$IP:5000"
+echo "   • Live Map: http://$IP:8080"
 echo ""
-echo "  4. SSH access (optional):"
-echo "     ssh remote-adsb@taknet-ps.local"
-echo "     Password: adsb2024"
+echo "Manual commands (if needed):"
+echo "   • Start: sudo systemctl start ultrafeeder"
+echo "   • Restart: sudo systemctl restart ultrafeeder"
+echo "   • Logs: sudo docker logs ultrafeeder"
 echo ""
-echo "  5. Monitor network usage:"
-echo "     vnstat"
+echo "📡 Remote Access:"
+echo "   • User: remote"
+echo "   • Password: adsb"
+echo "   • Limited sudo privileges for ADSB commands"
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🔒 To restrict 'remote' user to Tailscale network only:"
+echo "   cd /opt/adsb"
+echo "   sudo ./configure-ssh-tailscale.sh"
 echo ""
-echo "NOTE: If device loses network connectivity, it will"
-echo "automatically create a WiFi hotspot named 'TAKNET-PS'"
-echo "with a captive portal for network configuration."
+echo "📊 Network Monitoring:"
+echo "   • vnstat configured (30-day retention)"
+echo "   • Usage: vnstat -d (daily stats)"
 echo ""
