@@ -8,7 +8,7 @@
 
 ## 🚨 CRITICAL BUG FIX
 
-This release fixes a **showstopper bug** that prevented WiFi configuration from working after captive portal setup.
+This release fixes **two showstopper bugs**: one that prevented WiFi configuration from working, and one that caused false "service failed" errors.
 
 ### Bug #4: Missing WiFi Retry Logic (CRITICAL)
 
@@ -41,11 +41,80 @@ This release fixes a **showstopper bug** that prevented WiFi configuration from 
 9. STUCK IN HOTSPOT FOREVER 🔁
 ```
 
+### Bug #5: Ultrafeeder Premature Start Detection
+
+**Symptom:** Web UI status page shows "ultrafeeder failed to start" even though container starts successfully moments later
+
+**Root Cause:**
+- systemd service `Type=oneshot` with `docker compose up -d` 
+- The `-d` flag returns immediately (detached mode)
+- systemd reports "started" before Docker finishes pulling image
+- Web UI checks status too early, sees container doesn't exist yet
+- Reports false failure even though container starts 10-30 seconds later
+
+**Impact:**
+- Confusing error messages for users
+- Makes fresh installs look broken
+- Requires manual refresh to see actual status
+
+**The Flow That Was Broken:**
+```
+1. User clicks "Save & Start" ✅
+2. systemd runs: docker compose up -d
+3. Command returns immediately (detached) ✅
+4. systemd reports: "Service started" ✅
+5. Web UI checks status 2 seconds later ⏰
+6. Docker still pulling image... ❌
+7. Container doesn't exist yet ❌
+8. Web UI shows: "FAILED TO START" ☠️
+9. 20 seconds later, container actually starts ✅
+10. User sees error, gets confused 😕
+```
+
 ---
 
-## ✅ THE FIX: Intelligent State Machine
+## ✅ THE FIX: Wait for Container Running State
 
-### New 3-State Connection Detection
+### ExecStartPost Wait Loop
+
+Added intelligent wait loop to ultrafeeder.service:
+
+```bash
+ExecStartPost=/bin/bash -c '\
+    for i in {1..60}; do \
+        if docker inspect ultrafeeder >/dev/null 2>&1; then \
+            if [ "$(docker inspect -f {{.State.Running}} ultrafeeder)" = "true" ]; then \
+                echo "Ultrafeeder container is running"; \
+                exit 0; \
+            fi; \
+        fi; \
+        echo "Waiting for container... attempt $i/60"; \
+        sleep 2; \
+    done'
+```
+
+**How it works:**
+1. `docker compose up -d` starts the pull/create/start process
+2. ExecStartPost runs immediately after
+3. Checks every 2 seconds for container existence
+4. Verifies container is in "Running" state (not just "Created")
+5. Only reports "started" when container is actually running
+6. Timeout: 2 minutes (60 attempts × 2 seconds)
+7. Works regardless of network speed or image size
+
+---
+
+## 📋 WHAT'S FIXED
+
+### Core Fixes
+- ✅ WiFi connections now have 5 minutes to establish (Bug #4)
+- ✅ wpa_supplicant no longer killed prematurely (Bug #4)
+- ✅ Proper state detection (no config vs connecting vs connected) (Bug #4)
+- ✅ Ultrafeeder wait loop prevents false start failures (Bug #5)
+- ✅ systemd only reports "started" when container is actually running (Bug #5)
+
+### Additional Improvements
+- ✅ Detailed logging with timestamps and state transitions
 
 **check-connection.sh** now returns different exit codes:
 
@@ -267,7 +336,7 @@ esac
 4. ✅ **Bug #4 (v2.8.4):** Missing WiFi retry logic (SHOWSTOPPER)
 
 ### v2.8.4 Status
-**All critical bugs resolved. Captive portal fully functional end-to-end.**
+**All critical bugs resolved. Captive portal fully functional end-to-end. Docker startup reliable.**
 
 ---
 

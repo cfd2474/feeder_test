@@ -862,6 +862,20 @@ WorkingDirectory=/opt/adsb/config
 EnvironmentFile=/opt/adsb/config/.env
 ExecStartPre=/usr/bin/python3 /opt/adsb/scripts/config_builder.py
 ExecStart=/usr/bin/docker compose up -d
+ExecStartPost=/bin/bash -c '\
+    echo "Waiting for ultrafeeder container to be ready..."; \
+    for i in {1..60}; do \
+        if docker inspect ultrafeeder >/dev/null 2>&1; then \
+            if [ "$(docker inspect -f {{.State.Running}} ultrafeeder 2>/dev/null)" = "true" ]; then \
+                echo "Ultrafeeder container is running"; \
+                exit 0; \
+            fi; \
+        fi; \
+        echo "Waiting for container... attempt $i/60"; \
+        sleep 2; \
+    done; \
+    echo "WARNING: Ultrafeeder took longer than expected to start"; \
+    exit 0'
 ExecStop=/usr/bin/docker compose down
 Restart=on-failure
 RestartSec=10

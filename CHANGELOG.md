@@ -21,6 +21,11 @@ All notable changes to TAKNET-PS ADSB Feeder.
   - State persistence across checks with status file
   - Detailed logging to `/var/log/network-monitor.log`
   - Can detect Ethernet connection while in hotspot mode and auto-stop hotspot
+- **Bug #5: Ultrafeeder Premature Start Detection**
+  - systemd would report "started" before Docker image was fully pulled/running
+  - Added ExecStartPost wait loop (up to 2 minutes) for container to be actually running
+  - Waits for `docker inspect` to confirm container is in "Running" state
+  - Prevents false "service failed" errors in web UI status page
 
 ### Changed
 - check-connection.sh now returns 3 different exit codes for state detection
