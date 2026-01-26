@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.1
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.8.3
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.1"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.8.3"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -264,8 +264,37 @@ cat > /etc/dnsmasq.conf << EOF
 interface=wlan0
 bind-interfaces
 server=8.8.8.8
+domain-needed
+bogus-priv
+
+# DHCP configuration
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
+dhcp-option=3,192.168.4.1
+dhcp-option=6,192.168.4.1
+dhcp-authoritative
+
+# Wildcard DNS redirect for captive portal
 address=/#/192.168.4.1
+
+# Specific captive portal detection domains
+# Android
+address=/connectivitycheck.gstatic.com/192.168.4.1
+address=/clients3.google.com/192.168.4.1
+address=/clients4.google.com/192.168.4.1
+
+# Apple iOS/macOS
+address=/captive.apple.com/192.168.4.1
+address=/hotspot-detect.html/192.168.4.1
+
+# Microsoft Windows
+address=/msftconnecttest.com/192.168.4.1
+address=/www.msftconnecttest.com/192.168.4.1
+
+# Firefox
+address=/detectportal.firefox.com/192.168.4.1
+
+# Generic
+address=/example.com/192.168.4.1
 EOF
 
 systemctl unmask hostapd dnsmasq
@@ -274,8 +303,8 @@ systemctl restart hostapd dnsmasq
 
 iptables -t nat -F
 iptables -F
-iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j DNAT --to-destination 192.168.4.1:5001
-iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 443 -j DNAT --to-destination 192.168.4.1:5001
+iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j DNAT --to-destination 192.168.4.1:8888
+iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 443 -j DNAT --to-destination 192.168.4.1:8888
 STARTEOF
 
 chmod +x /opt/adsb/wifi-manager/start-hotspot.sh
@@ -302,13 +331,27 @@ chmod +x /opt/adsb/wifi-manager/captive-portal.py
 cat > /opt/adsb/wifi-manager/network-monitor.sh << 'MONITOREOF'
 #!/bin/bash
 sleep 60  # Wait for boot
+
+# Function to ensure iptables rules are present
+ensure_iptables() {
+    # Check if rules exist
+    if ! iptables -t nat -L PREROUTING -n | grep -q "192.168.4.1:8888"; then
+        echo "$(date): iptables rules missing, re-adding..." >> /var/log/network-monitor.log
+        iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j DNAT --to-destination 192.168.4.1:8888
+        iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 443 -j DNAT --to-destination 192.168.4.1:8888
+    fi
+}
+
 while true; do
     if ! /opt/adsb/wifi-manager/check-connection.sh; then
         systemctl stop wpa_supplicant 2>/dev/null || true
         /opt/adsb/wifi-manager/start-hotspot.sh
         systemctl start captive-portal
+        
+        # Monitor iptables while in hotspot mode
         while true; do
-            sleep 300
+            ensure_iptables
+            sleep 60  # Check iptables every 60 seconds
         done
     fi
     sleep 30

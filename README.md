@@ -1,10 +1,10 @@
-# TAKNET-PS ADSB Feeder README
+# TAKNET-PS ADSB Feeder
 
 **Complete ADS-B Aircraft Tracking System for Raspberry Pi**
 
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-red)](https://www.raspberrypi.org/)
 [![OS](https://img.shields.io/badge/OS-Raspberry%20Pi%20OS%20Bookworm-blue)](https://www.raspberrypi.com/software/)
-[![Version](https://img.shields.io/badge/version-2.8-orange)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.8.3-orange)](CHANGELOG.md)
 
 Feed aircraft data to TAKNET-PS aggregator while optionally sharing with public services like FlightRadar24, ADS-B Exchange, and more.
 
@@ -106,4 +106,4 @@ No network? No problem!
 
 **Made for Raspberry Pi OS Bookworm 64-bit**
 
-Version 2.8 | January 25, 2026
+Version 2.8.3 | January 26, 2026

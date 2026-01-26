@@ -4,6 +4,36 @@ All notable changes to TAKNET-PS ADSB Feeder.
 
 ---
 
+## [2.8.3] - 2026-01-26
+
+### Fixed - CRITICAL CAPTIVE PORTAL BUGS
+- **Bug #1: Wrong Port in iptables Rules** (CRITICAL)
+  - iptables redirecting to port 5001 instead of 8888
+  - Captive portal would never load on client devices
+  - Fixed: Changed all iptables rules in `start-hotspot.sh` to use port 8888
+- **Bug #2: Missing iptables Monitoring**
+  - network-monitor.sh had no iptables rule checking/re-adding
+  - If rules were lost, they would never be restored
+  - Fixed: Added `ensure_iptables()` function with 60-second monitoring loop
+- **Bug #3: Incomplete DNS Wildcards**
+  - Missing specific captive portal detection domains
+  - Some devices might not auto-trigger captive portal
+  - Fixed: Added all platform-specific captive portal domains (Android, iOS, Windows, Firefox)
+
+### Changed
+- network-monitor.sh now logs iptables re-adds to `/var/log/network-monitor.log`
+- dnsmasq.conf includes DHCP options and domain filtering for better captive portal detection
+
+### Testing
+- Confirmed captive portal now loads immediately on Android devices
+- iptables rules persist and auto-restore if missing
+
+### Platform
+- **Tested on:** Raspberry Pi OS Lite 64-bit (Bookworm)
+- **Compatible:** Raspberry Pi 3/4/5
+
+---
+
 ## [2.8] - 2026-01-25
 
 ### Added
@@ -212,6 +242,6 @@ Format: `[MAJOR.MINOR]` - `YYYY-MM-DD`
 
 ---
 
-**Current Version:** 2.8
-**Last Updated:** January 25, 2026
+**Current Version:** 2.8.3
+**Last Updated:** January 26, 2026
 **Maintained by:** cfd2474
