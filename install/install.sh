@@ -310,18 +310,304 @@ MONITOREOF
 
 chmod +x /opt/adsb/wifi-manager/network-monitor.sh
 
+# Create captive portal directory and files
+echo "Creating captive portal..."
+mkdir -p /opt/adsb/captive-portal/templates
+
+# Captive portal Python script
+cat > /opt/adsb/captive-portal/portal.py << 'PORTALEOF'
+#!/usr/bin/env python3
+"""TAKNET-PS Captive Portal - WiFi configuration wizard"""
+
+from flask import Flask, render_template, request, jsonify, redirect
+import subprocess
+import re
+
+app = Flask(__name__)
+
+def scan_wifi():
+    """Scan for available WiFi networks"""
+    try:
+        result = subprocess.run(['iwlist', 'wlan0', 'scan'], capture_output=True, text=True, timeout=10)
+        networks = []
+        current = {}
+        
+        for line in result.stdout.split('\n'):
+            line = line.strip()
+            if 'ESSID:' in line:
+                ssid = re.search(r'ESSID:"([^"]*)"', line)
+                if ssid and ssid.group(1):
+                    current['ssid'] = ssid.group(1)
+            elif 'Quality=' in line:
+                quality = re.search(r'Quality=(\d+)/(\d+)', line)
+                if quality:
+                    signal = int((int(quality.group(1)) / int(quality.group(2))) * 100)
+                    current['signal'] = signal
+            elif 'Encryption key:' in line:
+                current['secured'] = 'on' in line.lower()
+                if 'ssid' in current:
+                    networks.append(current.copy())
+                current = {}
+        
+        unique = {}
+        for net in networks:
+            ssid = net['ssid']
+            if ssid not in unique or net['signal'] > unique[ssid]['signal']:
+                unique[ssid] = net
+        
+        return sorted(unique.values(), key=lambda x: x['signal'], reverse=True)
+    except Exception as e:
+        print(f"Error scanning WiFi: {e}")
+        return []
+
+def connect_wifi(ssid, password=''):
+    """Configure WiFi connection"""
+    try:
+        if password:
+            result = subprocess.run(['wpa_passphrase', ssid, password], capture_output=True, text=True, timeout=10)
+            network_config = result.stdout
+        else:
+            network_config = f'network={{\n    ssid="{ssid}"\n    key_mgmt=NONE\n}}\n'
+        
+        config = 'country=US\nctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n\n' + network_config
+        
+        with open('/etc/wpa_supplicant/wpa_supplicant.conf', 'w') as f:
+            f.write(config)
+        
+        subprocess.run(['systemctl', 'unmask', 'wpa_supplicant'], check=False)
+        subprocess.run(['systemctl', 'enable', 'wpa_supplicant'], check=False)
+        subprocess.Popen(['bash', '-c', 'sleep 5 && reboot'])
+        return True
+    except Exception as e:
+        print(f"Error configuring WiFi: {e}")
+        return False
+
+@app.route('/')
+def index():
+    return render_template('portal.html')
+
+@app.route('/generate_204')
+@app.route('/hotspot-detect.html')
+@app.route('/connecttest.txt')
+@app.route('/success.txt')
+def captive_portal_detect():
+    return redirect('/')
+
+@app.route('/api/scan', methods=['GET'])
+def api_scan():
+    networks = scan_wifi()
+    return jsonify({'success': True, 'networks': networks})
+
+@app.route('/api/connect', methods=['POST'])
+def api_connect():
+    data = request.json
+    ssid = data.get('ssid', '')
+    password = data.get('password', '')
+    
+    if not ssid:
+        return jsonify({'success': False, 'message': 'SSID required'}), 400
+    
+    if connect_wifi(ssid, password):
+        return jsonify({'success': True, 'message': 'Configuration saved. Device will reboot in 5 seconds.'})
+    else:
+        return jsonify({'success': False, 'message': 'Failed to configure WiFi'}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8888, debug=False)
+PORTALEOF
+
+chmod +x /opt/adsb/captive-portal/portal.py
+
+# Download portal HTML template from GitHub or create it
+wget -q $REPO/captive-portal/templates/portal.html -O /opt/adsb/captive-portal/templates/portal.html 2>/dev/null || \
+cat > /opt/adsb/captive-portal/templates/portal.html << 'HTMLEOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAKNET-PS WiFi Setup</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 { color: #333; margin-bottom: 10px; font-size: 28px; text-align: center; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 30px; font-size: 14px; }
+        .scan-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .scan-button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .networks { max-height: 400px; overflow-y: auto; }
+        .network {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .network:hover { border-color: #667eea; background: #f8f9ff; }
+        .network.selected { border-color: #667eea; background: #f0f2ff; }
+        .network-name { font-weight: 600; color: #333; }
+        .network-details { font-size: 12px; color: #666; margin-top: 5px; }
+        .password-section { margin-bottom: 20px; display: none; }
+        label { display: block; margin-bottom: 8px; color: #333; font-weight: 600; }
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        .connect-button {
+            width: 100%;
+            padding: 15px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: none;
+        }
+        .status { padding: 15px; border-radius: 10px; text-align: center; margin-top: 20px; display: none; }
+        .status.show { display: block; }
+        .status.success { background: #d1fae5; color: #065f46; }
+        .countdown { font-size: 48px; font-weight: bold; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛩️ TAKNET-PS</h1>
+        <p class="subtitle">WiFi Configuration Portal</p>
+        <button class="scan-button" onclick="scanNetworks()" id="scanBtn">📡 Scan for WiFi Networks</button>
+        <div id="networks" class="networks"></div>
+        <div id="passwordSection" class="password-section">
+            <label>WiFi Password:</label>
+            <input type="password" id="password" placeholder="Enter password">
+        </div>
+        <button class="connect-button" onclick="connectNetwork()" id="connectBtn">🔗 Connect to Network</button>
+        <div id="status" class="status"></div>
+    </div>
+    <script>
+        let selectedNetwork = null;
+        async function scanNetworks() {
+            const btn = document.getElementById('scanBtn');
+            const networksDiv = document.getElementById('networks');
+            btn.disabled = true;
+            networksDiv.innerHTML = '';
+            try {
+                const response = await fetch('/api/scan');
+                const data = await response.json();
+                if (data.success && data.networks.length > 0) {
+                    data.networks.forEach(network => {
+                        const div = document.createElement('div');
+                        div.className = 'network';
+                        div.onclick = () => selectNetwork(network, div);
+                        div.innerHTML = `<div><div class="network-name">${network.ssid}</div><div class="network-details">${network.secured ? '🔒 Secured' : '🔓 Open'} • Signal: ${network.signal}%</div></div>`;
+                        networksDiv.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                alert('Error scanning networks');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        function selectNetwork(network, element) {
+            selectedNetwork = network;
+            document.querySelectorAll('.network').forEach(n => n.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('passwordSection').style.display = network.secured ? 'block' : 'none';
+            document.getElementById('connectBtn').style.display = 'block';
+        }
+        async function connectNetwork() {
+            if (!selectedNetwork) return;
+            const password = document.getElementById('password').value;
+            if (selectedNetwork.secured && !password) {
+                alert('Please enter the WiFi password');
+                return;
+            }
+            const connectBtn = document.getElementById('connectBtn');
+            connectBtn.disabled = true;
+            try {
+                const response = await fetch('/api/connect', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ssid: selectedNetwork.ssid, password: password})
+                });
+                const data = await response.json();
+                if (data.success) {
+                    const statusDiv = document.getElementById('status');
+                    statusDiv.className = 'status show success';
+                    statusDiv.innerHTML = '<div>✓ Configuration Saved!</div><div class="countdown" id="countdown">5</div>';
+                    document.querySelectorAll('.container > *:not(#status)').forEach(el => el.style.display = 'none');
+                    let count = 5;
+                    const interval = setInterval(() => {
+                        count--;
+                        const el = document.getElementById('countdown');
+                        if (el) el.textContent = count;
+                        if (count <= 0) clearInterval(interval);
+                    }, 1000);
+                } else {
+                    alert('Failed: ' + data.message);
+                    connectBtn.disabled = false;
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                connectBtn.disabled = false;
+            }
+        }
+        window.addEventListener('load', () => setTimeout(scanNetworks, 500));
+    </script>
+</body>
+</html>
+HTMLEOF
+
+echo "✓ Captive portal files created"
+
 # Create systemd services
 cat > /etc/systemd/system/captive-portal.service << 'PORTALEOF'
 [Unit]
 Description=TAKNET-PS WiFi Captive Portal
-After=network.target
+After=network.target hostapd.service
+Requires=hostapd.service
+PartOf=hostapd.service
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/adsb/wifi-manager
-ExecStart=/usr/bin/python3 /opt/adsb/wifi-manager/captive-portal.py
+WorkingDirectory=/opt/adsb/captive-portal
+ExecStart=/usr/bin/python3 /opt/adsb/captive-portal/portal.py
 Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
@@ -330,16 +616,23 @@ PORTALEOF
 cat > /etc/systemd/system/network-monitor.service << 'MONITOREOF'
 [Unit]
 Description=TAKNET-PS Network Monitor
-After=network.target
+After=network-online.target
+Wants=network-online.target
+Conflicts=wpa_supplicant.service
 
 [Service]
 Type=simple
 ExecStart=/opt/adsb/wifi-manager/network-monitor.sh
 Restart=always
+RestartSec=10
+ExecStartPre=-/usr/bin/systemctl stop wpa_supplicant
 
 [Install]
 WantedBy=multi-user.target
 MONITOREOF
+
+# Mask wpa_supplicant to prevent conflicts
+systemctl mask wpa_supplicant 2>/dev/null || true
 
 systemctl daemon-reload
 systemctl enable network-monitor captive-portal
