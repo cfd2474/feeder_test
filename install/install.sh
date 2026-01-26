@@ -244,13 +244,20 @@ ip link set wlan0 up
 cat > /etc/hostapd/hostapd.conf << EOF
 interface=wlan0
 driver=nl80211
-ssid=TAKNET-PS
+ssid=TAKNET-PS.local
 hw_mode=g
 channel=6
 wmm_enabled=0
 macaddr_acl=0
 auth_algs=1
 ignore_broadcast_ssid=0
+wpa=0
+
+# Stability settings
+logger_syslog=-1
+logger_syslog_level=2
+logger_stdout=-1
+logger_stdout_level=2
 EOF
 
 cat > /etc/dnsmasq.conf << EOF
@@ -500,7 +507,28 @@ cat > /opt/adsb/captive-portal/templates/portal.html << 'HTMLEOF'
         .status { padding: 15px; border-radius: 10px; text-align: center; margin-top: 20px; display: none; }
         .status.show { display: block; }
         .status.success { background: #d1fae5; color: #065f46; }
-        .countdown { font-size: 48px; font-weight: bold; margin: 20px 0; }
+        .countdown { 
+            font-size: 72px; 
+            font-weight: bold; 
+            margin: 30px 0; 
+            color: #667eea;
+            line-height: 1;
+        }
+        .reboot-info {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f0f9ff;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .reboot-info strong { color: #0369a1; display: block; margin-bottom: 8px; font-size: 16px; }
+        .success-check { font-size: 48px; margin-bottom: 15px; }
+        @media (max-width: 480px) {
+            .container { padding: 25px; }
+            h1 { font-size: 24px; }
+            .countdown { font-size: 56px; }
+        }
     </style>
 </head>
 <body>
@@ -565,16 +593,42 @@ cat > /opt/adsb/captive-portal/templates/portal.html << 'HTMLEOF'
                 });
                 const data = await response.json();
                 if (data.success) {
+                    // Hide all main content
+                    document.querySelectorAll('.container > *:not(#status)').forEach(el => el.style.display = 'none');
+                    
                     const statusDiv = document.getElementById('status');
                     statusDiv.className = 'status show success';
-                    statusDiv.innerHTML = '<div>✓ Configuration Saved!</div><div class="countdown" id="countdown">5</div>';
-                    document.querySelectorAll('.container > *:not(#status)').forEach(el => el.style.display = 'none');
+                    statusDiv.innerHTML = `
+                        <div class="success-check">✓</div>
+                        <div style="font-size: 20px; font-weight: 600; margin-bottom: 15px;">
+                            Configuration Saved!
+                        </div>
+                        <div class="countdown" id="countdown">5</div>
+                        <div class="reboot-info">
+                            <strong>Device Rebooting...</strong>
+                            <div>Network: <strong>${selectedNetwork.ssid}</strong></div>
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #bae6fd;">
+                                After reboot, connect to your WiFi network and visit:
+                            </div>
+                            <div style="margin-top: 5px; font-weight: 600; color: #0369a1;">
+                                taknet-ps.local/web
+                            </div>
+                            <div style="margin-top: 15px; font-size: 12px; color: #64748b;">
+                                ⓘ If connection fails, this hotspot will restart automatically
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Countdown
                     let count = 5;
+                    const countdownEl = document.getElementById('countdown');
                     const interval = setInterval(() => {
                         count--;
-                        const el = document.getElementById('countdown');
-                        if (el) el.textContent = count;
-                        if (count <= 0) clearInterval(interval);
+                        if (countdownEl) countdownEl.textContent = count;
+                        if (count <= 0) {
+                            clearInterval(interval);
+                            if (countdownEl) countdownEl.textContent = '⏳';
+                        }
                     }, 1000);
                 } else {
                     alert('Failed: ' + data.message);
