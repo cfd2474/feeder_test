@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.8.3
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.8.4
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.8.3"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.8.4"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -218,15 +218,43 @@ mkdir -p /opt/adsb/wifi-manager/templates
 # WiFi check script
 cat > /opt/adsb/wifi-manager/check-connection.sh << 'CHECKEOF'
 #!/bin/bash
-for i in {1..3}; do
-    if ip addr show | grep -q "inet.*brd.*scope global"; then
-        if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1 || ping -c 1 -W 3 1.1.1.1 >/dev/null 2>&1; then
-            exit 0
+# Returns:
+# 0 = Connected to internet
+# 1 = No connection but WiFi is configured (should retry)
+# 2 = No connection and no WiFi configured (start hotspot)
+
+# Check if WiFi is configured in wpa_supplicant.conf
+has_wifi_config() {
+    if [ -f /etc/wpa_supplicant/wpa_supplicant.conf ]; then
+        # Check if there's an actual network block (not just the header)
+        if grep -q "^network=" /etc/wpa_supplicant/wpa_supplicant.conf; then
+            return 0
         fi
     fi
-    [ $i -lt 3 ] && sleep 2
-done
-exit 1
+    return 1
+}
+
+# Check for internet connectivity
+has_internet() {
+    for i in {1..3}; do
+        if ip addr show | grep -q "inet.*brd.*scope global"; then
+            if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1 || ping -c 1 -W 3 1.1.1.1 >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+        [ $i -lt 3 ] && sleep 2
+    done
+    return 1
+}
+
+# Main logic
+if has_internet; then
+    exit 0  # Connected - all good
+elif has_wifi_config; then
+    exit 1  # WiFi configured but not connected yet - keep trying
+else
+    exit 2  # No WiFi config - need captive portal
+fi
 CHECKEOF
 
 chmod +x /opt/adsb/wifi-manager/check-connection.sh
@@ -314,9 +342,12 @@ cat > /opt/adsb/wifi-manager/stop-hotspot.sh << 'STOPEOF'
 #!/bin/bash
 systemctl stop hostapd dnsmasq 2>/dev/null || true
 systemctl disable hostapd dnsmasq 2>/dev/null || true
+systemctl mask hostapd dnsmasq 2>/dev/null || true
 iptables -t nat -F
 iptables -F
 ip addr flush dev wlan0 2>/dev/null || true
+systemctl unmask wpa_supplicant 2>/dev/null || true
+systemctl enable wpa_supplicant 2>/dev/null || true
 systemctl restart wpa_supplicant 2>/dev/null || true
 STOPEOF
 
@@ -330,31 +361,110 @@ chmod +x /opt/adsb/wifi-manager/captive-portal.py
 # Network monitor script
 cat > /opt/adsb/wifi-manager/network-monitor.sh << 'MONITOREOF'
 #!/bin/bash
-sleep 60  # Wait for boot
+# Intelligent network monitor with WiFi retry logic
 
-# Function to ensure iptables rules are present
+LOG="/var/log/network-monitor.log"
+STATE_FILE="/var/run/network-monitor-state"
+
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG"
+}
+
+# Function to ensure iptables rules are present (only in hotspot mode)
 ensure_iptables() {
-    # Check if rules exist
     if ! iptables -t nat -L PREROUTING -n | grep -q "192.168.4.1:8888"; then
-        echo "$(date): iptables rules missing, re-adding..." >> /var/log/network-monitor.log
+        log "iptables rules missing, re-adding..."
         iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j DNAT --to-destination 192.168.4.1:8888
         iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 443 -j DNAT --to-destination 192.168.4.1:8888
     fi
 }
 
-while true; do
-    if ! /opt/adsb/wifi-manager/check-connection.sh; then
-        systemctl stop wpa_supplicant 2>/dev/null || true
-        /opt/adsb/wifi-manager/start-hotspot.sh
-        systemctl start captive-portal
+# Function to start hotspot mode
+start_hotspot_mode() {
+    log "Starting hotspot mode..."
+    systemctl stop wpa_supplicant 2>/dev/null || true
+    /opt/adsb/wifi-manager/start-hotspot.sh
+    systemctl start captive-portal
+    echo "hotspot" > "$STATE_FILE"
+    
+    # Monitor iptables while in hotspot mode
+    while true; do
+        # Check if we somehow got internet (e.g., Ethernet plugged in)
+        /opt/adsb/wifi-manager/check-connection.sh
+        CHECK_RESULT=$?
         
-        # Monitor iptables while in hotspot mode
-        while true; do
-            ensure_iptables
-            sleep 60  # Check iptables every 60 seconds
-        done
-    fi
-    sleep 30
+        if [ $CHECK_RESULT -eq 0 ]; then
+            log "Internet detected while in hotspot mode, stopping hotspot..."
+            /opt/adsb/wifi-manager/stop-hotspot.sh
+            systemctl stop captive-portal
+            echo "connected" > "$STATE_FILE"
+            return 0
+        fi
+        
+        ensure_iptables
+        sleep 60
+    done
+}
+
+# Wait for system to stabilize after boot
+log "Network monitor started, waiting 60 seconds for boot stabilization..."
+sleep 60
+
+# Initialize state
+echo "checking" > "$STATE_FILE"
+
+# Main monitoring loop
+while true; do
+    /opt/adsb/wifi-manager/check-connection.sh
+    CHECK_RESULT=$?
+    
+    case $CHECK_RESULT in
+        0)
+            # Connected to internet
+            CURRENT_STATE=$(cat "$STATE_FILE" 2>/dev/null || echo "unknown")
+            if [ "$CURRENT_STATE" != "connected" ]; then
+                log "Internet connection established"
+                echo "connected" > "$STATE_FILE"
+            fi
+            sleep 30
+            ;;
+        1)
+            # WiFi configured but not connected - RETRY LOGIC
+            CURRENT_STATE=$(cat "$STATE_FILE" 2>/dev/null || echo "unknown")
+            
+            if [ "$CURRENT_STATE" = "wifi_retry" ]; then
+                # Already retrying, check elapsed time
+                RETRY_START=$(cat /var/run/wifi-retry-start 2>/dev/null || echo "0")
+                CURRENT_TIME=$(date +%s)
+                ELAPSED=$((CURRENT_TIME - RETRY_START))
+                
+                if [ $ELAPSED -gt 300 ]; then
+                    # 5 minutes elapsed, WiFi failed - start hotspot
+                    log "WiFi connection timeout after 5 minutes, starting hotspot..."
+                    rm -f /var/run/wifi-retry-start
+                    start_hotspot_mode
+                else
+                    # Still within retry window
+                    log "WiFi connecting... ${ELAPSED}s elapsed (timeout: 300s)"
+                    sleep 10
+                fi
+            else
+                # First detection of WiFi config without connection
+                log "WiFi configured but not connected, starting 5-minute retry timer..."
+                echo "wifi_retry" > "$STATE_FILE"
+                date +%s > /var/run/wifi-retry-start
+                sleep 10
+            fi
+            ;;
+        2)
+            # No WiFi configured - start hotspot immediately
+            CURRENT_STATE=$(cat "$STATE_FILE" 2>/dev/null || echo "unknown")
+            if [ "$CURRENT_STATE" != "hotspot" ]; then
+                log "No WiFi configured and no internet, starting hotspot..."
+                start_hotspot_mode
+            fi
+            ;;
+    esac
 done
 MONITOREOF
 

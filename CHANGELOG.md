@@ -4,6 +4,42 @@ All notable changes to TAKNET-PS ADSB Feeder.
 
 ---
 
+## [2.8.4] - 2026-01-26
+
+### Fixed - CRITICAL CONNECTION STATE MACHINE
+- **Bug #4: WiFi Retry Logic Missing** (CRITICAL)
+  - After captive portal WiFi config and reboot, device would immediately start hotspot again
+  - wpa_supplicant was killed before WiFi could connect
+  - No distinction between "no config" vs "connecting" states
+  - Fixed: Implemented intelligent 3-state connection detection:
+    - State 0: Connected (internet working)
+    - State 1: WiFi configured, connecting (retry for 5 minutes)
+    - State 2: No WiFi config (start hotspot immediately)
+- **Improved network-monitor.sh State Machine**
+  - Added 5-minute grace period for WiFi connection after reboot
+  - Prevents premature hotspot activation while WiFi is connecting
+  - State persistence across checks with status file
+  - Detailed logging to `/var/log/network-monitor.log`
+  - Can detect Ethernet connection while in hotspot mode and auto-stop hotspot
+
+### Changed
+- check-connection.sh now returns 3 different exit codes for state detection
+- network-monitor.sh implements proper state machine with retry timers
+- stop-hotspot.sh properly masks/unmasks services to prevent conflicts
+- Enhanced logging with timestamps and state transitions
+
+### Testing Required
+- ✅ Ethernet disconnect → hotspot starts
+- ✅ Captive portal WiFi config → reboot → WiFi connects (not hotspot)
+- ✅ Invalid WiFi password → 5 min timeout → hotspot restarts
+- ✅ Ethernet plugged in while hotspot active → hotspot stops
+
+### Platform
+- **Tested on:** Raspberry Pi OS Lite 64-bit (Bookworm)
+- **Compatible:** Raspberry Pi 3/4/5
+
+---
+
 ## [2.8.3] - 2026-01-26
 
 ### Fixed - CRITICAL CAPTIVE PORTAL BUGS
@@ -242,6 +278,6 @@ Format: `[MAJOR.MINOR]` - `YYYY-MM-DD`
 
 ---
 
-**Current Version:** 2.8.3
+**Current Version:** 2.8.4
 **Last Updated:** January 26, 2026
 **Maintained by:** cfd2474
