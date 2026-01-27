@@ -164,14 +164,23 @@ async function saveAndStart() {
         showStatus('Could not determine zip code, using default. Processing configuration...', 'info');
     }
     
+    console.log("Zip code processing complete. finalSiteName:", finalSiteName);
+    
     // Check Tailscale setup (just validate, don't install yet)
+    console.log("Reading Tailscale fields...");
     const tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
     const tailscaleKey = document.getElementById('tailscale_key').value.trim();
+    console.log("Tailscale:", {enabled: tailscaleEnabled, hasKey: tailscaleKey.length > 0});
     
     // Just validate, installation will happen in loading screen
     if (tailscaleEnabled && !tailscaleKey) {
         showStatus('Tailscale enabled but no key provided. You can configure it later in Settings.', 'info');
     }
+    
+    console.log("Reading aggregator fields...");
+    console.log("FR24 checkbox element:", document.getElementById('fr24_enabled'));
+    console.log("ADSBX checkbox element:", document.getElementById('adsbx_enabled'));
+    console.log("AirplanesLive checkbox element:", document.getElementById('airplaneslive_enabled'));
     
     const config = {
         // Location settings
@@ -200,11 +209,18 @@ async function saveAndStart() {
         AIRPLANESLIVE_UUID: document.getElementById('airplaneslive_uuid').value
     };
     
+    console.log("Config object built:", config);
+    
+    console.log("Config object built:", config);
+    
     showStatus('Saving configuration...', 'info');
+    console.log("Showing status overlay...");
     showStatusOverlay('Saving Configuration...', 'Building docker-compose and updating services');
+    console.log("Status overlay shown, starting fetch...");
     
     try {
         // Save config
+        console.log("Fetching /api/config...");
         const response = await fetch('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
