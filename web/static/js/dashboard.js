@@ -102,26 +102,6 @@ async function restartService() {
     }
 }
 
-async function viewLogs() {
-    const logsContainer = document.getElementById('logs-container');
-    const logsOutput = document.getElementById('logs-output');
-    
-    if (logsContainer.style.display === 'none') {
-        logsContainer.style.display = 'block';
-        logsOutput.textContent = 'Loading logs...';
-        
-        try {
-            // In production, this would fetch from an API endpoint
-            // For now, just show a message
-            logsOutput.textContent = 'To view logs, run:\nsudo docker logs ultrafeeder\n\nOr SSH into your Pi and check logs directly.';
-            
-        } catch (error) {
-            logsOutput.textContent = 'Failed to load logs: ' + error.message;
-        }
-    } else {
-        logsContainer.style.display = 'none';
-    }
-}
 
 function showStatus(message, type) {
     const status = document.getElementById('status');

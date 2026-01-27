@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs - TAKNET-PS-ADSB</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
+            <p style="margin: 5px 0 15px 0; color: #9ca3af; font-size: 0.9em;">Tactical Awareness Kit Network for Enhanced Tracking – Public Safety</p>
+            <nav>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/settings">Settings</a>
+                <a href="/logs" class="active">Logs</a>
+                <a href="http://{{ request.host.split(':')[0] }}:8080" target="_blank">Map</a>
+            </nav>
+        </header>
+
+        <div class="dashboard">
+            <div class="card">
+                <h2>System Logs</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    This page will display system and service logs for troubleshooting.
+                </p>
+                
+                <div style="background: #f8f9fa; padding: 40px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">📋</div>
+                    <h3 style="color: #666; margin-bottom: 10px;">Coming Soon</h3>
+                    <p style="color: #999;">
+                        Log viewing functionality will be added in a future update.
+                    </p>
+                </div>
+                
+                <div style="margin-top: 30px; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;">
+                    <strong>Temporary Access:</strong><br>
+                    To view logs now, SSH into your Pi and run:<br>
+                    <code style="background: white; padding: 5px 10px; border-radius: 4px; display: inline-block; margin-top: 5px;">
+                        sudo docker logs ultrafeeder
+                    </code>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button class="btn" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

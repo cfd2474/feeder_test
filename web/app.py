@@ -219,6 +219,11 @@ def dashboard():
     docker_status = get_docker_status()
     return render_template('dashboard.html', config=env, docker=docker_status)
 
+@app.route('/logs')
+def logs():
+    """Logs page (placeholder)"""
+    return render_template('logs.html')
+
 @app.route('/settings')
 def settings():
     """Settings page"""

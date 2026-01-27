@@ -150,7 +150,6 @@ async function saveAndStart() {
         zipCode = userZipCode;
         finalSiteName = `${zipCode}-${siteName}`;
         showStatus(`Using your zip code: ${zipCode}. Processing configuration...`, 'success');
-        alert("DEBUG: After zip code message, about to continue...");
     } else {
         // No user zip code - estimate from coordinates
         showStatus('Looking up location information...', 'info');
@@ -169,7 +168,6 @@ async function saveAndStart() {
     console.log("Zip code processing complete. finalSiteName:", finalSiteName);
     
     // Check Tailscale setup (just validate, don't install yet)
-    alert("DEBUG: About to read Tailscale fields...");
     console.log("Reading Tailscale fields...");
     const tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
     const tailscaleKey = document.getElementById('tailscale_key').value.trim();
@@ -180,13 +178,11 @@ async function saveAndStart() {
         showStatus('Tailscale enabled but no key provided. You can configure it later in Settings.', 'info');
     }
     
-    alert("DEBUG: About to read aggregator fields...");
     console.log("Reading aggregator fields...");
     console.log("FR24 checkbox element:", document.getElementById('fr24_enabled'));
     console.log("ADSBX checkbox element:", document.getElementById('adsbx_enabled'));
     console.log("AirplanesLive checkbox element:", document.getElementById('airplaneslive_enabled'));
     
-    alert("DEBUG: About to build config object...");
     const config = {
         // Location settings
         FEEDER_LAT: lat,
@@ -225,7 +221,6 @@ async function saveAndStart() {
     
     try {
         // Save config
-        alert("DEBUG: About to fetch /api/config...");
         console.log("Fetching /api/config...");
         const response = await fetch('/api/config', {
             method: 'POST',

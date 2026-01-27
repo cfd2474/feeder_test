@@ -14,6 +14,7 @@
             <nav>
                 <a href="/dashboard" class="active">Dashboard</a>
                 <a href="/settings">Settings</a>
+                <a href="/logs">Logs</a>
                 <a href="http://{{ request.host.split(':')[0] }}:8080" target="_blank">Map</a>
                 <button onclick="refreshDashboard()" class="btn btn-sm" style="margin-left: auto;">🔄 Refresh</button>
             </nav>
@@ -129,14 +130,7 @@
             <!-- Actions -->
             <div class="actions">
                 <button class="btn btn-primary" onclick="restartService()">🔄 Restart Service</button>
-                <button class="btn" onclick="viewLogs()">📋 View Logs</button>
                 <button class="btn" onclick="window.location.href='/settings'">⚙️ Settings</button>
-            </div>
-
-            <!-- Logs Display (hidden by default) -->
-            <div class="card" id="logs-container" style="display: none;">
-                <h3>Recent Logs</h3>
-                <pre id="logs-output"></pre>
             </div>
         </div>
 
