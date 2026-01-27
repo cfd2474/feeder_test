@@ -15,9 +15,14 @@
                 <a href="/dashboard">Dashboard</a>
                 <a href="/settings">Settings</a>
                 <a href="/logs" class="active">Logs</a>
-                <a href="http://{{ request.host.split(':')[0] }}:8080" target="_blank">Map</a>
+                <a href="#" id="map-link" target="_blank">Map</a>
             </nav>
         </header>
+        
+        <script>
+        // Set map link dynamically
+        document.getElementById('map-link').href = 'http://' + window.location.hostname + ':8080';
+        </script>
 
         <div class="dashboard">
             <div class="card">
