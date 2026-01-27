@@ -54,7 +54,7 @@ fi
 # Install Python and Flask
 echo "Installing Python dependencies..."
 apt-get update -qq
-apt-get install -y python3-flask python3-pip wget curl rtl-sdr vnstat nginx avahi-daemon avahi-utils libnss-mdns hostapd dnsmasq iptables wireless-tools rfkill
+apt-get install -y python3-flask python3-pip python3-yaml wget curl rtl-sdr vnstat nginx avahi-daemon avahi-utils libnss-mdns hostapd dnsmasq iptables wireless-tools rfkill
 
 echo "✓ All packages installed"
 
@@ -861,24 +861,26 @@ RemainAfterExit=yes
 WorkingDirectory=/opt/adsb/config
 EnvironmentFile=/opt/adsb/config/.env
 ExecStartPre=/usr/bin/python3 /opt/adsb/scripts/config_builder.py
-ExecStart=/usr/bin/docker compose up -d
-ExecStartPost=/bin/bash -c '\
-    echo "Waiting for ultrafeeder container to be ready..."; \
-    for i in {1..60}; do \
-        if docker inspect ultrafeeder >/dev/null 2>&1; then \
-            if [ "$(docker inspect -f {{.State.Running}} ultrafeeder 2>/dev/null)" = "true" ]; then \
-                echo "Ultrafeeder container is running"; \
-                exit 0; \
-            fi; \
+ExecStart=/usr/bin/docker compose up -d --no-color 2>&1
+ExecStartPost=/bin/bash -c 'echo "Waiting for containers to be ready..." >&2; \
+    max_attempts=60; \
+    attempt=0; \
+    while [ $attempt -lt $max_attempts ]; do \
+        attempt=$((attempt + 1)); \
+        if docker ps --filter name=ultrafeeder --filter status=running --format "{{.Names}}" 2>/dev/null | grep -q ultrafeeder; then \
+            echo "Ultrafeeder container is running" >&2; \
+            exit 0; \
         fi; \
-        echo "Waiting for container... attempt $i/60"; \
+        echo "Waiting for containers... ($attempt/$max_attempts)" >&2; \
         sleep 2; \
     done; \
-    echo "WARNING: Ultrafeeder took longer than expected to start"; \
+    echo "WARNING: Containers took longer than expected to start. Check: docker ps" >&2; \
     exit 0'
 ExecStop=/usr/bin/docker compose down
 Restart=on-failure
 RestartSec=10
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

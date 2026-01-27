@@ -175,6 +175,83 @@ def build_config(env_vars):
     
     return ';'.join(config_parts)
 
+def build_docker_compose(env_vars):
+    """Build docker-compose.yml with conditional FR24 service"""
+    compose = {
+        'version': '3.8',
+        'networks': {
+            'adsb_net': {'driver': 'bridge'}
+        },
+        'services': {
+            'ultrafeeder': {
+                'image': 'ghcr.io/sdr-enthusiasts/docker-adsb-ultrafeeder:latest',
+                'container_name': 'ultrafeeder',
+                'hostname': 'ultrafeeder',
+                'restart': 'unless-stopped',
+                'networks': ['adsb_net'],
+                'ports': ['8080:80', '9273-9274:9273-9274'],
+                'environment': [
+                    'TZ=${FEEDER_TZ:-UTC}',
+                    'LAT=${FEEDER_LAT}',
+                    'LONG=${FEEDER_LONG}',
+                    'ALT=${FEEDER_ALT_M}m',
+                    'READSB_DEVICE_TYPE=rtlsdr',
+                    'READSB_RTLSDR_DEVICE=${READSB_DEVICE:-0}',
+                    'READSB_GAIN=${READSB_GAIN:-autogain}',
+                    'READSB_RX_LOCATION_ACCURACY=2',
+                    'READSB_STATS_RANGE=true',
+                    'MLAT_USER=${MLAT_SITE_NAME:-feeder}',
+                    'UPDATE_TAR1090=true',
+                    'TAR1090_ENABLE_AC_DB=true',
+                    'TAR1090_FLIGHTAWARELINKS=true',
+                    'TAR1090_SITESHOW=true',
+                    'ULTRAFEEDER_CONFIG=${ULTRAFEEDER_CONFIG}',
+                    'PROMETHEUS_ENABLE=true'
+                ],
+                'devices': ['/dev/bus/usb:/dev/bus/usb'],
+                'volumes': [
+                    '/opt/adsb/ultrafeeder:/opt/adsb',
+                    '/run/readsb:/run/readsb',
+                    '/proc/diskstats:/proc/diskstats:ro'
+                ],
+                'tmpfs': [
+                    '/run:exec,size=256M',
+                    '/tmp:size=128M'
+                ]
+            }
+        }
+    }
+    
+    # Add FR24 service only if enabled AND has sharing key
+    if env_vars.get('FR24_ENABLED', '').lower() == 'true' and env_vars.get('FR24_SHARING_KEY', '').strip():
+        compose['services']['fr24'] = {
+            'image': 'ghcr.io/sdr-enthusiasts/docker-flightradar24:latest',
+            'container_name': 'fr24',
+            'hostname': 'fr24',
+            'restart': 'unless-stopped',
+            'networks': ['adsb_net'],
+            'depends_on': ['ultrafeeder'],
+            'ports': ['8754:8754'],
+            'environment': [
+                'BEASTHOST=ultrafeeder',
+                'FR24KEY=${FR24_SHARING_KEY}',
+                'MLAT=yes',
+                'VERBOSE_LOGGING=true'
+            ],
+            'tmpfs': ['/var/log:size=32M']
+        }
+        print("✓ FlightRadar24 service will be included in docker-compose")
+    else:
+        print("ℹ FlightRadar24 service will NOT be included (disabled or no key)")
+    
+    return compose
+
+def write_docker_compose(compose_dict, compose_file):
+    """Write docker-compose.yml from dict"""
+    import yaml
+    with open(compose_file, 'w') as f:
+        yaml.dump(compose_dict, f, default_flow_style=False, sort_keys=False)
+
 def main():
     env_file = Path("/opt/adsb/config/.env")
     
@@ -196,6 +273,11 @@ def main():
     
     # Write back to .env
     write_env(env_file, env_vars)
+    
+    # Build and write docker-compose.yml
+    compose_dict = build_docker_compose(env_vars)
+    compose_file = Path("/opt/adsb/config/docker-compose.yml")
+    write_docker_compose(compose_dict, compose_file)
     
     print(f"\n✓ Configuration built successfully")
     if was_repaired:
