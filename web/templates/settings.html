@@ -115,7 +115,7 @@
                 <h3>Location</h3>
                 <div class="form-group">
                     <label>Latitude</label>
-                    <input type="text" id="lat" placeholder="33.55390" 
+                    <input type="text" id="lat" placeholder="" 
                         pattern="^-?\d+\.\d+$"
                         value="{{ config.get('FEEDER_LAT', '') }}">
                     <small class="help-text">
@@ -124,7 +124,7 @@
                 </div>
                 <div class="form-group">
                     <label>Longitude</label>
-                    <input type="text" id="lon" placeholder="-117.21390" 
+                    <input type="text" id="lon" placeholder="" 
                         pattern="^-?\d+\.\d+$"
                         value="{{ config.get('FEEDER_LONG', '') }}">
                     <small class="help-text">
@@ -133,7 +133,7 @@
                 </div>
                 <div class="form-group">
                     <label>Altitude (meters)</label>
-                    <input type="text" id="alt" placeholder="304" 
+                    <input type="text" id="alt" placeholder="" 
                         pattern="^\d+$"
                         value="{{ config.get('FEEDER_ALT_M', '') }}">
                     <small class="help-text">
@@ -169,7 +169,7 @@
                 </div>
                 <div class="form-group">
                     <label>Zip/Postal Code (Optional)</label>
-                    <input type="text" id="zip_code" placeholder="90210" maxlength="10"
+                    <input type="text" id="zip_code" placeholder="" maxlength="10"
                         value="{{ config.get('ZIP_CODE', '') }}">
                     <small class="help-text">
                         Optional: If blank, estimated from coordinates.
@@ -177,7 +177,7 @@
                 </div>
                 <div class="form-group">
                     <label>Feeder Name</label>
-                    <input type="text" id="site_name" placeholder="Raspberry_ADSB"
+                    <input type="text" id="site_name" placeholder=""
                         value="{{ config.get('MLAT_SITE_NAME', 'TAK-Feeder').split('-', 1)[1] if '-' in config.get('MLAT_SITE_NAME', '') else config.get('MLAT_SITE_NAME', 'TAK-Feeder') }}">
                     <small class="help-text">
                         Zip code will be prepended. Current: {{ config.get('MLAT_SITE_NAME', 'Not set') }}

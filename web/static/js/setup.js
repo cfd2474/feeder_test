@@ -1,5 +1,40 @@
 // Setup wizard navigation
 function nextStep(step) {
+    // Validate step 1 (location) before allowing navigation to step 2
+    if (step === 2) {
+        const lat = document.getElementById('lat').value.trim();
+        const lon = document.getElementById('lon').value.trim();
+        const alt = document.getElementById('alt').value.trim();
+        const tz = document.getElementById('tz').value;
+        
+        // Check required fields
+        if (!lat || !lon || !alt || !tz) {
+            showStatus('Please fill in all required location fields', 'error');
+            return;
+        }
+        
+        // Validate coordinate format
+        const latPattern = /^-?\d+\.\d+$/;
+        const lonPattern = /^-?\d+\.\d+$/;
+        const altPattern = /^\d+$/;
+        
+        if (!latPattern.test(lat)) {
+            showStatus('Latitude must be in decimal format (e.g., 33.55390)', 'error');
+            return;
+        }
+        
+        if (!lonPattern.test(lon)) {
+            showStatus('Longitude must be in decimal format (e.g., -117.21390)', 'error');
+            return;
+        }
+        
+        if (!altPattern.test(alt)) {
+            showStatus('Altitude must be a whole number (e.g., 304)', 'error');
+            return;
+        }
+    }
+    
+    // Navigation approved - show next step
     document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
     document.getElementById('step' + step).classList.add('active');
 }

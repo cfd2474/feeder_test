@@ -29,7 +29,7 @@
                 
                 <div class="form-group">
                     <label>Latitude *</label>
-                    <input type="text" id="lat" placeholder="33.55390" 
+                    <input type="text" id="lat" placeholder="" 
                         pattern="^-?\d+\.\d+$"
                         value="{% if config.get('FEEDER_LAT', '') and config.get('FEEDER_LAT') not in ['0', '0.0', '0.00'] %}{{ config.get('FEEDER_LAT') }}{% endif %}" required>
                     <small class="help-text">
@@ -40,7 +40,7 @@
                 
                 <div class="form-group">
                     <label>Longitude *</label>
-                    <input type="text" id="lon" placeholder="-117.21390" 
+                    <input type="text" id="lon" placeholder="" 
                         pattern="^-?\d+\.\d+$"
                         value="{% if config.get('FEEDER_LONG', '') and config.get('FEEDER_LONG') not in ['0', '0.0', '0.00'] %}{{ config.get('FEEDER_LONG') }}{% endif %}" required>
                     <small class="help-text">
@@ -51,10 +51,11 @@
                 
                 <div class="form-group">
                     <label>Altitude (meters) *</label>
-                    <input type="number" id="alt" placeholder="304" 
+                    <input type="text" id="alt" placeholder="" 
+                        pattern="^\d+$"
                         value="{% if config.get('FEEDER_ALT_M', '') and config.get('FEEDER_ALT_M') not in ['0'] %}{{ config.get('FEEDER_ALT_M') }}{% endif %}" required>
                     <small class="help-text">
-                        Enter your altitude above sea level in meters
+                        Enter your altitude above sea level in meters (whole number)
                     </small>
                 </div>
                 
@@ -134,7 +135,7 @@
                 
                 <div class="form-group">
                     <label>Zip/Postal Code (Optional)</label>
-                    <input type="text" id="zip_code" placeholder="90210" maxlength="10"
+                    <input type="text" id="zip_code" placeholder="" maxlength="10"
                         value="{% if config.get('ZIP_CODE', '') %}{{ config.get('ZIP_CODE') }}{% endif %}">
                     <small class="help-text">
                         Optional: Enter your zip/postal code. If left blank, 
@@ -144,11 +145,11 @@
                 
                 <div class="form-group">
                     <label>Feeder Name *</label>
-                    <input type="text" id="site_name" placeholder="Raspberry_ADSB" 
+                    <input type="text" id="site_name" placeholder="" 
                         value="{% if config.get('MLAT_SITE_NAME', 'TAKNET-PS-ADSB-Feeder') != 'TAKNET-PS-ADSB-Feeder' and config.get('MLAT_SITE_NAME', 'TAK-Feeder') != 'TAK-Feeder' %}{{ config.get('MLAT_SITE_NAME', '').split('-', 1)[1] if '-' in config.get('MLAT_SITE_NAME', '') else config.get('MLAT_SITE_NAME', '') }}{% endif %}" required>
                     <small class="help-text">
                         Unique name for your feeder (e.g., device type, location name).<br>
-                        Zip code will be prepended automatically: <strong>90210-Raspberry_ADSB</strong>
+                        Example format: <strong>90210-Raspberry_ADSB</strong> (zip prepended automatically)
                     </small>
                 </div>
                 
