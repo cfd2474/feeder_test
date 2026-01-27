@@ -61,10 +61,27 @@ async function saveAndStart() {
     const alt = document.getElementById('alt').value;
     const tz = document.getElementById('tz').value;
     const siteName = document.getElementById('site_name').value.trim();
+    const userZipCode = document.getElementById('zip_code').value.trim();
     
     // Validate required fields
     if (!lat || !lon || !alt) {
         showStatus('Please enter latitude, longitude, and altitude', 'error');
+        nextStep(1);
+        return;
+    }
+    
+    // Validate coordinate format
+    const latPattern = /^-?\d+\.\d+$/;
+    const lonPattern = /^-?\d+\.\d+$/;
+    
+    if (!latPattern.test(lat)) {
+        showStatus('Latitude must be in decimal format (e.g., 33.55390)', 'error');
+        nextStep(1);
+        return;
+    }
+    
+    if (!lonPattern.test(lon)) {
+        showStatus('Longitude must be in decimal format (e.g., -117.21390)', 'error');
         nextStep(1);
         return;
     }
@@ -81,18 +98,24 @@ async function saveAndStart() {
         return;
     }
     
-    showStatus('Looking up location information...', 'info');
-    
-    // Get zip code from coordinates
-    const zipCode = await getZipCodeFromCoords(lat, lon);
-    
     let finalSiteName;
-    if (zipCode) {
-        // Format: ZIPCODE-Name
+    let zipCode;
+    
+    if (userZipCode) {
+        // User provided zip code - use it directly
+        zipCode = userZipCode;
         finalSiteName = `${zipCode}-${siteName}`;
-        showStatus(`Location found: ${zipCode}. Processing configuration...`, 'success');
+        showStatus(`Using your zip code: ${zipCode}. Processing configuration...`, 'success');
     } else {
-        // If zip code lookup fails, use default prefix
+        // No user zip code - estimate from coordinates
+        showStatus('Looking up location information...', 'info');
+        zipCode = await getZipCodeFromCoords(lat, lon);
+        
+        if (zipCode) {
+            finalSiteName = `${zipCode}-${siteName}`;
+            showStatus(`Location found: ${zipCode}. Processing configuration...`, 'success');
+        } else {
+            // If zip code lookup fails, use default prefix
         finalSiteName = `00000-${siteName}`;
         showStatus('Could not determine zip code, using default. Processing configuration...', 'info');
     }
@@ -113,6 +136,7 @@ async function saveAndStart() {
         FEEDER_ALT_M: alt,
         FEEDER_TZ: tz,
         MLAT_SITE_NAME: finalSiteName,
+        ZIP_CODE: userZipCode || zipCode || '',
         
         // Tailscale settings
         TAILSCALE_ENABLED: tailscaleEnabled ? 'true' : 'false',
@@ -133,6 +157,7 @@ async function saveAndStart() {
     };
     
     showStatus('Saving configuration...', 'info');
+    showStatusOverlay('Saving Configuration...', 'Building docker-compose and updating services');
     
     try {
         // Save config
@@ -144,12 +169,15 @@ async function saveAndStart() {
         
         if (!response.ok) throw new Error('Failed to save configuration');
         
-        showStatus('Configuration saved! Starting services...', 'success');
+        showSuccessOverlay('Configuration Saved!', 'Starting services...');
         
-        // Redirect to loading page WITHOUT config param (already saved)
-        window.location.href = '/loading';
+        // Brief delay to show success message
+        setTimeout(() => {
+            window.location.href = '/loading';
+        }, 1500);
         
     } catch (error) {
+        hideStatusOverlay();
         showStatus('Error: ' + error.message, 'error');
     }
 }
@@ -159,4 +187,52 @@ function showStatus(message, type) {
     status.textContent = message;
     status.className = type;
     status.style.display = 'block';
+}
+
+// Status overlay functions
+function showStatusOverlay(message, detail) {
+    let overlay = document.getElementById('status-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'status-overlay';
+        overlay.className = 'status-overlay';
+        overlay.innerHTML = `
+            <div class="status-content">
+                <div class="spinner"></div>
+                <h2 id="overlay-message">${message}</h2>
+                <p id="overlay-detail">${detail || 'Please wait...'}</p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    } else {
+        document.getElementById('overlay-message').textContent = message;
+        document.getElementById('overlay-detail').textContent = detail || 'Please wait...';
+        overlay.style.display = 'flex';
+    }
+}
+
+function hideStatusOverlay() {
+    const overlay = document.getElementById('status-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+}
+
+function showSuccessOverlay(message, detail) {
+    let overlay = document.getElementById('status-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'status-overlay';
+        overlay.className = 'status-overlay';
+        document.body.appendChild(overlay);
+    }
+    
+    overlay.innerHTML = `
+        <div class="status-content success">
+            <div style="font-size: 60px; color: #10b981; margin-bottom: 20px;">✓</div>
+            <h2>${message}</h2>
+            <p>${detail || ''}</p>
+        </div>
+    `;
+    overlay.style.display = 'flex';
 }

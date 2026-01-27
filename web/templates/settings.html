@@ -115,15 +115,30 @@
                 <h3>Location</h3>
                 <div class="form-group">
                     <label>Latitude</label>
-                    <input type="number" step="any" id="lat" value="{{ config.get('FEEDER_LAT', '') }}">
+                    <input type="text" id="lat" placeholder="33.55390" 
+                        pattern="^-?\d+\.\d+$"
+                        value="{{ config.get('FEEDER_LAT', '') }}">
+                    <small class="help-text">
+                        Format: DD.DDDDD (5 decimals recommended). Example: 33.55390 or -33.55390
+                    </small>
                 </div>
                 <div class="form-group">
                     <label>Longitude</label>
-                    <input type="number" step="any" id="lon" value="{{ config.get('FEEDER_LONG', '') }}">
+                    <input type="text" id="lon" placeholder="-117.21390" 
+                        pattern="^-?\d+\.\d+$"
+                        value="{{ config.get('FEEDER_LONG', '') }}">
+                    <small class="help-text">
+                        Format: DD.DDDDD (5 decimals recommended). West of Prime Meridian uses negative.
+                    </small>
                 </div>
                 <div class="form-group">
                     <label>Altitude (meters)</label>
-                    <input type="number" id="alt" value="{{ config.get('FEEDER_ALT_M', '') }}">
+                    <input type="text" id="alt" placeholder="304" 
+                        pattern="^\d+$"
+                        value="{{ config.get('FEEDER_ALT_M', '') }}">
+                    <small class="help-text">
+                        Whole number only (e.g., 304 for 304 meters)
+                    </small>
                 </div>
                 <div class="form-group">
                     <label>Timezone</label>
@@ -153,10 +168,19 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label>Zip/Postal Code (Optional)</label>
+                    <input type="text" id="zip_code" placeholder="90210" maxlength="10"
+                        value="{{ config.get('ZIP_CODE', '') }}">
+                    <small class="help-text">
+                        Optional: If blank, estimated from coordinates.
+                    </small>
+                </div>
+                <div class="form-group">
                     <label>Feeder Name</label>
-                    <input type="text" id="site_name" value="{{ config.get('MLAT_SITE_NAME', 'TAK-Feeder').split('-', 1)[1] if '-' in config.get('MLAT_SITE_NAME', '') else config.get('MLAT_SITE_NAME', 'TAK-Feeder') }}">
-                    <small style="color: #666; display: block; margin-top: 5px;">
-                        Current: {{ config.get('MLAT_SITE_NAME', 'Not set') }}
+                    <input type="text" id="site_name" placeholder="Raspberry_ADSB"
+                        value="{{ config.get('MLAT_SITE_NAME', 'TAK-Feeder').split('-', 1)[1] if '-' in config.get('MLAT_SITE_NAME', '') else config.get('MLAT_SITE_NAME', 'TAK-Feeder') }}">
+                    <small class="help-text">
+                        Zip code will be prepended. Current: {{ config.get('MLAT_SITE_NAME', 'Not set') }}
                     </small>
                 </div>
             </div>
@@ -570,29 +594,43 @@
             const lat = document.getElementById('lat').value;
             const lon = document.getElementById('lon').value;
             const siteName = document.getElementById('site_name').value.trim();
+            const userZipCode = document.getElementById('zip_code').value.trim();
+            
+            // Validate coordinate format
+            const latPattern = /^-?\d+\.\d+$/;
+            const lonPattern = /^-?\d+\.\d+$/;
+            
+            if (lat && !latPattern.test(lat)) {
+                showStatus('Latitude must be in decimal format (e.g., 33.55390)', 'error');
+                return;
+            }
+            
+            if (lon && !lonPattern.test(lon)) {
+                showStatus('Longitude must be in decimal format (e.g., -117.21390)', 'error');
+                return;
+            }
             
             showStatus('Saving...', 'info');
             
-            // Get current full site name to check if we need to update zip
-            const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
-            let finalSiteName = currentFullName;
+            let finalSiteName;
+            let zipCode;
             
-            // If coordinates changed, look up new zip code
-            if (lat && lon && siteName) {
-                const zipCode = await getZipCodeFromCoords(lat, lon);
+            if (userZipCode) {
+                // User provided zip code - use it
+                zipCode = userZipCode;
+                finalSiteName = `${zipCode}-${siteName}`;
+            } else if (lat && lon && siteName) {
+                // No user zip - estimate from coordinates
+                zipCode = await getZipCodeFromCoords(lat, lon);
                 if (zipCode) {
                     finalSiteName = `${zipCode}-${siteName}`;
-                } else if (!finalSiteName.includes('-')) {
+                } else {
                     finalSiteName = `00000-${siteName}`;
                 }
-            } else if (siteName && !currentFullName.includes('-')) {
-                finalSiteName = `00000-${siteName}`;
-            } else if (siteName) {
-                // Keep existing zip, update name only
-                const parts = currentFullName.split('-');
-                if (parts.length > 1) {
-                    finalSiteName = `${parts[0]}-${siteName}`;
-                }
+            } else {
+                // Keep existing format
+                const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
+                finalSiteName = currentFullName;
             }
             
             const config = {
@@ -601,6 +639,7 @@
                 FEEDER_ALT_M: document.getElementById('alt').value,
                 FEEDER_TZ: document.getElementById('tz').value,
                 MLAT_SITE_NAME: finalSiteName,
+                ZIP_CODE: userZipCode || zipCode || '',
                 
                 TAILSCALE_ENABLED: document.getElementById('tailscale_enabled').checked ? 'true' : 'false',
                 TAILSCALE_AUTH_KEY: document.getElementById('tailscale_key').value.trim(),

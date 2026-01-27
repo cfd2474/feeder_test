@@ -431,6 +431,41 @@ def api_status():
         'configured': env.get('FEEDER_LAT', '0.0') != '0.0'
     })
 
+@app.route('/api/network-status', methods=['GET'])
+def api_network_status():
+    """Get network connectivity status"""
+    import socket
+    
+    def check_internet():
+        """Check if internet is accessible"""
+        try:
+            socket.create_connection(("8.8.8.8", 53), timeout=3)
+            return True
+        except:
+            return False
+    
+    def get_primary_ip():
+        """Get primary IP address"""
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(('8.8.8.8', 80))
+            ip = s.getsockname()[0]
+        except:
+            ip = '127.0.0.1'
+        finally:
+            s.close()
+        return ip
+    
+    has_internet = check_internet()
+    ip_address = get_primary_ip()
+    hostname = socket.gethostname()
+    
+    return jsonify({
+        'internet': has_internet,
+        'ip_address': ip_address,
+        'hostname': hostname
+    })
+
 if __name__ == '__main__':
     # Run on all interfaces, port 5000
     app.run(host='0.0.0.0', port=5000, debug=False)

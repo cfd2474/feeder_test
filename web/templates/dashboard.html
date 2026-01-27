@@ -62,6 +62,25 @@
                 </div>
 
                 <div class="card">
+                    <h3>Network Status</h3>
+                    <div class="status-item" style="margin-bottom: 10px;">
+                        <span class="status-label">Internet:</span>
+                        <span id="internet-status" class="status-value">
+                            <span class="status-dot"></span>
+                            <span class="status-text">Checking...</span>
+                        </span>
+                    </div>
+                    <div class="status-item" style="margin-bottom: 10px;">
+                        <span class="status-label">IP Address:</span>
+                        <span id="ip-address" class="status-value">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Hostname:</span>
+                        <span id="hostname" class="status-value">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="card">
                     <h3>Active Feeds</h3>
                     <div id="active-feeds">
                         {% if config.get('TAKNET_PS_ENABLED') == 'true' %}

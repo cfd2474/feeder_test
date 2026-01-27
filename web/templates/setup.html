@@ -29,20 +29,33 @@
                 
                 <div class="form-group">
                     <label>Latitude *</label>
-                    <input type="number" step="any" id="lat" placeholder="33.5539" 
-                        value="{% if config.get('FEEDER_LAT', '0.0') not in ['0.0', '0', ''] %}{{ config.get('FEEDER_LAT') }}{% endif %}" required>
+                    <input type="text" id="lat" placeholder="33.55390" 
+                        pattern="^-?\d+\.\d+$"
+                        value="{% if config.get('FEEDER_LAT', '') and config.get('FEEDER_LAT') not in ['0', '0.0', '0.00'] %}{{ config.get('FEEDER_LAT') }}{% endif %}" required>
+                    <small class="help-text">
+                        Format: DD.DDDDD (decimal degrees, 5 decimals recommended)<br>
+                        Example: 33.55390 for North, -33.55390 for South
+                    </small>
                 </div>
                 
                 <div class="form-group">
                     <label>Longitude *</label>
-                    <input type="number" step="any" id="lon" placeholder="-117.2139" 
-                        value="{% if config.get('FEEDER_LONG', '0.0') not in ['0.0', '0', ''] %}{{ config.get('FEEDER_LONG') }}{% endif %}" required>
+                    <input type="text" id="lon" placeholder="-117.21390" 
+                        pattern="^-?\d+\.\d+$"
+                        value="{% if config.get('FEEDER_LONG', '') and config.get('FEEDER_LONG') not in ['0', '0.0', '0.00'] %}{{ config.get('FEEDER_LONG') }}{% endif %}" required>
+                    <small class="help-text">
+                        Format: DD.DDDDD (decimal degrees, 5 decimals recommended)<br>
+                        Example: -117.21390 for West of Prime Meridian, 117.21390 for East
+                    </small>
                 </div>
                 
                 <div class="form-group">
                     <label>Altitude (meters) *</label>
                     <input type="number" id="alt" placeholder="304" 
-                        value="{% if config.get('FEEDER_ALT_M', '0') not in ['0', ''] %}{{ config.get('FEEDER_ALT_M') }}{% endif %}" required>
+                        value="{% if config.get('FEEDER_ALT_M', '') and config.get('FEEDER_ALT_M') not in ['0'] %}{{ config.get('FEEDER_ALT_M') }}{% endif %}" required>
+                    <small class="help-text">
+                        Enter your altitude above sea level in meters
+                    </small>
                 </div>
                 
                 <div class="form-group">
@@ -120,11 +133,22 @@
                 </div>
                 
                 <div class="form-group">
+                    <label>Zip/Postal Code (Optional)</label>
+                    <input type="text" id="zip_code" placeholder="90210" maxlength="10"
+                        value="{% if config.get('ZIP_CODE', '') %}{{ config.get('ZIP_CODE') }}{% endif %}">
+                    <small class="help-text">
+                        Optional: Enter your zip/postal code. If left blank, 
+                        it will be estimated from your coordinates.
+                    </small>
+                </div>
+                
+                <div class="form-group">
                     <label>Feeder Name *</label>
-                    <input type="text" id="site_name" placeholder="MyFeeder" 
+                    <input type="text" id="site_name" placeholder="Raspberry_ADSB" 
                         value="{% if config.get('MLAT_SITE_NAME', 'TAKNET-PS-ADSB-Feeder') != 'TAKNET-PS-ADSB-Feeder' and config.get('MLAT_SITE_NAME', 'TAK-Feeder') != 'TAK-Feeder' %}{{ config.get('MLAT_SITE_NAME', '').split('-', 1)[1] if '-' in config.get('MLAT_SITE_NAME', '') else config.get('MLAT_SITE_NAME', '') }}{% endif %}" required>
-                    <small style="color: #666; display: block; margin-top: 5px;">
-                        Format: ZIPCODE-YourName (zip code will be added automatically)
+                    <small class="help-text">
+                        Unique name for your feeder (e.g., device type, location name).<br>
+                        Zip code will be prepended automatically: <strong>90210-Raspberry_ADSB</strong>
                     </small>
                 </div>
                 
