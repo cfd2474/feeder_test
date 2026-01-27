@@ -1,15 +1,21 @@
 // Setup wizard navigation
 function nextStep(step) {
-    // Validate step 1 (location) before allowing navigation to step 2
+    // Validate step 1 (location AND feeder name) before allowing navigation to step 2
     if (step === 2) {
         const lat = document.getElementById('lat').value.trim();
         const lon = document.getElementById('lon').value.trim();
         const alt = document.getElementById('alt').value.trim();
         const tz = document.getElementById('tz').value;
+        const siteName = document.getElementById('site_name').value.trim();
         
-        // Check required fields
+        // Check required fields (including site_name!)
         if (!lat || !lon || !alt || !tz) {
             showStatus('Please fill in all required location fields', 'error');
+            return;
+        }
+        
+        if (!siteName) {
+            showStatus('Please enter a feeder name', 'error');
             return;
         }
         
