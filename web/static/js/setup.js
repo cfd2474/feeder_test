@@ -225,6 +225,7 @@ async function saveAndStart() {
         showStatus('Error: ' + error.message, 'error');
     }
 }
+}
 
 function showStatus(message, type) {
     const status = document.getElementById('status');
