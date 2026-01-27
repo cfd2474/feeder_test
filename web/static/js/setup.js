@@ -161,10 +161,11 @@ async function saveAndStart() {
             showStatus(`Location found: ${zipCode}. Processing configuration...`, 'success');
         } else {
             // If zip code lookup fails, use default prefix
-        finalSiteName = `00000-${siteName}`;
-        showStatus('Could not determine zip code, using default. Processing configuration...', 'info');
+            finalSiteName = `00000-${siteName}`;
+            showStatus('Could not determine zip code, using default. Processing configuration...', 'info');
+        }
     }
-    
+
     console.log("Zip code processing complete. finalSiteName:", finalSiteName);
     
     // Check Tailscale setup (just validate, don't install yet)
@@ -245,7 +246,6 @@ async function saveAndStart() {
         hideStatusOverlay();
         showStatus('Error: ' + error.message, 'error');
     }
-}
 }
 
 function showStatus(message, type) {
