@@ -414,6 +414,31 @@ def api_restart_service():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Exception: {str(e)}'}), 500
 
+@app.route('/api/service/ready', methods=['GET'])
+def api_service_ready():
+    """Check if ultrafeeder container is running and ready"""
+    try:
+        docker_status = get_docker_status()
+        
+        # Check if ultrafeeder container exists and is running
+        ultrafeeder_running = False
+        for container_name, status in docker_status.items():
+            if 'ultrafeeder' in container_name.lower():
+                # Check if status contains "Up" (Docker shows "Up X seconds/minutes")
+                if 'Up' in status:
+                    ultrafeeder_running = True
+                    break
+        
+        return jsonify({
+            'ready': ultrafeeder_running,
+            'containers': docker_status
+        })
+    except Exception as e:
+        return jsonify({
+            'ready': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/status', methods=['GET'])
 def api_status():
     """Get system status"""

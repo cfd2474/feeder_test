@@ -238,12 +238,39 @@
                     throw new Error(error.message || 'Failed to restart service');
                 }
                 
-                // Wait for Docker to pull images and start containers
-                addStatusLine('ℹ', 'Downloading container images...', 'info');
-                await sleep(5000);
-                addStatusLine('ℹ', 'Starting containers...', 'info');
-                await sleep(10000);  // Wait 10 more seconds for containers to start
-                addStatusLine('✓', 'Ultrafeeder service started', 'success');
+                // Poll for ultrafeeder to be ready (max 3 minutes)
+                addStatusLine('ℹ', 'Waiting for ultrafeeder to start...', 'info');
+                const maxWaitTime = 180000; // 3 minutes
+                const pollInterval = 5000; // Check every 5 seconds
+                const startTime = Date.now();
+                let isReady = false;
+                
+                while (!isReady && (Date.now() - startTime) < maxWaitTime) {
+                    await sleep(pollInterval);
+                    
+                    try {
+                        const statusResponse = await fetch('/api/service/ready');
+                        const statusData = await statusResponse.json();
+                        
+                        if (statusData.ready) {
+                            isReady = true;
+                            addStatusLine('✓', 'Ultrafeeder container is running', 'success');
+                        } else {
+                            // Still waiting - show progress indicator
+                            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                            addStatusLine('⏳', `Still downloading/starting... (${elapsed}s elapsed)`, 'info');
+                        }
+                    } catch (error) {
+                        // If status check fails, keep waiting
+                        console.log('Status check failed, retrying...', error);
+                    }
+                }
+                
+                if (!isReady) {
+                    throw new Error('Ultrafeeder did not start within 3 minutes. Check journalctl -u ultrafeeder for details.');
+                }
+                
+                addStatusLine('✓', 'Ultrafeeder service started successfully', 'success');
                 updateProgress(4);
                 
                 // Step 5: Start FR24 if enabled
