@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.8.4
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.9.0
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.8.4"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.9.0"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -934,13 +934,15 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "🌐 Open your browser and go to:"
 echo ""
-echo "   http://$IP:5000"
+echo "   http://taknet-ps.local:5000"
 echo ""
 echo "   Complete the setup wizard to configure your feeder."
 echo ""
 echo "After setup, you can access:"
-echo "   • Setup/Dashboard: http://$IP:5000"
-echo "   • Live Map: http://$IP:8080"
+echo "   • Setup/Dashboard: http://taknet-ps.local:5000"
+echo "   • Live Map: http://taknet-ps.local:8080"
+echo ""
+echo "   (Or use http://$IP:5000 if .local doesn't work)"
 echo ""
 echo "Manual commands (if needed):"
 echo "   • Start: sudo systemctl start ultrafeeder"
