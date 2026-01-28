@@ -527,12 +527,18 @@ def save_config():
         # Rebuild ULTRAFEEDER_CONFIG
         rebuild_config()
         
-        # If FR24 was just enabled, start monitoring its download
+        # If FR24 was just enabled, start the service and monitor its download
         if fr24_newly_enabled and fr24_has_key:
+            # Reload systemd to pick up new fr24.service file
+            subprocess.run(['systemctl', 'daemon-reload'], check=False)
+            
+            # Start FR24 service (this will pull image and start container)
+            subprocess.Popen(['systemctl', 'start', 'fr24'])
+            
             # Start FR24 progress monitoring in background thread
             monitor_thread = threading.Thread(target=monitor_docker_progress, args=('fr24',), daemon=True)
             monitor_thread.start()
-            print("✓ Started FR24 download monitoring")
+            print("✓ Started FR24 service and download monitoring")
         
         return jsonify({'success': True, 'message': 'Configuration saved'})
     except Exception as e:
