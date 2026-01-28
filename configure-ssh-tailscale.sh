@@ -41,6 +41,14 @@ BACKUP_FILE="/etc/ssh/sshd_config.backup-$(date +%Y%m%d-%H%M%S)"
 cp $SSH_CONFIG_FILE $BACKUP_FILE
 echo "✓ Backed up SSH config to $BACKUP_FILE"
 
+# Remove any existing DenyUsers remote line (from install)
+if grep -q "^DenyUsers remote" $SSH_CONFIG_FILE; then
+    sed -i '/^DenyUsers remote/d' $SSH_CONFIG_FILE
+    # Also remove the comment line before it
+    sed -i '/# TAKNET-PS: Block remote user until Tailscale configured/d' $SSH_CONFIG_FILE
+    echo "✓ Removed DenyUsers restriction for remote user"
+fi
+
 # Check if Match block already exists
 if grep -q "Match User remote" $SSH_CONFIG_FILE; then
     echo "⚠️  SSH config for 'remote' user already exists"

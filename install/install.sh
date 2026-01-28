@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.9.2
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.9.3
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.9.2"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.9.3"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -131,8 +131,29 @@ SUDOEOF
     
     chmod 0440 /etc/sudoers.d/remote-adsb
     
-    echo "✓ User 'remote' created with password 'adsb'"
-    echo "  Tailscale-only access recommended (configure SSH to allow)"
+    # SECURITY: Immediately restrict 'remote' user to Tailscale-only access
+    # Block all SSH access by default until Tailscale is configured
+    if ! grep -q "^DenyUsers remote" /etc/ssh/sshd_config; then
+        # Backup SSH config first
+        cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup-install
+        
+        # Add DenyUsers restriction at end of file
+        echo "" >> /etc/ssh/sshd_config
+        echo "# TAKNET-PS: Block remote user until Tailscale configured" >> /etc/ssh/sshd_config
+        echo "DenyUsers remote" >> /etc/ssh/sshd_config
+        
+        # Test and restart SSH
+        if sshd -t 2>/dev/null; then
+            systemctl restart sshd 2>/dev/null || true
+            echo "✓ User 'remote' created (SSH access BLOCKED until Tailscale configured)"
+        else
+            # If test fails, restore backup
+            cp /etc/ssh/sshd_config.backup-install /etc/ssh/sshd_config
+            echo "✓ User 'remote' created (SSH restriction failed - manual config needed)"
+        fi
+    else
+        echo "✓ User 'remote' created (SSH already configured)"
+    fi
 else
     echo "✓ User 'remote' already exists"
 fi
@@ -954,10 +975,12 @@ echo "📡 Remote Access:"
 echo "   • User: remote"
 echo "   • Password: adsb"
 echo "   • Limited sudo privileges for ADSB commands"
+echo "   • SSH access BLOCKED until Tailscale configured (secure by default)"
 echo ""
-echo "🔒 To restrict 'remote' user to Tailscale network only:"
-echo "   cd /opt/adsb"
-echo "   sudo ./configure-ssh-tailscale.sh"
+echo "🔒 SSH Security (automatic):"
+echo "   • 'remote' user currently BLOCKED from all SSH access"
+echo "   • Will auto-configure for Tailscale-only when you enable Tailscale"
+echo "   • Or manually run: cd /opt/adsb && sudo ./configure-ssh-tailscale.sh"
 echo ""
 echo "📊 Network Monitoring:"
 echo "   • vnstat configured (30-day retention)"

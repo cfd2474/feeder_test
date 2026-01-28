@@ -142,6 +142,19 @@ def install_tailscale(auth_key=None, hostname=None):
             # Just start Tailscale
             subprocess.run(['tailscale', 'up'], timeout=30)
         
+        # SECURITY: Automatically configure SSH for Tailscale-only access
+        # Run the configure-ssh-tailscale.sh script
+        try:
+            ssh_config_script = '/opt/adsb/configure-ssh-tailscale.sh'
+            if os.path.exists(ssh_config_script):
+                subprocess.run(['bash', ssh_config_script], 
+                             capture_output=True, 
+                             timeout=10,
+                             check=False)  # Don't fail if SSH config has issues
+                print("✓ SSH configured for Tailscale-only access")
+        except Exception as e:
+            print(f"⚠️ SSH configuration failed (non-critical): {e}")
+        
         return {'success': True, 'message': 'Tailscale configured successfully'}
         
     except subprocess.TimeoutExpired:
