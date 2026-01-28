@@ -8,8 +8,37 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 import subprocess
 import os
 from pathlib import Path
+import json
+import threading
+import time
 
 app = Flask(__name__)
+
+# Global progress tracking
+service_progress = {
+    'service': 'idle',
+    'progress': 0,
+    'total': 0,
+    'status': 'Ready',
+    'details': ''
+}
+progress_lock = threading.Lock()
+
+def update_progress(service, progress, total=100, status='', details=''):
+    """Update global progress state"""
+    global service_progress
+    with progress_lock:
+        service_progress = {
+            'service': service,
+            'progress': progress,
+            'total': total,
+            'status': status,
+            'details': details
+        }
+
+def reset_progress():
+    """Reset progress to idle"""
+    update_progress('idle', 0, 100, 'Ready', '')
 
 ENV_FILE = Path("/opt/adsb/config/.env")
 CONFIG_BUILDER = "/opt/adsb/scripts/config_builder.py"
@@ -60,12 +89,90 @@ def get_docker_status():
     except:
         return {}
 
+def monitor_docker_progress():
+    """Monitor Docker pull progress in background thread"""
+    try:
+        update_progress('ultrafeeder', 10, 100, 'Pulling image...', 'Starting')
+        
+        # Monitor journalctl for docker pull progress
+        # This runs in background and updates progress as Docker pulls images
+        process = subprocess.Popen(
+            ['journalctl', '-u', 'ultrafeeder', '-f', '--since', 'now'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+        
+        start_time = time.time()
+        max_wait = 180  # 3 minutes max
+        
+        while time.time() - start_time < max_wait:
+            line = process.stdout.readline()
+            if not line:
+                time.sleep(0.5)
+                continue
+            
+            # Parse Docker pull progress
+            # Example: "Pulling fs layer" / "Downloading" / "Extracting"
+            if 'Pulling fs layer' in line or 'Waiting' in line:
+                update_progress('ultrafeeder', 20, 100, 'Pulling layers...', 'Initializing')
+            elif 'Downloading' in line:
+                # Try to extract download progress if available
+                # Format: "Downloading [==>  ] 25.5MB/100MB"
+                try:
+                    if 'MB' in line:
+                        parts = line.split('/')
+                        if len(parts) >= 2:
+                            # Extract downloaded and total
+                            downloaded_str = parts[0].split()[-1].replace('MB', '')
+                            total_str = parts[1].split()[0].replace('MB', '')
+                            downloaded = float(downloaded_str)
+                            total = float(total_str)
+                            percent = int((downloaded / total) * 100) if total > 0 else 30
+                            percent = min(80, max(20, percent))  # Clamp between 20-80%
+                            update_progress('ultrafeeder', percent, 100, 'Downloading...', f'{downloaded:.1f}MB / {total:.1f}MB')
+                        else:
+                            update_progress('ultrafeeder', 40, 100, 'Downloading...', 'In progress')
+                    else:
+                        update_progress('ultrafeeder', 40, 100, 'Downloading...', 'In progress')
+                except:
+                    update_progress('ultrafeeder', 40, 100, 'Downloading...', 'In progress')
+            elif 'Extracting' in line or 'Pull complete' in line:
+                update_progress('ultrafeeder', 85, 100, 'Extracting...', 'Almost done')
+            elif 'Started' in line or 'Running' in line:
+                update_progress('ultrafeeder', 100, 100, 'Running', 'Complete')
+                break
+            
+            # Fallback: gradual increase over time if no specific messages
+            elapsed = time.time() - start_time
+            if elapsed > 5:
+                fallback_percent = min(80, 15 + int((elapsed / max_wait) * 65))
+                if service_progress['progress'] < fallback_percent:
+                    update_progress('ultrafeeder', fallback_percent, 100, 'Downloading...', f'{int(elapsed)}s elapsed')
+        
+        process.terminate()
+        
+    except Exception as e:
+        print(f"Progress monitoring error: {e}")
+        # Fallback to time-based estimation
+        for i in range(10, 90, 10):
+            update_progress('ultrafeeder', i, 100, 'Starting...', f'{i}%')
+            time.sleep(3)
+
 def restart_service():
     """Restart ultrafeeder service - non-blocking, returns immediately"""
     import time
     try:
         # Brief delay to prevent rapid-fire restarts
         time.sleep(2)
+        
+        # Reset progress before starting
+        reset_progress()
+        
+        # Start progress monitoring in background thread
+        monitor_thread = threading.Thread(target=monitor_docker_progress, daemon=True)
+        monitor_thread.start()
         
         # Start restart in background (non-blocking)
         # The systemctl command will continue running, but we return immediately
@@ -449,6 +556,13 @@ def api_service_ready():
             'ready': False,
             'error': str(e)
         }), 500
+
+@app.route('/api/service/progress', methods=['GET'])
+def api_service_progress():
+    """Get current service installation progress"""
+    global service_progress
+    with progress_lock:
+        return jsonify(service_progress)
 
 @app.route('/api/status', methods=['GET'])
 def api_status():
