@@ -37,19 +37,11 @@
                         {% endif %}
                         
                         {% if config.get('FR24_ENABLED') == 'true' %}
-                            {% if docker.get('fr24') %}
-                                <div class="status-item">
-                                    <span class="status-dot {% if 'Up' in docker.get('fr24') %}active{% else %}inactive{% endif %}"></span>
-                                    <span>fr24</span>
-                                    <span class="status-text">{{ docker.get('fr24', 'Unknown') }}</span>
-                                </div>
-                            {% else %}
-                                <div class="status-item">
-                                    <span class="status-dot inactive"></span>
-                                    <span>fr24</span>
-                                    <span class="status-text">Not running</span>
-                                </div>
-                            {% endif %}
+                            <div class="status-item">
+                                <span class="status-dot" id="fr24-status-dot"></span>
+                                <span>fr24</span>
+                                <span class="status-text" id="fr24-status-text">Checking...</span>
+                            </div>
                         {% endif %}
                     </div>
                 </div>
@@ -192,7 +184,53 @@
     <script src="/static/js/dashboard.js"></script>
     <script>
         let autoRefreshInterval;
+        let serviceStateInterval;
         let lastUpdateTime = new Date();
+        
+        async function updateServiceStates() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                // Update FR24 status if enabled
+                if (data.service_states && data.service_states.fr24) {
+                    const fr24State = data.service_states.fr24;
+                    const fr24Dot = document.getElementById('fr24-status-dot');
+                    const fr24Text = document.getElementById('fr24-status-text');
+                    
+                    if (fr24Dot && fr24Text) {
+                        switch(fr24State) {
+                            case 'running':
+                                fr24Dot.className = 'status-dot active';
+                                fr24Text.textContent = 'Running';
+                                break;
+                            case 'downloading':
+                                fr24Dot.className = 'status-dot' + ' inactive';
+                                fr24Text.textContent = 'Downloading...';
+                                fr24Text.style.color = '#f59e0b';
+                                break;
+                            case 'starting':
+                                fr24Dot.className = 'status-dot inactive';
+                                fr24Text.textContent = 'Starting...';
+                                fr24Text.style.color = '#f59e0b';
+                                break;
+                            case 'stopped':
+                                fr24Dot.className = 'status-dot inactive';
+                                fr24Text.textContent = 'Not running';
+                                fr24Text.style.color = '';
+                                break;
+                            case 'not_installed':
+                                fr24Dot.className = 'status-dot inactive';
+                                fr24Text.textContent = 'Not installed';
+                                fr24Text.style.color = '#9ca3af';
+                                break;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to update service states:', error);
+            }
+        }
         
         function refreshDashboard() {
             const btn = event ? event.target : null;
@@ -228,6 +266,9 @@
             // Update time display every second
             setInterval(updateLastUpdateTime, 1000);
             
+            // Update service states every 3 seconds (more responsive)
+            serviceStateInterval = setInterval(updateServiceStates, 3000);
+            
             // Auto-refresh page every 10 seconds
             autoRefreshInterval = setInterval(() => {
                 console.log('Auto-refreshing dashboard...');
@@ -239,6 +280,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             lastUpdateTime = new Date();
             updateLastUpdateTime();
+            updateServiceStates(); // Initial update
             startAutoRefresh();
         });
         
@@ -246,6 +288,9 @@
         window.addEventListener('beforeunload', () => {
             if (autoRefreshInterval) {
                 clearInterval(autoRefreshInterval);
+            }
+            if (serviceStateInterval) {
+                clearInterval(serviceStateInterval);
             }
         });
     </script>

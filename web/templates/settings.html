@@ -597,6 +597,11 @@
             const siteName = document.getElementById('site_name').value.trim();
             const userZipCode = document.getElementById('zip_code').value.trim();
             
+            // Track if FR24 was just enabled
+            const fr24WasEnabled = "{{ config.get('FR24_ENABLED') }}" === 'true';
+            const fr24WillBeEnabled = document.getElementById('fr24_enabled').checked;
+            const fr24NewlyEnabled = !fr24WasEnabled && fr24WillBeEnabled;
+            
             // Validate coordinate format
             const latPattern = /^-?\d+\.\d+$/;
             const lonPattern = /^-?\d+\.\d+$/;
@@ -664,8 +669,13 @@
                 
                 if (!response.ok) throw new Error('Failed to save');
                 
-                // Show save confirmation modal
-                showSaveModal(finalSiteName);
+                // If FR24 was just enabled, show progress modal
+                if (fr24NewlyEnabled && config.FR24_SHARING_KEY) {
+                    showServiceProgressModal('fr24');
+                } else {
+                    // Show save confirmation modal
+                    showSaveModal(finalSiteName);
+                }
                 
             } catch (error) {
                 showStatus('Error: ' + error.message, 'error');
@@ -1025,5 +1035,140 @@
             font-weight: 600;
         }
     </style>
+
+    <!-- Service Download Progress Modal -->
+    <div id="serviceProgressModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>🔄 <span id="serviceProgressTitle">Installing Service</span></h2>
+            <p id="serviceProgressSubtitle">Please wait while the service is downloaded and started...</p>
+            
+            <!-- Progress Bar Container (Black background) -->
+            <div style="background: #1a1a1a; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); margin: 20px 0;">
+                <div style="font-size: 13px; color: #e5e7eb; margin-bottom: 8px; font-weight: 500;" id="serviceProgressLabel">
+                    Download Progress
+                </div>
+                <div style="width: 100%; height: 30px; background: #374151; border-radius: 15px; overflow: hidden;">
+                    <div id="serviceProgressBar" style="height: 100%; background: linear-gradient(90deg, #10b981, #059669); transition: width 0.5s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px; width: 0%;">
+                        <span id="serviceProgressText">0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Status Log -->
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85em;" id="serviceProgressLog">
+                <div>⏳ Initializing...</div>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-secondary" onclick="closeServiceProgressModal()" id="serviceProgressCloseBtn" style="display: none;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Service Progress Modal Functions
+        function showServiceProgressModal(serviceName) {
+            const modal = document.getElementById('serviceProgressModal');
+            const title = document.getElementById('serviceProgressTitle');
+            const subtitle = document.getElementById('serviceProgressSubtitle');
+            const log = document.getElementById('serviceProgressLog');
+            
+            title.textContent = `Installing ${serviceName.toUpperCase()}`;
+            subtitle.textContent = `Please wait while ${serviceName} is downloaded and started...`;
+            log.innerHTML = '<div>⏳ Initializing download...</div>';
+            
+            document.getElementById('serviceProgressBar').style.width = '0%';
+            document.getElementById('serviceProgressText').textContent = '0%';
+            document.getElementById('serviceProgressCloseBtn').style.display = 'none';
+            
+            modal.style.display = 'flex';
+            
+            // Start monitoring progress
+            monitorServiceProgress(serviceName);
+        }
+        
+        function closeServiceProgressModal() {
+            document.getElementById('serviceProgressModal').style.display = 'none';
+        }
+        
+        function updateServiceProgressBar(percent, text, status) {
+            const bar = document.getElementById('serviceProgressBar');
+            const textEl = document.getElementById('serviceProgressText');
+            const label = document.getElementById('serviceProgressLabel');
+            
+            bar.style.width = percent + '%';
+            textEl.textContent = text;
+            if (status) {
+                label.textContent = status;
+            }
+        }
+        
+        function addServiceProgressLog(message, type = 'info') {
+            const log = document.getElementById('serviceProgressLog');
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : '⏳';
+            const color = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#6b7280';
+            
+            const line = document.createElement('div');
+            line.style.color = color;
+            line.innerHTML = `${icon} ${message}`;
+            log.appendChild(line);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        async function monitorServiceProgress(serviceName) {
+            const maxWaitTime = 180000; // 3 minutes
+            const pollInterval = 2000; // 2 seconds
+            const startTime = Date.now();
+            let isComplete = false;
+            
+            while (!isComplete && (Date.now() - startTime) < maxWaitTime) {
+                await new Promise(resolve => setTimeout(resolve, pollInterval));
+                
+                try {
+                    // Get service state
+                    const stateResponse = await fetch(`/api/service/${serviceName}/state`);
+                    const stateData = await stateResponse.json();
+                    
+                    // Get progress data
+                    const progressResponse = await fetch('/api/service/progress');
+                    const progressData = await progressResponse.json();
+                    
+                    // Update based on state
+                    if (stateData.state === 'running') {
+                        updateServiceProgressBar(100, 'Running', 'Complete');
+                        addServiceProgressLog(`${serviceName} is now running`, 'success');
+                        document.getElementById('serviceProgressCloseBtn').style.display = 'inline-block';
+                        isComplete = true;
+                    } else if (stateData.state === 'downloading' && progressData.service === serviceName) {
+                        const percent = progressData.progress || 10;
+                        const details = progressData.details || 'Downloading...';
+                        updateServiceProgressBar(percent, details, 'Downloading');
+                        
+                        // Log significant progress changes
+                        if (percent % 20 === 0) {
+                            addServiceProgressLog(`Downloading... ${percent}%`);
+                        }
+                    } else if (stateData.state === 'starting') {
+                        updateServiceProgressBar(90, 'Starting...', 'Starting Service');
+                        addServiceProgressLog('Container starting...');
+                    } else if (stateData.state === 'stopped') {
+                        updateServiceProgressBar(100, 'Stopped', 'Service Stopped');
+                        addServiceProgressLog('Service stopped (may need restart)', 'error');
+                        document.getElementById('serviceProgressCloseBtn').style.display = 'inline-block';
+                        isComplete = true;
+                    }
+                } catch (error) {
+                    console.error('Progress check failed:', error);
+                }
+            }
+            
+            if (!isComplete) {
+                addServiceProgressLog('Timeout - service may still be starting', 'error');
+                document.getElementById('serviceProgressCloseBtn').style.display = 'inline-block';
+            }
+        }
+    </script>
 </body>
 </html>

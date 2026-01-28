@@ -89,21 +89,61 @@ def get_docker_status():
     except:
         return {}
 
-def monitor_docker_progress():
-    """Monitor Docker pull progress in background thread"""
+def container_exists(container_name):
+    """Check if a Docker container exists (running or stopped)"""
     try:
-        update_progress('ultrafeeder', 10, 100, 'Pulling image...', 'Starting')
+        result = subprocess.run(
+            ['docker', 'ps', '-a', '--format', '{{.Names}}'],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            containers = result.stdout.strip().split('\n')
+            return container_name in containers
+        return False
+    except:
+        return False
+
+def get_service_state(service_name):
+    """Get detailed service state: downloading, starting, running, stopped, or not_installed"""
+    global service_progress
+    
+    # Check if currently being downloaded/started (tracked by progress system)
+    with progress_lock:
+        if service_progress['service'] == service_name:
+            if service_progress['progress'] < 100:
+                return 'downloading' if service_progress['progress'] < 85 else 'starting'
+    
+    # Check if container exists
+    container_name = service_name
+    if not container_exists(container_name):
+        return 'not_installed'
+    
+    # Check if container is running
+    docker_status = get_docker_status()
+    if container_name in docker_status:
+        status = docker_status[container_name]
+        if 'Up' in status:
+            return 'running'
+        elif 'Restarting' in status:
+            return 'starting'
+    
+    # Container exists but not running
+    return 'stopped'
+
+def monitor_docker_progress(service_name='ultrafeeder'):
+    """Monitor Docker pull progress in background thread for any service"""
+    try:
+        update_progress(service_name, 10, 100, 'Pulling image...', 'Starting')
         
         # Monitor journalctl for docker pull progress
         # This runs in background and updates progress as Docker pulls images
         process = subprocess.Popen(
-            ['journalctl', '-u', 'ultrafeeder', '-f', '--since', 'now'],
+            ['journalctl', '-u', service_name, '-f', '--since', 'now'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             bufsize=1
-        )
-        
+        )\n        
         start_time = time.time()
         max_wait = 180  # 3 minutes max
         
@@ -116,7 +156,7 @@ def monitor_docker_progress():
             # Parse Docker pull progress
             # Example: "Pulling fs layer" / "Downloading" / "Extracting"
             if 'Pulling fs layer' in line or 'Waiting' in line:
-                update_progress('ultrafeeder', 20, 100, 'Pulling layers...', 'Initializing')
+                update_progress(service_name, 20, 100, 'Pulling layers...', 'Initializing')
             elif 'Downloading' in line:
                 # Try to extract download progress if available
                 # Format: "Downloading [==>  ] 25.5MB/100MB"
@@ -131,17 +171,17 @@ def monitor_docker_progress():
                             total = float(total_str)
                             percent = int((downloaded / total) * 100) if total > 0 else 30
                             percent = min(80, max(20, percent))  # Clamp between 20-80%
-                            update_progress('ultrafeeder', percent, 100, 'Downloading...', f'{downloaded:.1f}MB / {total:.1f}MB')
+                            update_progress(service_name, percent, 100, 'Downloading...', f'{downloaded:.1f}MB / {total:.1f}MB')
                         else:
-                            update_progress('ultrafeeder', 40, 100, 'Downloading...', 'In progress')
+                            update_progress(service_name, 40, 100, 'Downloading...', 'In progress')
                     else:
-                        update_progress('ultrafeeder', 40, 100, 'Downloading...', 'In progress')
+                        update_progress(service_name, 40, 100, 'Downloading...', 'In progress')
                 except:
-                    update_progress('ultrafeeder', 40, 100, 'Downloading...', 'In progress')
+                    update_progress(service_name, 40, 100, 'Downloading...', 'In progress')
             elif 'Extracting' in line or 'Pull complete' in line:
-                update_progress('ultrafeeder', 85, 100, 'Extracting...', 'Almost done')
+                update_progress(service_name, 85, 100, 'Extracting...', 'Almost done')
             elif 'Started' in line or 'Running' in line:
-                update_progress('ultrafeeder', 100, 100, 'Running', 'Complete')
+                update_progress(service_name, 100, 100, 'Running', 'Complete')
                 break
             
             # Fallback: gradual increase over time if no specific messages
@@ -149,14 +189,16 @@ def monitor_docker_progress():
             if elapsed > 5:
                 fallback_percent = min(80, 15 + int((elapsed / max_wait) * 65))
                 if service_progress['progress'] < fallback_percent:
-                    update_progress('ultrafeeder', fallback_percent, 100, 'Downloading...', f'{int(elapsed)}s elapsed')
+                    update_progress(service_name, fallback_percent, 100, 'Downloading...', f'{int(elapsed)}s elapsed')
         
         process.terminate()
         
     except Exception as e:
-        print(f"Progress monitoring error: {e}")
+        print(f"Progress monitoring error for {service_name}: {e}")
         # Fallback to time-based estimation
         for i in range(10, 90, 10):
+            update_progress(service_name, i, 100, 'Starting...', f'{i}%')
+            time.sleep(3)
             update_progress('ultrafeeder', i, 100, 'Starting...', f'{i}%')
             time.sleep(3)
 
@@ -171,7 +213,7 @@ def restart_service():
         reset_progress()
         
         # Start progress monitoring in background thread
-        monitor_thread = threading.Thread(target=monitor_docker_progress, daemon=True)
+        monitor_thread = threading.Thread(target=monitor_docker_progress, args=('ultrafeeder',), daemon=True)
         monitor_thread.start()
         
         # Start restart in background (non-blocking)
@@ -453,6 +495,12 @@ def save_config():
         data = request.json
         env = read_env()
         
+        # Check if FR24 is being newly enabled
+        fr24_was_enabled = env.get('FR24_ENABLED') == 'true'
+        fr24_will_be_enabled = data.get('FR24_ENABLED') == 'true'
+        fr24_newly_enabled = not fr24_was_enabled and fr24_will_be_enabled
+        fr24_has_key = data.get('FR24_SHARING_KEY', '').strip() != ''
+        
         # PROTECT TAK CONNECTION SETTINGS
         # User can only change TAKNET_PS_ENABLED (on/off), nothing else
         tak_protected_keys = ['TAKNET_PS_SERVER_HOST', 'TAKNET_PS_SERVER_HOST_PRIMARY', 
@@ -477,6 +525,13 @@ def save_config():
         
         # Rebuild ULTRAFEEDER_CONFIG
         rebuild_config()
+        
+        # If FR24 was just enabled, start monitoring its download
+        if fr24_newly_enabled and fr24_has_key:
+            # Start FR24 progress monitoring in background thread
+            monitor_thread = threading.Thread(target=monitor_docker_progress, args=('fr24',), daemon=True)
+            monitor_thread.start()
+            print("✓ Started FR24 download monitoring")
         
         return jsonify({'success': True, 'message': 'Configuration saved'})
     except Exception as e:
@@ -580,10 +635,28 @@ def api_status():
                 if len(parts) >= 2:
                     feeds.append(parts[1])  # hostname
     
+    # Get service states
+    service_states = {
+        'ultrafeeder': get_service_state('ultrafeeder'),
+        'fr24': get_service_state('fr24') if env.get('FR24_ENABLED') == 'true' else None,
+        'adsbx': get_service_state('adsbx') if env.get('ADSBX_ENABLED') == 'true' else None,
+        'adsblol': get_service_state('adsblol') if env.get('ADSBLOL_ENABLED') == 'true' else None
+    }
+    
     return jsonify({
         'docker': docker_status,
         'feeds': feeds,
-        'configured': env.get('FEEDER_LAT', '0.0') != '0.0'
+        'configured': env.get('FEEDER_LAT', '0.0') != '0.0',
+        'service_states': service_states
+    })
+
+@app.route('/api/service/<service_name>/state', methods=['GET'])
+def api_service_state(service_name):
+    """Get state of a specific service"""
+    state = get_service_state(service_name)
+    return jsonify({
+        'service': service_name,
+        'state': state
     })
 
 @app.route('/api/network-status', methods=['GET'])
