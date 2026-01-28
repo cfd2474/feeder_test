@@ -61,29 +61,27 @@ def get_docker_status():
         return {}
 
 def restart_service():
-    """Restart ultrafeeder service"""
+    """Restart ultrafeeder service - non-blocking, returns immediately"""
     import time
     try:
         # Brief delay to prevent rapid-fire restarts
         time.sleep(2)
         
-        result = subprocess.run(
+        # Start restart in background (non-blocking)
+        # The systemctl command will continue running, but we return immediately
+        # The loading page will poll /api/service/ready to check when it's actually up
+        subprocess.Popen(
             ['systemctl', 'restart', 'ultrafeeder'],
-            timeout=30,  # Increased from 10 to 30 seconds for docker compose
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True
         )
-        if result.returncode == 0:
-            print("✓ Ultrafeeder service restarted")
-            return True
-        else:
-            print(f"✗ Restart failed (code {result.returncode}): {result.stderr}")
-            return False
-    except subprocess.TimeoutExpired:
-        print("✗ Restart timed out after 30 seconds")
-        return False
+        
+        print("✓ Ultrafeeder restart initiated (non-blocking)")
+        return True
+        
     except Exception as e:
-        print(f"✗ Restart exception: {e}")
+        print(f"✗ Failed to initiate restart: {e}")
         return False
 
 def rebuild_config():

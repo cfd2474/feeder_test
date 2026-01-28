@@ -244,6 +244,7 @@
                 const pollInterval = 5000; // Check every 5 seconds
                 const startTime = Date.now();
                 let isReady = false;
+                let lastProgressUpdate = 0;
                 
                 while (!isReady && (Date.now() - startTime) < maxWaitTime) {
                     await sleep(pollInterval);
@@ -256,9 +257,12 @@
                             isReady = true;
                             addStatusLine('✓', 'Ultrafeeder container is running', 'success');
                         } else {
-                            // Still waiting - show progress indicator
+                            // Only show progress every 10 seconds to avoid spam
                             const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                            addStatusLine('⏳', `Still downloading/starting... (${elapsed}s elapsed)`, 'info');
+                            if (elapsed - lastProgressUpdate >= 10) {
+                                addStatusLine('⏳', `Still downloading/starting... (${elapsed}s elapsed)`, 'info');
+                                lastProgressUpdate = elapsed;
+                            }
                         }
                     } catch (error) {
                         // If status check fails, keep waiting
@@ -267,7 +271,7 @@
                 }
                 
                 if (!isReady) {
-                    throw new Error('Ultrafeeder did not start within 3 minutes. Check journalctl -u ultrafeeder for details.');
+                    throw new Error('Ultrafeeder did not start within 3 minutes. This is usually caused by slow network or Docker issues. Check: journalctl -u ultrafeeder');
                 }
                 
                 addStatusLine('✓', 'Ultrafeeder service started successfully', 'success');
