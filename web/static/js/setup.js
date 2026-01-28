@@ -200,14 +200,14 @@ async function saveAndStart() {
         // TAKNET_PS_ENABLED, TAKNET_PS_SERVER_HOST_*, TAKNET_PS_SERVER_PORT will use defaults from env-template
         
         // Optional aggregators only
-        FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
-        FR24_SHARING_KEY: document.getElementById('fr24_key').value,
+        FR24_ENABLED: fr24Enabled ? 'true' : 'false',
+        FR24_SHARING_KEY: fr24Key || '',
         
-        ADSBX_ENABLED: document.getElementById('adsbx_enabled').checked ? 'true' : 'false',
-        ADSBX_UUID: document.getElementById('adsbx_uuid').value,
+        ADSBX_ENABLED: adsbxEnabled ? 'true' : 'false',
+        ADSBX_UUID: adsbxUuid || '',
         
-        AIRPLANESLIVE_ENABLED: document.getElementById('airplaneslive_enabled').checked ? 'true' : 'false',
-        AIRPLANESLIVE_UUID: document.getElementById('airplaneslive_uuid').value
+        AIRPLANESLIVE_ENABLED: airplanesLiveEnabled ? 'true' : 'false',
+        AIRPLANESLIVE_UUID: airplanesLiveUuid || ''
     };
     
     console.log("Config object built:", config);
