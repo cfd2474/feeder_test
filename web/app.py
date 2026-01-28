@@ -143,7 +143,8 @@ def monitor_docker_progress(service_name='ultrafeeder'):
             stderr=subprocess.PIPE,
             text=True,
             bufsize=1
-        )\n        
+        )
+        
         start_time = time.time()
         max_wait = 180  # 3 minutes max
         
