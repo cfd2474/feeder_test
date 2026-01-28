@@ -72,6 +72,17 @@
             background: #e5e7eb;
             border-radius: 15px;
             overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .progress-bar-label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .progress-bar-container {
             margin-bottom: 20px;
         }
         
@@ -85,6 +96,10 @@
             color: white;
             font-weight: bold;
             font-size: 14px;
+        }
+        
+        .progress-fill-service {
+            background: linear-gradient(90deg, #10b981, #059669);
         }
         
         .completion-message {
@@ -127,9 +142,23 @@
                 <p class="text-muted">Please wait while we configure and start the services</p>
             </div>
 
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%">
-                    <span id="progressText">0%</span>
+            <!-- Overall Progress -->
+            <div class="progress-bar-container">
+                <div class="progress-bar-label">Overall Progress</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%">
+                        <span id="progressText">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Service Progress -->
+            <div class="progress-bar-container">
+                <div class="progress-bar-label" id="serviceLabel">Current Service</div>
+                <div class="progress-bar">
+                    <div class="progress-fill progress-fill-service" id="serviceFill" style="width: 0%">
+                        <span id="serviceText">Ready</span>
+                    </div>
                 </div>
             </div>
 
@@ -152,6 +181,9 @@
         const statusLog = document.getElementById('statusLog');
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
+        const serviceFill = document.getElementById('serviceFill');
+        const serviceText = document.getElementById('serviceText');
+        const serviceLabel = document.getElementById('serviceLabel');
         const completionMessage = document.getElementById('completionMessage');
         const spinner = document.getElementById('spinner');
         
@@ -175,22 +207,37 @@
             progressText.textContent = Math.round(currentProgress) + '%';
         }
         
+        function updateServiceProgress(label, percent, text) {
+            serviceLabel.textContent = label;
+            serviceFill.style.width = percent + '%';
+            serviceText.textContent = text;
+        }
+        
+        function resetServiceProgress() {
+            updateServiceProgress('Current Service', 0, 'Ready');
+        }
+        
         async function startSetup() {
             try {
                 // Step 1: Read saved configuration
+                updateServiceProgress('Step 1: Configuration', 0, 'Loading...');
                 addStatusLine('📋', 'Loading configuration...', 'pending');
                 const configResponse = await fetch('/api/config');
                 if (!configResponse.ok) throw new Error('Failed to load configuration');
                 const config = await configResponse.json();
+                updateServiceProgress('Step 1: Configuration', 100, 'Complete');
                 addStatusLine('✓', `Feeder: ${config.MLAT_SITE_NAME || 'TAK-Feeder'}`, 'success');
                 updateProgress(1);
+                resetServiceProgress();
                 
                 // Step 2: Install & Configure Tailscale (if enabled)
                 if (config.TAILSCALE_ENABLED === 'true' && config.TAILSCALE_AUTH_KEY) {
+                    updateServiceProgress('Step 2: Tailscale VPN', 0, 'Installing...');
                     addStatusLine('🔐', 'Installing Tailscale VPN...', 'pending');
                     addStatusLine('ℹ', 'This may take 30-90 seconds on first install...', 'info');
                     
                     try {
+                        updateServiceProgress('Step 2: Tailscale VPN', 25, 'Downloading...');
                         const tailscaleResponse = await fetch('/api/tailscale/install', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -200,16 +247,20 @@
                             })
                         });
                         
+                        updateServiceProgress('Step 2: Tailscale VPN', 75, 'Configuring...');
                         const tailscaleResult = await tailscaleResponse.json();
                         
                         if (tailscaleResult.success) {
+                            updateServiceProgress('Step 2: Tailscale VPN', 100, 'Connected');
                             addStatusLine('✓', 'Tailscale VPN installed and configured', 'success');
                             addStatusLine('ℹ', 'Connected to Tailscale network', 'info');
                         } else {
+                            updateServiceProgress('Step 2: Tailscale VPN', 100, 'Skipped');
                             addStatusLine('⚠', `Tailscale setup had issues: ${tailscaleResult.message}`, 'info');
                             addStatusLine('ℹ', 'Continuing with public IP fallback', 'info');
                         }
                     } catch (error) {
+                        updateServiceProgress('Step 2: Tailscale VPN', 100, 'Skipped');
                         addStatusLine('⚠', 'Tailscale installation failed', 'info');
                         addStatusLine('ℹ', 'Continuing with public IP fallback', 'info');
                     }
@@ -217,15 +268,20 @@
                     addStatusLine('ℹ', 'Tailscale enabled but no auth key provided', 'info');
                 }
                 updateProgress(2);
+                resetServiceProgress();
                 
                 // Step 3: Build configuration
+                updateServiceProgress('Step 3: Config Builder', 0, 'Generating...');
                 addStatusLine('🔧', 'Building ultrafeeder configuration...', 'pending');
                 await sleep(1000);
+                updateServiceProgress('Step 3: Config Builder', 100, 'Complete');
                 addStatusLine('✓', 'TAKNET-PS feed configured (Primary + Fallback)', 'success');
                 addStatusLine('✓', 'MLAT feed configured', 'success');
                 updateProgress(3);
+                resetServiceProgress();
                 
                 // Step 4: Restart service
+                updateServiceProgress('Step 4: Ultrafeeder', 0, 'Starting...');
                 addStatusLine('🔄', 'Starting ultrafeeder service...', 'pending');
                 addStatusLine('ℹ', 'First start may take 1-2 minutes (downloading Docker images)', 'info');
                 
@@ -239,6 +295,7 @@
                 }
                 
                 // Poll for ultrafeeder to be ready (max 3 minutes)
+                updateServiceProgress('Step 4: Ultrafeeder', 10, 'Waiting...');
                 addStatusLine('ℹ', 'Waiting for ultrafeeder to start...', 'info');
                 const maxWaitTime = 180000; // 3 minutes
                 const pollInterval = 5000; // Check every 5 seconds
@@ -255,10 +312,15 @@
                         
                         if (statusData.ready) {
                             isReady = true;
+                            updateServiceProgress('Step 4: Ultrafeeder', 100, 'Running');
                             addStatusLine('✓', 'Ultrafeeder container is running', 'success');
                         } else {
-                            // Only show progress every 10 seconds to avoid spam
+                            // Update service progress bar based on elapsed time
                             const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                            const progress = Math.min(90, 10 + (elapsed / 180) * 80); // 10% to 90% over 3 minutes
+                            updateServiceProgress('Step 4: Ultrafeeder', progress, `Downloading... ${elapsed}s`);
+                            
+                            // Only show progress in log every 10 seconds to avoid spam
                             if (elapsed - lastProgressUpdate >= 10) {
                                 addStatusLine('⏳', `Still downloading/starting... (${elapsed}s elapsed)`, 'info');
                                 lastProgressUpdate = elapsed;
@@ -276,22 +338,29 @@
                 
                 addStatusLine('✓', 'Ultrafeeder service started successfully', 'success');
                 updateProgress(4);
+                resetServiceProgress();
                 
                 // Step 5: Start FR24 if enabled
                 if (config.FR24_ENABLED === 'true' && config.FR24_SHARING_KEY) {
+                    updateServiceProgress('Step 5: FlightRadar24', 0, 'Starting...');
                     addStatusLine('📡', 'Starting FlightRadar24 feeder...', 'pending');
                     await sleep(2000);
+                    updateServiceProgress('Step 5: FlightRadar24', 100, 'Running');
                     addStatusLine('✓', 'FR24 container started', 'success');
                 }
                 updateProgress(5);
+                resetServiceProgress();
                 
                 // Step 6: Verify
+                updateServiceProgress('Step 6: Verification', 0, 'Checking...');
                 addStatusLine('🔍', 'Verifying service status...', 'pending');
                 await sleep(3000);
+                updateServiceProgress('Step 6: Verification', 100, 'Complete');
                 addStatusLine('✓', 'Services are running', 'success');
                 addStatusLine('ℹ', 'Connected to TAKNET-PS aggregator', 'info');
                 addStatusLine('ℹ', 'Note: Full synchronization may take a few more minutes', 'info');
                 updateProgress(6);
+                resetServiceProgress();
                 
                 // Complete
                 await sleep(500);
