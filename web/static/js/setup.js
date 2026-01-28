@@ -1,3 +1,84 @@
+// Offline mode detection
+let isOnline = true; // Will be checked on page load
+
+// Check internet connectivity
+async function checkInternetConnection() {
+    try {
+        const response = await fetch('/api/network-status', {
+            method: 'GET',
+            cache: 'no-cache'
+        });
+        const data = await response.json();
+        return data.internet || false;
+    } catch (error) {
+        console.error('Failed to check internet:', error);
+        return false;
+    }
+}
+
+// Initialize offline mode detection
+async function initializeOfflineMode() {
+    isOnline = await checkInternetConnection();
+    console.log('Internet connection status:', isOnline ? 'ONLINE' : 'OFFLINE');
+    
+    if (!isOnline) {
+        // Show offline warning
+        const warningEl = document.getElementById('offlineWarning');
+        if (warningEl) {
+            warningEl.style.display = 'block';
+        }
+        
+        // Change Step 1 button to "Save & Start" instead of "Next"
+        const step1Button = document.querySelector('#step1 .btn-primary');
+        if (step1Button) {
+            step1Button.textContent = 'Save & Start 🚀';
+            step1Button.onclick = function() {
+                // Validate Step 1 first
+                const lat = document.getElementById('lat').value.trim();
+                const lon = document.getElementById('lon').value.trim();
+                const alt = document.getElementById('alt').value.trim();
+                const tz = document.getElementById('tz').value;
+                const siteName = document.getElementById('site_name').value.trim();
+                
+                if (!lat || !lon || !alt || !tz) {
+                    showStatus('Please fill in all required location fields', 'error');
+                    return;
+                }
+                
+                if (!siteName) {
+                    showStatus('Please enter a feeder name', 'error');
+                    return;
+                }
+                
+                // Validate formats
+                const latPattern = /^-?\d+\.\d+$/;
+                const lonPattern = /^-?\d+\.\d+$/;
+                const altPattern = /^\d+$/;
+                
+                if (!latPattern.test(lat)) {
+                    showStatus('Latitude must be in decimal format (e.g., 33.55390)', 'error');
+                    return;
+                }
+                
+                if (!lonPattern.test(lon)) {
+                    showStatus('Longitude must be in decimal format (e.g., -117.21390)', 'error');
+                    return;
+                }
+                
+                if (!altPattern.test(alt)) {
+                    showStatus('Altitude must be a whole number (e.g., 304)', 'error');
+                    return;
+                }
+                
+                // Validation passed - go directly to save (skip Tailscale and aggregators)
+                saveAndStart();
+            };
+        }
+        
+        console.log('Offline mode: Steps 2 and 3 will be skipped');
+    }
+}
+
 // Setup wizard navigation
 function nextStep(step) {
     console.log("=== nextStep called, step:", step);
@@ -167,21 +248,50 @@ async function saveAndStart() {
 
     console.log("Zip code processing complete. finalSiteName:", finalSiteName);
     
-    // Check Tailscale setup (just validate, don't install yet)
-    console.log("Reading Tailscale fields...");
-    const tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
-    const tailscaleKey = document.getElementById('tailscale_key').value.trim();
-    console.log("Tailscale:", {enabled: tailscaleEnabled, hasKey: tailscaleKey.length > 0});
+    // Declare variables for Tailscale and aggregators
+    let tailscaleEnabled, tailscaleKey;
+    let fr24Enabled, fr24Key;
+    let adsbxEnabled, adsbxUuid;
+    let airplanesLiveEnabled, airplanesLiveUuid;
     
-    // Just validate, installation will happen in loading screen
-    if (tailscaleEnabled && !tailscaleKey) {
-        showStatus('Tailscale enabled but no key provided. You can configure it later in Settings.', 'info');
+    // Check if we're online or offline
+    if (isOnline) {
+        // ONLINE MODE: Read from DOM elements
+        console.log("Online mode: Reading Tailscale fields...");
+        tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
+        tailscaleKey = document.getElementById('tailscale_key').value.trim();
+        console.log("Tailscale:", {enabled: tailscaleEnabled, hasKey: tailscaleKey.length > 0});
+        
+        // Validate Tailscale
+        if (tailscaleEnabled && !tailscaleKey) {
+            showStatus('Tailscale enabled but no key provided. You can configure it later in Settings.', 'info');
+        }
+        
+        console.log("Online mode: Reading aggregator fields...");
+        fr24Enabled = document.getElementById('fr24_enabled').checked;
+        fr24Key = document.getElementById('fr24_key').value;
+        adsbxEnabled = document.getElementById('adsbx_enabled').checked;
+        adsbxUuid = document.getElementById('adsbx_uuid').value;
+        airplanesLiveEnabled = document.getElementById('airplaneslive_enabled').checked;
+        airplanesLiveUuid = document.getElementById('airplaneslive_uuid').value;
+        
+        console.log("Aggregators:", {
+            fr24: fr24Enabled,
+            adsbx: adsbxEnabled,
+            airplanesLive: airplanesLiveEnabled
+        });
+    } else {
+        // OFFLINE MODE: Disable all internet-dependent services
+        console.log("Offline mode: Disabling all internet-dependent services");
+        tailscaleEnabled = false;
+        tailscaleKey = '';
+        fr24Enabled = false;
+        fr24Key = '';
+        adsbxEnabled = false;
+        adsbxUuid = '';
+        airplanesLiveEnabled = false;
+        airplanesLiveUuid = '';
     }
-    
-    console.log("Reading aggregator fields...");
-    console.log("FR24 checkbox element:", document.getElementById('fr24_enabled'));
-    console.log("ADSBX checkbox element:", document.getElementById('adsbx_enabled'));
-    console.log("AirplanesLive checkbox element:", document.getElementById('airplaneslive_enabled'));
     
     const config = {
         // Location settings
