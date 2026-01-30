@@ -253,6 +253,7 @@ async function saveAndStart() {
     let fr24Enabled, fr24Key;
     let adsbxEnabled, adsbxUuid;
     let airplanesLiveEnabled, airplanesLiveUuid;
+    let adsbfiEnabled;
     
     // Check if we're online or offline
     if (isOnline) {
@@ -274,11 +275,13 @@ async function saveAndStart() {
         adsbxUuid = document.getElementById('adsbx_uuid').value;
         airplanesLiveEnabled = document.getElementById('airplaneslive_enabled').checked;
         airplanesLiveUuid = document.getElementById('airplaneslive_uuid').value;
+        adsbfiEnabled = document.getElementById('adsbfi_enabled').checked;
         
         console.log("Aggregators:", {
             fr24: fr24Enabled,
             adsbx: adsbxEnabled,
-            airplanesLive: airplanesLiveEnabled
+            airplanesLive: airplanesLiveEnabled,
+            adsbfi: adsbfiEnabled
         });
     } else {
         // OFFLINE MODE: Disable all internet-dependent services
@@ -291,6 +294,7 @@ async function saveAndStart() {
         adsbxUuid = '';
         airplanesLiveEnabled = false;
         airplanesLiveUuid = '';
+        adsbfiEnabled = false;
     }
     
     const config = {
@@ -317,7 +321,9 @@ async function saveAndStart() {
         ADSBX_UUID: adsbxUuid || '',
         
         AIRPLANESLIVE_ENABLED: airplanesLiveEnabled ? 'true' : 'false',
-        AIRPLANESLIVE_UUID: airplanesLiveUuid || ''
+        AIRPLANESLIVE_UUID: airplanesLiveUuid || '',
+        
+        ADSBFI_ENABLED: adsbfiEnabled ? 'true' : 'false'
     };
     
     console.log("Config object built:", config);

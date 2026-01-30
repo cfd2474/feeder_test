@@ -14,6 +14,9 @@ import time
 
 app = Flask(__name__)
 
+# Version information
+VERSION = "2.13.0"
+
 # Global progress tracking
 service_progress = {
     'service': 'idle',
@@ -135,72 +138,120 @@ def monitor_docker_progress(service_name='ultrafeeder'):
     try:
         update_progress(service_name, 10, 100, 'Pulling image...', 'Starting')
         
-        # Monitor journalctl for docker pull progress
-        # This runs in background and updates progress as Docker pulls images
-        process = subprocess.Popen(
-            ['journalctl', '-u', service_name, '-f', '--since', 'now'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1
-        )
-        
-        start_time = time.time()
-        max_wait = 180  # 3 minutes max
-        
-        while time.time() - start_time < max_wait:
-            line = process.stdout.readline()
-            if not line:
-                time.sleep(0.5)
-                continue
+        # For FR24 (Docker container), monitor container creation and startup
+        # For other services (systemd), watch journalctl
+        if service_name == 'fr24':
+            # FR24 is a Docker container managed by docker compose
+            # Monitor by polling container state
+            start_time = time.time()
+            max_wait = 180  # 3 minutes max
             
-            # Parse Docker pull progress
-            # Example: "Pulling fs layer" / "Downloading" / "Extracting"
-            if 'Pulling fs layer' in line or 'Waiting' in line:
-                update_progress(service_name, 20, 100, 'Pulling layers...', 'Initializing')
-            elif 'Downloading' in line:
-                # Try to extract download progress if available
-                # Format: "Downloading [==>  ] 25.5MB/100MB"
+            update_progress(service_name, 20, 100, 'Initiating download...', 'Pulling image')
+            
+            while time.time() - start_time < max_wait:
                 try:
-                    if 'MB' in line:
-                        parts = line.split('/')
-                        if len(parts) >= 2:
-                            # Extract downloaded and total
-                            downloaded_str = parts[0].split()[-1].replace('MB', '')
-                            total_str = parts[1].split()[0].replace('MB', '')
-                            downloaded = float(downloaded_str)
-                            total = float(total_str)
-                            percent = int((downloaded / total) * 100) if total > 0 else 30
-                            percent = min(80, max(20, percent))  # Clamp between 20-80%
-                            update_progress(service_name, percent, 100, 'Downloading...', f'{downloaded:.1f}MB / {total:.1f}MB')
+                    # Check if container exists
+                    result = subprocess.run(
+                        ['docker', 'ps', '-a', '--filter', 'name=^fr24$', '--format', '{{.Status}}'],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    
+                    if result.returncode == 0 and result.stdout.strip():
+                        status = result.stdout.strip()
+                        
+                        if 'Up' in status:
+                            # Container is running!
+                            update_progress(service_name, 100, 100, 'Running', 'Complete')
+                            break
+                        elif 'Created' in status or 'Exited' in status:
+                            # Container exists but not running yet
+                            update_progress(service_name, 85, 100, 'Starting container...', 'Almost done')
+                        else:
+                            # Container exists in some other state
+                            update_progress(service_name, 70, 100, 'Initializing...', 'Starting')
+                    else:
+                        # Container doesn't exist yet - image is still pulling
+                        elapsed = time.time() - start_time
+                        # Gradual progress from 20% to 80% over 2 minutes
+                        progress = min(80, 20 + int((elapsed / 120) * 60))
+                        update_progress(service_name, progress, 100, 'Downloading image...', f'{int(elapsed)}s elapsed')
+                    
+                    time.sleep(2)  # Poll every 2 seconds
+                    
+                except Exception as e:
+                    print(f"FR24 monitoring error: {e}")
+                    time.sleep(2)
+            
+            # If we timed out, set to a reasonable state
+            if time.time() - start_time >= max_wait:
+                update_progress(service_name, 90, 100, 'Starting...', 'Please wait')
+            
+        else:
+            # Monitor journalctl for systemd services (ultrafeeder)
+            process = subprocess.Popen(
+                ['journalctl', '-u', service_name, '-f', '--since', 'now'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1
+            )
+            
+            start_time = time.time()
+            max_wait = 180  # 3 minutes max
+            
+            while time.time() - start_time < max_wait:
+                line = process.stdout.readline()
+                if not line:
+                    time.sleep(0.5)
+                    continue
+                
+                # Parse Docker pull progress
+                # Example: "Pulling fs layer" / "Downloading" / "Extracting"
+                if 'Pulling fs layer' in line or 'Waiting' in line:
+                    update_progress(service_name, 20, 100, 'Pulling layers...', 'Initializing')
+                elif 'Downloading' in line:
+                    # Try to extract download progress if available
+                    # Format: "Downloading [==>  ] 25.5MB/100MB"
+                    try:
+                        if 'MB' in line:
+                            parts = line.split('/')
+                            if len(parts) >= 2:
+                                # Extract downloaded and total
+                                downloaded_str = parts[0].split()[-1].replace('MB', '')
+                                total_str = parts[1].split()[0].replace('MB', '')
+                                downloaded = float(downloaded_str)
+                                total = float(total_str)
+                                percent = int((downloaded / total) * 100) if total > 0 else 30
+                                percent = min(80, max(20, percent))  # Clamp between 20-80%
+                                update_progress(service_name, percent, 100, 'Downloading...', f'{downloaded:.1f}MB / {total:.1f}MB')
+                            else:
+                                update_progress(service_name, 40, 100, 'Downloading...', 'In progress')
                         else:
                             update_progress(service_name, 40, 100, 'Downloading...', 'In progress')
-                    else:
+                    except:
                         update_progress(service_name, 40, 100, 'Downloading...', 'In progress')
-                except:
-                    update_progress(service_name, 40, 100, 'Downloading...', 'In progress')
-            elif 'Extracting' in line or 'Pull complete' in line:
-                update_progress(service_name, 85, 100, 'Extracting...', 'Almost done')
-            elif 'Started' in line or 'Running' in line:
-                update_progress(service_name, 100, 100, 'Running', 'Complete')
-                break
+                elif 'Extracting' in line or 'Pull complete' in line:
+                    update_progress(service_name, 85, 100, 'Extracting...', 'Almost done')
+                elif 'Started' in line or 'Running' in line:
+                    update_progress(service_name, 100, 100, 'Running', 'Complete')
+                    break
+                
+                # Fallback: gradual increase over time if no specific messages
+                elapsed = time.time() - start_time
+                if elapsed > 5:
+                    fallback_percent = min(80, 15 + int((elapsed / max_wait) * 65))
+                    if service_progress['progress'] < fallback_percent:
+                        update_progress(service_name, fallback_percent, 100, 'Downloading...', f'{int(elapsed)}s elapsed')
             
-            # Fallback: gradual increase over time if no specific messages
-            elapsed = time.time() - start_time
-            if elapsed > 5:
-                fallback_percent = min(80, 15 + int((elapsed / max_wait) * 65))
-                if service_progress['progress'] < fallback_percent:
-                    update_progress(service_name, fallback_percent, 100, 'Downloading...', f'{int(elapsed)}s elapsed')
-        
-        process.terminate()
+            process.terminate()
         
     except Exception as e:
         print(f"Progress monitoring error for {service_name}: {e}")
         # Fallback to time-based estimation
         for i in range(10, 90, 10):
             update_progress(service_name, i, 100, 'Starting...', f'{i}%')
-            time.sleep(3)
-            update_progress('ultrafeeder', i, 100, 'Starting...', f'{i}%')
             time.sleep(3)
 
 def restart_service():
@@ -378,7 +429,7 @@ def dashboard():
     """Status dashboard"""
     env = read_env()
     docker_status = get_docker_status()
-    return render_template('dashboard.html', config=env, docker=docker_status)
+    return render_template('dashboard.html', config=env, docker=docker_status, version=VERSION)
 
 @app.route('/logs')
 def logs():
@@ -529,16 +580,19 @@ def save_config():
         
         # If FR24 was just enabled, start the service and monitor its download
         if fr24_newly_enabled and fr24_has_key:
-            # Reload systemd to pick up new fr24.service file
-            subprocess.run(['systemctl', 'daemon-reload'], check=False)
-            
-            # Start FR24 service (this will pull image and start container)
-            subprocess.Popen(['systemctl', 'start', 'fr24'])
+            # Start FR24 container using docker compose
+            # The docker-compose.yml has already been rebuilt by rebuild_config() above
+            subprocess.Popen(
+                ['docker', 'compose', '-f', '/opt/adsb/config/docker-compose.yml', 'up', '-d', 'fr24'],
+                cwd='/opt/adsb/config',
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
             
             # Start FR24 progress monitoring in background thread
             monitor_thread = threading.Thread(target=monitor_docker_progress, args=('fr24',), daemon=True)
             monitor_thread.start()
-            print("✓ Started FR24 service and download monitoring")
+            print("✓ Started FR24 container and download monitoring")
         
         return jsonify({'success': True, 'message': 'Configuration saved'})
     except Exception as e:

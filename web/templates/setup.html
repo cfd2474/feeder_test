@@ -275,6 +275,19 @@
                     </div>
                 </div>
                 
+                <div class="aggregator-card">
+                    <h3>adsb.fi</h3>
+                    <p style="margin-bottom: 10px; color: #6b7280; font-size: 0.9em;">
+                        ✈️ Community flight tracker - No UUID required!
+                    </p>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="adsbfi_enabled" {{ 'checked' if config.get('ADSBFI_ENABLED') == 'true' else '' }}>
+                            Enable adsb.fi
+                        </label>
+                    </div>
+                </div>
+                
                 <button class="btn" onclick="prevStep(2)">← Back</button>
                 <button class="btn btn-success" onclick="saveAndStart()">Save & Start 🚀</button>
             </div>
