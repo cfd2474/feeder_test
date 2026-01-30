@@ -100,10 +100,15 @@
                                 FlightRadar24
                             </div>
                         {% endif %}
-                        {% if config.get('ADSBX_ENABLED') == 'true' %}
-                            <div class="feed-item">
+                        {% if config.get('ADSBX_ENABLED') == 'true' %}\n                            <div class="feed-item">
                                 <span class="status-dot active"></span>
                                 ADS-B Exchange
+                            </div>
+                        {% endif %}
+                        {% if config.get('ADSBFI_ENABLED') == 'true' %}
+                            <div class="feed-item">
+                                <span class="status-dot active"></span>
+                                adsb.fi
                             </div>
                         {% endif %}
                         {% if config.get('AIRPLANESLIVE_ENABLED') == 'true' %}
@@ -112,7 +117,7 @@
                                 Airplanes.Live
                             </div>
                         {% endif %}
-                        {% if not config.get('TAKNET_PS_ENABLED') and not config.get('FR24_ENABLED') and not config.get('ADSBX_ENABLED') and not config.get('AIRPLANESLIVE_ENABLED') %}
+                        {% if not config.get('TAKNET_PS_ENABLED') and not config.get('FR24_ENABLED') and not config.get('ADSBX_ENABLED') and not config.get('ADSBFI_ENABLED') and not config.get('AIRPLANESLIVE_ENABLED') %}
                             <p class="text-muted">No feeds configured</p>
                         {% endif %}
                     </div>

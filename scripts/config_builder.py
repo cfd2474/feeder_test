@@ -43,12 +43,13 @@ def ensure_taknet_config(env_vars, env_file):
     """
     Ensure TAKNET-PS configuration exists
     Builds missing values automatically to prevent user skip
+    Uses FQDNs for automatic Tailscale detection
     Returns: (env_vars, was_repaired)
     """
     required_config = {
         'TAKNET_PS_ENABLED': 'true',
-        'TAKNET_PS_SERVER_HOST_PRIMARY': '100.117.34.88',
-        'TAKNET_PS_SERVER_HOST_FALLBACK': '104.225.219.254',
+        'TAKNET_PS_SERVER_HOST_PRIMARY': 'tailscale.leckliter.net',
+        'TAKNET_PS_SERVER_HOST_FALLBACK': 'adsb.leckliter.net',
         'TAKNET_PS_SERVER_PORT': '30004',
         'TAKNET_PS_CONNECTION_MODE': 'auto',
         'TAKNET_PS_MLAT_ENABLED': 'true',
@@ -81,9 +82,61 @@ def check_host_reachable(host, port, timeout=2):
     except:
         return False
 
+def check_tailscale_running():
+    """
+    Check if Tailscale is running and connected
+    Returns: (is_running, tailscale_ip)
+    """
+    import subprocess
+    try:
+        # Check if tailscale command exists
+        result = subprocess.run(['which', 'tailscale'], 
+                              capture_output=True, 
+                              timeout=2)
+        if result.returncode != 0:
+            print("⚠ Tailscale: Not installed")
+            return (False, None)
+        
+        # Check tailscale status
+        result = subprocess.run(['tailscale', 'status', '--json'], 
+                              capture_output=True, 
+                              text=True, 
+                              timeout=5)
+        
+        if result.returncode != 0:
+            print("⚠ Tailscale: Not running")
+            return (False, None)
+        
+        # Parse JSON output
+        import json
+        status = json.loads(result.stdout)
+        
+        # Check if we're connected (BackendState should be "Running")
+        backend_state = status.get('BackendState', '')
+        if backend_state == 'Running':
+            # Get our Tailscale IP
+            self_info = status.get('Self', {})
+            tailscale_ips = self_info.get('TailscaleIPs', [])
+            if tailscale_ips:
+                print(f"✓ Tailscale: Running ({tailscale_ips[0]})")
+                return (True, tailscale_ips[0])
+        
+        print(f"⚠ Tailscale: State={backend_state}")
+        return (False, None)
+        
+    except subprocess.TimeoutExpired:
+        print("⚠ Tailscale: Check timed out")
+        return (False, None)
+    except Exception as e:
+        print(f"⚠ Tailscale: Check failed: {e}")
+        return (False, None)
+
 def select_taknet_host(env_vars):
     """
-    Select TAKNET-PS Server host based on connection mode and availability
+    Select TAKNET-PS Server host based on Tailscale status
+    NEW: Uses FQDNs instead of IPs
+    - Tailscale running: tailscale.leckliter.net
+    - Tailscale not running: adsb.leckliter.net
     Returns: (selected_host, connection_type)
     """
     mode = env_vars.get('TAKNET_PS_CONNECTION_MODE', 'auto').lower()
@@ -91,7 +144,7 @@ def select_taknet_host(env_vars):
     fallback = env_vars.get('TAKNET_PS_SERVER_HOST_FALLBACK', '').strip()
     port = env_vars.get('TAKNET_PS_SERVER_PORT', '30004').strip()
     
-    # Force modes
+    # Force modes (for debugging/override)
     if mode == 'primary' and primary:
         print(f"ℹ TAKNET-PS: Forced to primary: {primary}")
         return (primary, 'primary-forced')
@@ -100,17 +153,18 @@ def select_taknet_host(env_vars):
         print(f"ℹ TAKNET-PS: Forced to fallback: {fallback}")
         return (fallback, 'fallback-forced')
     
-    # Auto mode - test connectivity
+    # Auto mode - detect Tailscale and select appropriate FQDN
     if mode == 'auto':
-        if primary and check_host_reachable(primary, port):
-            print(f"✓ TAKNET-PS: Primary reachable: {primary}")
-            return (primary, 'primary-auto')
-        elif fallback and check_host_reachable(fallback, port):
-            print(f"⚠ TAKNET-PS: Primary unreachable, using fallback: {fallback}")
-            return (fallback, 'fallback-auto')
-        elif primary:
-            print(f"⚠ TAKNET-PS: Neither reachable, defaulting to primary: {primary}")
-            return (primary, 'primary-default')
+        tailscale_running, tailscale_ip = check_tailscale_running()
+        
+        if tailscale_running:
+            # Tailscale is running - use primary (tailscale.leckliter.net)
+            print(f"✓ TAKNET-PS: Tailscale active, using primary: {primary}")
+            return (primary, 'tailscale-active')
+        else:
+            # Tailscale is NOT running - use fallback (adsb.leckliter.net)
+            print(f"⚠ TAKNET-PS: Tailscale inactive, using fallback: {fallback}")
+            return (fallback, 'tailscale-inactive')
     
     # Monitor mode (Phase 2) - use primary, external monitor will handle failover
     if mode == 'monitor' and primary:
@@ -165,6 +219,14 @@ def build_config(env_vars):
             config_parts.append("adsb,feed.adsb.exchange,30004,beast_reduce_plus_out")
             config_parts.append("mlat,feed.adsb.exchange,31090,39001")
             print("✓ ADS-B Exchange")
+    
+    # adsb.fi
+    if env_vars.get('ADSBFI_ENABLED', '').lower() == 'true':
+        # adsb.fi doesn't strictly require UUID - they can auto-generate
+        # but it's better to track your station
+        config_parts.append("adsb,feed.adsb.fi,30004,beast_reduce_plus_out")
+        config_parts.append("mlat,feed.adsb.fi,31090,39003")
+        print("✓ adsb.fi")
     
     # Airplanes.Live
     if env_vars.get('AIRPLANESLIVE_ENABLED', '').lower() == 'true':

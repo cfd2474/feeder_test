@@ -28,11 +28,11 @@ TAILSCALE_AUTH_KEY=
 # TAKNET-PS Server (HARDCODED - Always Enabled)
 # Tactical Awareness Kit Network for Enhanced Tracking – Public Safety
 # Priority feed for all aircraft data
-# Automatically configured with failover support
+# Automatically configured with Tailscale detection and failover
 # ============================================
 TAKNET_PS_ENABLED=true
-TAKNET_PS_SERVER_HOST_PRIMARY=100.117.34.88
-TAKNET_PS_SERVER_HOST_FALLBACK=104.225.219.254
+TAKNET_PS_SERVER_HOST_PRIMARY=tailscale.leckliter.net
+TAKNET_PS_SERVER_HOST_FALLBACK=adsb.leckliter.net
 TAKNET_PS_SERVER_PORT=30004
 TAKNET_PS_CONNECTION_MODE=auto
 
@@ -41,9 +41,11 @@ TAKNET_PS_MLAT_ENABLED=true
 TAKNET_PS_MLAT_PORT=30105
 
 # Connection mode options:
-# - auto: Automatically select best connection (default)
-# - primary: Force primary Tailscale IP
-# - fallback: Force fallback public IP
+# - auto: Automatically detect Tailscale and select appropriate FQDN (default)
+#   * Tailscale running  → tailscale.leckliter.net
+#   * Tailscale inactive → adsb.leckliter.net
+# - primary: Force primary (tailscale.leckliter.net)
+# - fallback: Force fallback (adsb.leckliter.net)
 # - monitor: Enable active monitoring and failover (Phase 2)
 
 # ============================================
@@ -59,6 +61,9 @@ FR24_SHARING_KEY=
 # ADS-B Exchange
 ADSBX_ENABLED=false
 ADSBX_UUID=
+
+# adsb.fi
+ADSBFI_ENABLED=false
 
 # Airplanes.Live
 AIRPLANESLIVE_ENABLED=false

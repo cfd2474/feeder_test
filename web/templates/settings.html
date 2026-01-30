@@ -293,6 +293,25 @@
                 </div>
             </div>
 
+            <div class="card">
+                <h3>adsb.fi</h3>
+                <p style="margin-bottom: 15px; color: #6b7280; font-size: 0.9em;">
+                    ✈️ Community-driven flight tracker with hundreds of feeders worldwide
+                </p>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="adsbfi_enabled" {{ 'checked' if config.get('ADSBFI_ENABLED') == 'true' else '' }}>
+                        Enable adsb.fi Feed
+                    </label>
+                </div>
+                <div class="info-box" style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; margin-top: 15px;">
+                    <p style="margin: 0; color: #1e40af; font-size: 0.85em;">
+                        ℹ️ <strong>No UUID required!</strong> adsb.fi will automatically track your station. 
+                        Visit <a href="https://adsb.fi" target="_blank" style="color: #2563eb;">adsb.fi</a> after feeding to see your station.
+                    </p>
+                </div>
+            </div>
+
             <div class="actions">
                 <button class="btn btn-success" onclick="saveSettings()">💾 Save Configuration</button>
                 <button class="btn" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
@@ -657,7 +676,9 @@
                 FR24_SHARING_KEY: document.getElementById('fr24_key').value,
                 
                 ADSBX_ENABLED: document.getElementById('adsbx_enabled').checked ? 'true' : 'false',
-                ADSBX_UUID: document.getElementById('adsbx_uuid').value
+                ADSBX_UUID: document.getElementById('adsbx_uuid').value,
+                
+                ADSBFI_ENABLED: document.getElementById('adsbfi_enabled').checked ? 'true' : 'false'
             };
             
             try {
