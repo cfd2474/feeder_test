@@ -15,7 +15,7 @@ import time
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.15.0"
+VERSION = "2.16.0"
 
 # Global progress tracking
 service_progress = {
@@ -345,34 +345,62 @@ def rebuild_config():
 def install_tailscale(auth_key=None, hostname=None):
     """Install and configure Tailscale with optional hostname"""
     try:
+        # Use full path to tailscale binary
+        tailscale_bin = '/usr/bin/tailscale'
+        
         # Check if already installed
         check_result = subprocess.run(['which', 'tailscale'], 
                                      capture_output=True, timeout=5)
         
+        was_just_installed = False
         if check_result.returncode != 0:
             # Install Tailscale
+            print("⚙ Installing Tailscale...")
             install_cmd = 'curl -fsSL https://tailscale.com/install.sh | sh'
-            subprocess.run(install_cmd, shell=True, timeout=120)
+            install_result = subprocess.run(install_cmd, shell=True, timeout=120, 
+                                          capture_output=True, text=True)
+            
+            if install_result.returncode != 0:
+                return {'success': False, 'message': f'Installation failed: {install_result.stderr}'}
+            
+            # Verify installation succeeded by checking if binary exists
+            if not os.path.exists(tailscale_bin):
+                return {'success': False, 'message': 'Installation completed but tailscale binary not found'}
+            
+            print("✓ Tailscale installed successfully")
+            was_just_installed = True
         
-        # If auth key provided, re-authenticate
+        # If auth key provided, authenticate
         if auth_key:
-            # Down first to clear previous connection
-            subprocess.run(['tailscale', 'down'], timeout=10)
+            # Only run 'down' if Tailscale was already installed (not if we just installed it)
+            if not was_just_installed:
+                print("⚙ Clearing previous Tailscale connection...")
+                try:
+                    subprocess.run([tailscale_bin, 'down'], timeout=10, capture_output=True)
+                except Exception as e:
+                    print(f"⚠ Warning: Could not run 'tailscale down': {e}")
             
             # Build up command with optional hostname
-            cmd = ['tailscale', 'up', '--authkey', auth_key]
+            cmd = [tailscale_bin, 'up', '--authkey', auth_key]
             
             if hostname:
                 cmd.extend(['--hostname', hostname])
             
+            print(f"⚙ Connecting to Tailscale network as: {hostname if hostname else 'default hostname'}...")
             # Up with new key and hostname
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             
             if result.returncode != 0:
                 return {'success': False, 'message': f'Authentication failed: {result.stderr}'}
+            
+            print("✓ Connected to Tailscale network")
         else:
-            # Just start Tailscale
-            subprocess.run(['tailscale', 'up'], timeout=30)
+            # Just start Tailscale (no auth key provided)
+            print("⚙ Starting Tailscale...")
+            result = subprocess.run([tailscale_bin, 'up'], timeout=30, 
+                                  capture_output=True, text=True)
+            if result.returncode != 0:
+                return {'success': False, 'message': f'Failed to start Tailscale: {result.stderr}'}
         
         # SECURITY: Automatically configure SSH for Tailscale-only access
         # Run the configure-ssh-tailscale.sh script
@@ -397,7 +425,8 @@ def install_tailscale(auth_key=None, hostname=None):
 def get_tailscale_status():
     """Get Tailscale connection status"""
     try:
-        result = subprocess.run(['tailscale', 'status'], 
+        tailscale_bin = '/usr/bin/tailscale'
+        result = subprocess.run([tailscale_bin, 'status'], 
                                capture_output=True, text=True, timeout=5)
         
         if result.returncode == 0:
