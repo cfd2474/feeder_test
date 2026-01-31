@@ -15,7 +15,7 @@ import time
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.18.0"
+VERSION = "2.19.0"
 
 # Global progress tracking
 service_progress = {
@@ -123,6 +123,26 @@ def get_docker_status():
     except:
         return {}
 
+def get_docker_status_all():
+    """Get Docker container status for ALL containers (running and stopped)"""
+    try:
+        result = subprocess.run(
+            ['docker', 'ps', '-a', '--format', '{{.Names}}\t{{.Status}}'],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            containers = {}
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    parts = line.split('\t', 1)
+                    if len(parts) == 2:
+                        name, status = parts
+                        containers[name] = status
+            return containers
+        return {}
+    except:
+        return {}
+
 def container_exists(container_name):
     """Check if a Docker container exists (running or stopped)"""
     try:
@@ -137,32 +157,58 @@ def container_exists(container_name):
     except:
         return False
 
+# Cache for service states to prevent flickering
+service_state_cache = {}
+service_state_cache_time = {}
+SERVICE_STATE_CACHE_DURATION = 2  # seconds
+
 def get_service_state(service_name):
     """Get detailed service state: downloading, starting, running, stopped, or not_installed"""
-    global service_progress
+    global service_progress, service_state_cache, service_state_cache_time
+    
+    # Return cached state if still valid
+    current_time = time.time()
+    if service_name in service_state_cache:
+        cache_age = current_time - service_state_cache_time.get(service_name, 0)
+        if cache_age < SERVICE_STATE_CACHE_DURATION:
+            return service_state_cache[service_name]
     
     # Check if currently being downloaded/started (tracked by progress system)
     with progress_lock:
         if service_progress['service'] == service_name:
             if service_progress['progress'] < 100:
-                return 'downloading' if service_progress['progress'] < 85 else 'starting'
+                state = 'downloading' if service_progress['progress'] < 85 else 'starting'
+                service_state_cache[service_name] = state
+                service_state_cache_time[service_name] = current_time
+                return state
     
-    # Check if container exists
+    # Single atomic Docker check - get ALL container statuses at once
+    docker_status_all = get_docker_status_all()
     container_name = service_name
-    if not container_exists(container_name):
-        return 'not_installed'
     
-    # Check if container is running
-    docker_status = get_docker_status()
-    if container_name in docker_status:
-        status = docker_status[container_name]
+    # Check if container exists and get its status
+    if container_name in docker_status_all:
+        status = docker_status_all[container_name]
+        
+        # Parse Docker status string
         if 'Up' in status:
-            return 'running'
+            state = 'running'
         elif 'Restarting' in status:
-            return 'starting'
+            state = 'starting'
+        elif 'Exited' in status or 'Created' in status:
+            state = 'stopped'
+        else:
+            # Unknown status - default to stopped
+            state = 'stopped'
+    else:
+        # Container doesn't exist
+        state = 'not_installed'
     
-    # Container exists but not running
-    return 'stopped'
+    # Cache the result
+    service_state_cache[service_name] = state
+    service_state_cache_time[service_name] = current_time
+    
+    return state
 
 def monitor_docker_progress(service_name='ultrafeeder'):
     """Monitor Docker pull progress in background thread for any service"""
