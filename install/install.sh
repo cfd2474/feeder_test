@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.16.0
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.17.0
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,10 +29,54 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.16.0"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.17.0"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
+
+# Function to wait for apt locks to clear
+wait_for_apt_lock() {
+    echo "⏳ Checking for package manager locks..."
+    local max_wait=300  # 5 minutes
+    local waited=0
+    local check_interval=5
+    
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || \
+          fuser /var/lib/dpkg/lock >/dev/null 2>&1 || \
+          fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
+          fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do
+        
+        if [ $waited -ge $max_wait ]; then
+            echo "⚠ Warning: Package manager still locked after ${max_wait}s"
+            echo "⚠ You may need to wait for automatic updates to finish"
+            echo "⚠ Or manually kill the process holding the lock"
+            return 1
+        fi
+        
+        if [ $waited -eq 0 ]; then
+            echo "⏳ Package manager is locked (likely automatic updates running)"
+            echo "⏳ Waiting for lock to clear... (timeout: ${max_wait}s)"
+        fi
+        
+        if [ $((waited % 30)) -eq 0 ] && [ $waited -gt 0 ]; then
+            echo "⏳ Still waiting... (${waited}s elapsed)"
+        fi
+        
+        sleep $check_interval
+        waited=$((waited + check_interval))
+    done
+    
+    if [ $waited -gt 0 ]; then
+        echo "✓ Package manager lock cleared (waited ${waited}s)"
+    else
+        echo "✓ Package manager ready"
+    fi
+    
+    return 0
+}
+
+# Wait for any existing apt locks to clear
+wait_for_apt_lock
 
 # Install Docker
 if ! command -v docker &> /dev/null; then
@@ -50,6 +94,9 @@ if ! command -v docker &> /dev/null; then
 else
     echo "✓ Docker already installed"
 fi
+
+# Wait for apt locks again before installing packages
+wait_for_apt_lock
 
 # Install Python and Flask
 echo "Installing Python dependencies..."
