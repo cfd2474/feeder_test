@@ -658,6 +658,13 @@
                 finalSiteName = currentFullName;
             }
             
+            // Check if Tailscale is being newly enabled
+            const tailscaleWasEnabled = originalTailscaleState;
+            const tailscaleWillBeEnabled = tailscaleEnabled;
+            const tailscaleNewlyEnabled = !tailscaleWasEnabled && tailscaleWillBeEnabled;
+            const tailscaleKeyProvided = tailscaleKey !== '';
+            const tailscaleNeedsSetup = tailscaleNewlyEnabled && tailscaleKeyProvided;
+            
             const config = {
                 FEEDER_LAT: lat,
                 FEEDER_LONG: lon,
@@ -682,17 +689,31 @@
             };
             
             try {
+                // If Tailscale is being set up, show status message
+                if (tailscaleNeedsSetup) {
+                    showStatus('Setting up Tailscale VPN...', 'info');
+                }
+                
                 const response = await fetch('/api/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(config)
                 });
                 
-                if (!response.ok) throw new Error('Failed to save');
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to save');
+                }
                 
                 // If FR24 was just enabled, show progress modal
                 if (fr24NewlyEnabled && config.FR24_SHARING_KEY) {
                     showServiceProgressModal('fr24');
+                } else if (tailscaleNeedsSetup) {
+                    // Show success message for Tailscale
+                    showStatus('✓ Tailscale VPN configured! Please restart services to activate.', 'success');
+                    setTimeout(() => {
+                        showSaveModal(finalSiteName);
+                    }, 1500);
                 } else {
                     // Show save confirmation modal
                     showSaveModal(finalSiteName);

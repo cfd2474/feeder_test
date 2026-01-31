@@ -15,7 +15,7 @@ import time
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.14.0"
+VERSION = "2.15.0"
 
 # Global progress tracking
 service_progress = {
@@ -585,6 +585,17 @@ def save_config():
         fr24_newly_enabled = not fr24_was_enabled and fr24_will_be_enabled
         fr24_has_key = data.get('FR24_SHARING_KEY', '').strip() != ''
         
+        # Check if Tailscale is being newly enabled or auth key changed
+        tailscale_was_enabled = env.get('TAILSCALE_ENABLED') == 'true'
+        tailscale_will_be_enabled = data.get('TAILSCALE_ENABLED') == 'true'
+        tailscale_newly_enabled = not tailscale_was_enabled and tailscale_will_be_enabled
+        
+        old_tailscale_key = env.get('TAILSCALE_AUTH_KEY', '').strip()
+        new_tailscale_key = data.get('TAILSCALE_AUTH_KEY', '').strip()
+        tailscale_key_changed = new_tailscale_key and new_tailscale_key != old_tailscale_key
+        
+        tailscale_needs_setup = (tailscale_newly_enabled or tailscale_key_changed) and new_tailscale_key
+        
         # PROTECT TAK CONNECTION SETTINGS
         # User can only change TAKNET_PS_ENABLED (on/off), nothing else
         tak_protected_keys = ['TAKNET_PS_SERVER_HOST', 'TAKNET_PS_SERVER_HOST_PRIMARY', 
@@ -607,7 +618,21 @@ def save_config():
         # Write to file
         write_env(env)
         
+        # If Tailscale needs setup, install/configure it BEFORE rebuilding config
+        if tailscale_needs_setup:
+            print(f"✓ Setting up Tailscale with new auth key")
+            # Get feeder name for hostname
+            feeder_name = env.get('MLAT_SITE_NAME', 'adsb-feeder')
+            # Install and authenticate Tailscale
+            result = install_tailscale(auth_key=new_tailscale_key, hostname=feeder_name)
+            if not result['success']:
+                return jsonify({'success': False, 'message': f"Tailscale setup failed: {result['message']}"}), 500
+            print(f"✓ Tailscale configured successfully")
+            # Give Tailscale a moment to establish connection
+            time.sleep(2)
+        
         # Rebuild ULTRAFEEDER_CONFIG
+        # This will now detect Tailscale as running and route to tailscale.leckliter.net
         rebuild_config()
         
         # If FR24 was just enabled, start the service and monitor its download
