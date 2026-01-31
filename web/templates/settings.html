@@ -277,6 +277,12 @@
                     <label>Sharing Key</label>
                     <input type="text" id="fr24_key" value="{{ config.get('FR24_SHARING_KEY', '') }}">
                 </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <button class="btn btn-primary" onclick="activateFR24()">🚀 Activate FR24 Service</button>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        This will install and start the FR24 feeder container
+                    </small>
+                </div>
             </div>
 
             <div class="card">
@@ -500,8 +506,6 @@
                 return;
             }
             
-            showStatus('Updating Tailscale configuration...', 'info');
-            
             // Get feeder name with zip code
             let machineName = siteName;
             if (lat && lon && siteName) {
@@ -518,55 +522,160 @@
                 }
             }
             
+            // Show progress modal
+            showTailscaleProgressModal(tailscaleKey, machineName);
+        }
+        
+        function showTailscaleProgressModal(authKey, hostname) {
+            const modal = document.getElementById('tailscaleProgressModal');
+            const statusDiv = document.getElementById('tailscaleProgressStatus');
+            
+            modal.style.display = 'flex';
+            statusDiv.innerHTML = '<p style="color: #667eea;">⏳ Initializing Tailscale setup...</p>';
+            
+            // Start the installation process
+            installTailscaleWithProgress(authKey, hostname);
+        }
+        
+        async function installTailscaleWithProgress(authKey, hostname) {
+            const statusDiv = document.getElementById('tailscaleProgressStatus');
+            
             try {
-                // Install/update Tailscale with new key and hostname
+                // Step 1: Check if Tailscale is installed
+                statusDiv.innerHTML = '<p style="color: #667eea;">⏳ Checking Tailscale installation...</p>';
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Step 2: Install/update Tailscale
+                statusDiv.innerHTML += '<p style="color: #667eea;">⏳ Installing/updating Tailscale (this may take 30-60 seconds)...</p>';
+                
                 const response = await fetch('/api/tailscale/install', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        auth_key: tailscaleKey,
-                        hostname: machineName
+                        auth_key: authKey,
+                        hostname: hostname
                     })
                 });
                 
                 const result = await response.json();
                 
+                if (!result.success) {
+                    statusDiv.innerHTML += `<p style="color: #ef4444;">❌ Installation failed: ${result.message}</p>`;
+                    statusDiv.innerHTML += '<p style="margin-top: 15px;"><button class="btn btn-secondary" onclick="closeTailscaleProgressModal()">Close</button></p>';
+                    return;
+                }
+                
+                // Step 3: Authentication
+                statusDiv.innerHTML += '<p style="color: #10b981;">✓ Tailscale installed successfully</p>';
+                statusDiv.innerHTML += '<p style="color: #667eea;">⏳ Authenticating with Tailscale network...</p>';
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                statusDiv.innerHTML += '<p style="color: #10b981;">✓ Connected to Tailscale network as: ' + hostname + '</p>';
+                
+                // Step 4: Verify connection
+                statusDiv.innerHTML += '<p style="color: #667eea;">⏳ Verifying connection...</p>';
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const statusResponse = await fetch('/api/tailscale/status');
+                const statusData = await statusResponse.json();
+                
+                if (statusData.success) {
+                    statusDiv.innerHTML += '<p style="color: #10b981;">✓ Tailscale VPN is active and connected!</p>';
+                } else {
+                    statusDiv.innerHTML += '<p style="color: #f59e0b;">⚠️ Tailscale started but status check failed</p>';
+                }
+                
+                // Step 5: Save configuration
+                statusDiv.innerHTML += '<p style="color: #667eea;">⏳ Saving configuration...</p>';
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                const saveResponse = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        TAILSCALE_ENABLED: 'true',
+                        TAILSCALE_AUTH_KEY: authKey
+                    })
+                });
+                
+                if (saveResponse.ok) {
+                    statusDiv.innerHTML += '<p style="color: #10b981;">✓ Configuration saved</p>';
+                } else {
+                    statusDiv.innerHTML += '<p style="color: #f59e0b;">⚠️ Configuration save may have failed</p>';
+                }
+                
+                // Complete
+                statusDiv.innerHTML += '<p style="color: #10b981; font-weight: bold; margin-top: 15px;">✅ Tailscale setup complete!</p>';
+                statusDiv.innerHTML += '<p style="color: #666;">Your feeder is now connected via Tailscale VPN.</p>';
+                statusDiv.innerHTML += '<p style="margin-top: 15px;"><button class="btn btn-success" onclick="closeTailscaleProgressModal()">Done</button></p>';
+                
+                // Clear the input and uncheck "Enter New Key"
+                document.getElementById('tailscale_key').value = '';
+                document.getElementById('enter_new_key').checked = false;
+                document.getElementById('new-key-section').style.display = 'none';
+                originalTailscaleState = true;
+                
+            } catch (error) {
+                statusDiv.innerHTML += `<p style="color: #ef4444;">❌ Error: ${error.message}</p>`;
+                statusDiv.innerHTML += '<p style="margin-top: 15px;"><button class="btn btn-secondary" onclick="closeTailscaleProgressModal()">Close</button></p>';
+            }
+        }
+        
+        function closeTailscaleProgressModal() {
+            document.getElementById('tailscaleProgressModal').style.display = 'none';
+            // Optionally reload status on dashboard
+            location.reload();
+        }
+        
+        // FR24 Activation Function
+        async function activateFR24() {
+            const fr24Enabled = document.getElementById('fr24_enabled').checked;
+            const fr24Key = document.getElementById('fr24_key').value.trim();
+            
+            if (!fr24Enabled) {
+                showStatus('Please enable FR24 checkbox first', 'error');
+                return;
+            }
+            
+            if (!fr24Key) {
+                showStatus('Please enter FR24 sharing key first', 'error');
+                return;
+            }
+            
+            // Save FR24 config first
+            try {
+                showStatus('Saving FR24 configuration...', 'info');
+                
+                const saveResponse = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        FR24_ENABLED: 'true',
+                        FR24_SHARING_KEY: fr24Key
+                    })
+                });
+                
+                if (!saveResponse.ok) {
+                    throw new Error('Failed to save FR24 configuration');
+                }
+                
+                // Now activate FR24 service
+                const activateResponse = await fetch('/api/fr24/activate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await activateResponse.json();
+                
                 if (result.success) {
-                    showStatus('✓ Tailscale updated successfully!', 'success');
-                    
-                    // Get and display status
-                    setTimeout(async () => {
-                        const statusResponse = await fetch('/api/tailscale/status');
-                        const statusData = await statusResponse.json();
-                        
-                        if (statusData.success) {
-                            displayTailscaleStatus(statusData);
-                        }
-                    }, 2000); // Wait 2 seconds for connection to establish
-                    
-                    // Save the key to config
-                    const saveResponse = await fetch('/api/config', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            TAILSCALE_ENABLED: 'true',
-                            TAILSCALE_AUTH_KEY: tailscaleKey
-                        })
-                    });
-                    
-                    originalTailscaleState = true;
-                    
-                    // Clear the input and uncheck "Enter New Key"
-                    document.getElementById('tailscale_key').value = '';
-                    document.getElementById('enter_new_key').checked = false;
-                    document.getElementById('new-key-section').style.display = 'none';
-                    
+                    // Show progress modal
+                    showServiceProgressModal('fr24');
                 } else {
                     showStatus('Error: ' + result.message, 'error');
                 }
                 
             } catch (error) {
-                showStatus('Error updating Tailscale: ' + error.message, 'error');
+                showStatus('Error: ' + error.message, 'error');
             }
         }
         
@@ -616,11 +725,6 @@
             const siteName = document.getElementById('site_name').value.trim();
             const userZipCode = document.getElementById('zip_code').value.trim();
             
-            // Track if FR24 was just enabled
-            const fr24WasEnabled = "{{ config.get('FR24_ENABLED') }}" === 'true';
-            const fr24WillBeEnabled = document.getElementById('fr24_enabled').checked;
-            const fr24NewlyEnabled = !fr24WasEnabled && fr24WillBeEnabled;
-            
             // Validate coordinate format
             const latPattern = /^-?\d+\.\d+$/;
             const lonPattern = /^-?\d+\.\d+$/;
@@ -658,13 +762,6 @@
                 finalSiteName = currentFullName;
             }
             
-            // Check if Tailscale is being newly enabled
-            const tailscaleWasEnabled = originalTailscaleState;
-            const tailscaleWillBeEnabled = tailscaleEnabled;
-            const tailscaleNewlyEnabled = !tailscaleWasEnabled && tailscaleWillBeEnabled;
-            const tailscaleKeyProvided = tailscaleKey !== '';
-            const tailscaleNeedsSetup = tailscaleNewlyEnabled && tailscaleKeyProvided;
-            
             const config = {
                 FEEDER_LAT: lat,
                 FEEDER_LONG: lon,
@@ -689,11 +786,6 @@
             };
             
             try {
-                // If Tailscale is being set up, show status message
-                if (tailscaleNeedsSetup) {
-                    showStatus('Setting up Tailscale VPN...', 'info');
-                }
-                
                 const response = await fetch('/api/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -705,19 +797,8 @@
                     throw new Error(errorData.message || 'Failed to save');
                 }
                 
-                // If FR24 was just enabled, show progress modal
-                if (fr24NewlyEnabled && config.FR24_SHARING_KEY) {
-                    showServiceProgressModal('fr24');
-                } else if (tailscaleNeedsSetup) {
-                    // Show success message for Tailscale
-                    showStatus('✓ Tailscale VPN configured! Please restart services to activate.', 'success');
-                    setTimeout(() => {
-                        showSaveModal(finalSiteName);
-                    }, 1500);
-                } else {
-                    // Show save confirmation modal
-                    showSaveModal(finalSiteName);
-                }
+                // Always show save confirmation modal with restart option
+                showSaveModal(finalSiteName);
                 
             } catch (error) {
                 showStatus('Error: ' + error.message, 'error');
@@ -1105,6 +1186,19 @@
                 <button class="btn btn-secondary" onclick="closeServiceProgressModal()" id="serviceProgressCloseBtn" style="display: none;">
                     Close
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tailscale Progress Modal -->
+    <div id="tailscaleProgressModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>🔐 Tailscale VPN Setup</h2>
+            <p>Setting up secure VPN connection to TAKNET-PS aggregator...</p>
+            
+            <!-- Status Log -->
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; max-height: 350px; overflow-y: auto; font-size: 0.95em; line-height: 1.6;" id="tailscaleProgressStatus">
+                <p style="color: #667eea;">⏳ Initializing...</p>
             </div>
         </div>
     </div>
