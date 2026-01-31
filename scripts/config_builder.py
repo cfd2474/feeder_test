@@ -44,6 +44,7 @@ def ensure_taknet_config(env_vars, env_file):
     Ensure TAKNET-PS configuration exists
     Builds missing values automatically to prevent user skip
     Uses FQDNs for automatic Tailscale detection
+    Migrates old IP addresses to FQDNs
     Returns: (env_vars, was_repaired)
     """
     required_config = {
@@ -58,11 +59,27 @@ def ensure_taknet_config(env_vars, env_file):
     
     was_repaired = False
     
+    # First pass: add missing keys
     for key, default_value in required_config.items():
         if key not in env_vars or not env_vars[key]:
             print(f"⚠ Missing {key}, auto-configuring: {default_value}")
             env_vars[key] = default_value
             was_repaired = True
+    
+    # Second pass: migrate old IP values to FQDNs
+    ip_migrations = {
+        '100.117.34.88': 'tailscale.leckliter.net',
+        '104.225.219.254': 'adsb.leckliter.net'
+    }
+    
+    for key in ['TAKNET_PS_SERVER_HOST_PRIMARY', 'TAKNET_PS_SERVER_HOST_FALLBACK']:
+        if key in env_vars:
+            old_value = env_vars[key]
+            if old_value in ip_migrations:
+                new_value = ip_migrations[old_value]
+                print(f"✓ Migrating {key}: {old_value} → {new_value}")
+                env_vars[key] = new_value
+                was_repaired = True
     
     # Write back if repaired
     if was_repaired:

@@ -15,7 +15,7 @@ import time
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.13.0"
+VERSION = "2.14.0"
 
 # Global progress tracking
 service_progress = {
@@ -65,6 +65,37 @@ def read_env():
                     key, value = line.split('=', 1)
                     env_vars[key.strip()] = value.strip()
     return env_vars
+
+def get_taknet_connection_status(env_vars):
+    """
+    Get current TAKNET-PS connection status by running Tailscale detection
+    Returns dict with selected_host, connection_type, etc.
+    """
+    import sys
+    sys.path.insert(0, '/opt/adsb/scripts')
+    try:
+        from config_builder import check_tailscale_running, select_taknet_host
+        
+        if env_vars.get('TAKNET_PS_ENABLED', 'true').lower() != 'true':
+            return None
+        
+        # Run the same detection logic as config_builder.py
+        selected_host, connection_type = select_taknet_host(env_vars)
+        
+        if not selected_host:
+            return None
+        
+        return {
+            'enabled': True,
+            'selected_host': selected_host,
+            'connection_type': connection_type,
+            'port': env_vars.get('TAKNET_PS_SERVER_PORT', '30004'),
+            'mlat_port': env_vars.get('TAKNET_PS_MLAT_PORT', '30105'),
+            'mlat_enabled': env_vars.get('TAKNET_PS_MLAT_ENABLED', 'true').lower() == 'true'
+        }
+    except Exception as e:
+        print(f"Error getting TAKNET-PS status: {e}")
+        return None
 
 def write_env(env_vars):
     """Write dict to .env file"""
@@ -429,7 +460,8 @@ def dashboard():
     """Status dashboard"""
     env = read_env()
     docker_status = get_docker_status()
-    return render_template('dashboard.html', config=env, docker=docker_status, version=VERSION)
+    taknet_status = get_taknet_connection_status(env)
+    return render_template('dashboard.html', config=env, docker=docker_status, version=VERSION, taknet_status=taknet_status)
 
 @app.route('/logs')
 def logs():

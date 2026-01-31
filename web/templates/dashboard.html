@@ -82,15 +82,39 @@
                                 <span class="status-dot active"></span>
                                 <div>
                                     <strong>TAKNET-PS Server</strong>
-                                    <div style="font-size: 0.85em; color: #9ca3af; margin-top: 2px;">
-                                        {% if config.get('TAKNET_PS_SERVER_HOST_PRIMARY') %}
-                                            Primary: {{ config.get('TAKNET_PS_SERVER_HOST_PRIMARY') }}:{{ config.get('TAKNET_PS_SERVER_PORT', '30004') }}
-                                        {% endif %}
-                                    </div>
-                                    {% if config.get('TAKNET_PS_MLAT_ENABLED') == 'true' %}
-                                        <div style="font-size: 0.85em; color: #9ca3af;">
-                                            MLAT: {{ config.get('TAKNET_PS_SERVER_HOST_PRIMARY') }}:{{ config.get('TAKNET_PS_MLAT_PORT', '30105') }}
+                                    {% if taknet_status and taknet_status.selected_host %}
+                                        {# Show dynamically selected connection #}
+                                        <div style="font-size: 0.85em; color: #9ca3af; margin-top: 2px;">
+                                            <strong style="color: {% if taknet_status.connection_type == 'tailscale-active' %}#10b981{% else %}#f59e0b{% endif %};">
+                                                {% if taknet_status.connection_type == 'tailscale-active' %}
+                                                    ✓ Tailscale VPN
+                                                {% elif taknet_status.connection_type == 'tailscale-inactive' %}
+                                                    ⚠ Public Internet
+                                                {% else %}
+                                                    {{ taknet_status.connection_type }}
+                                                {% endif %}
+                                            </strong>
                                         </div>
+                                        <div style="font-size: 0.85em; color: #9ca3af;">
+                                            Primary: {{ taknet_status.selected_host }}:{{ taknet_status.port }}
+                                        </div>
+                                        {% if taknet_status.mlat_enabled %}
+                                            <div style="font-size: 0.85em; color: #9ca3af;">
+                                                MLAT: {{ taknet_status.selected_host }}:{{ taknet_status.mlat_port }}
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        {# Fallback to .env values if detection fails #}
+                                        <div style="font-size: 0.85em; color: #9ca3af; margin-top: 2px;">
+                                            {% if config.get('TAKNET_PS_SERVER_HOST_PRIMARY') %}
+                                                Primary: {{ config.get('TAKNET_PS_SERVER_HOST_PRIMARY') }}:{{ config.get('TAKNET_PS_SERVER_PORT', '30004') }}
+                                            {% endif %}
+                                        </div>
+                                        {% if config.get('TAKNET_PS_MLAT_ENABLED') == 'true' %}
+                                            <div style="font-size: 0.85em; color: #9ca3af;">
+                                                MLAT: {{ config.get('TAKNET_PS_SERVER_HOST_PRIMARY') }}:{{ config.get('TAKNET_PS_MLAT_PORT', '30105') }}
+                                            </div>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
