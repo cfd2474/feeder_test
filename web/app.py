@@ -15,7 +15,7 @@ import time
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.21.0"
+VERSION = "2.22.0"
 
 # Global progress tracking
 service_progress = {

@@ -94,7 +94,7 @@
                             {% if config.get('TAKNET_PS_ENABLED') == 'true' %}
                             <tr>
                                 <td><strong>TAKNET-PS Server</strong></td>
-                                <td style="text-align: center;"><span class="feed-check" data-status="good">✓</span></td>
+                                <td style="text-align: center;"><span class="feed-check" id="taknet-check" data-status="good">✓</span></td>
                                 <td style="text-align: center;" id="taknet-data">+</td>
                                 <td style="text-align: center;" id="taknet-mlat">{{ '+' if config.get('TAKNET_PS_MLAT_ENABLED') == 'true' else '-' }}</td>
                                 <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
@@ -114,7 +114,7 @@
                             {% if config.get('ADSBX_ENABLED') == 'true' %}
                             <tr>
                                 <td>ADS-B Exchange</td>
-                                <td style="text-align: center;"><span class="feed-check" data-status="good">✓</span></td>
+                                <td style="text-align: center;"><span class="feed-check" id="adsbx-check" data-status="good">✓</span></td>
                                 <td style="text-align: center;">.</td>
                                 <td style="text-align: center;">.</td>
                                 <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
@@ -124,7 +124,7 @@
                             {% if config.get('ADSBFI_ENABLED') == 'true' %}
                             <tr>
                                 <td>adsb.fi</td>
-                                <td style="text-align: center;"><span class="feed-check" data-status="good">✓</span></td>
+                                <td style="text-align: center;"><span class="feed-check" id="adsbfi-check" data-status="good">✓</span></td>
                                 <td style="text-align: center;">.</td>
                                 <td style="text-align: center;">.</td>
                                 <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
@@ -134,7 +134,7 @@
                             {% if config.get('AIRPLANESLIVE_ENABLED') == 'true' %}
                             <tr>
                                 <td>Airplanes.Live</td>
-                                <td style="text-align: center;"><span class="feed-check" data-status="good">✓</span></td>
+                                <td style="text-align: center;"><span class="feed-check" id="airplaneslive-check" data-status="good">✓</span></td>
                                 <td style="text-align: center;">.</td>
                                 <td style="text-align: center;">.</td>
                                 <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
@@ -226,6 +226,27 @@
             try {
                 const response = await fetch('/api/status');
                 const data = await response.json();
+                
+                // Update TAKNET-PS feed table status (based on ultrafeeder)
+                if (data.service_states && data.service_states.ultrafeeder) {
+                    const ultrafeederState = data.service_states.ultrafeeder;
+                    const taknetCheck = document.getElementById('taknet-check');
+                    
+                    if (taknetCheck) {
+                        switch(ultrafeederState) {
+                            case 'running':
+                                taknetCheck.setAttribute('data-status', 'good');
+                                break;
+                            case 'starting':
+                                taknetCheck.setAttribute('data-status', 'unknown');
+                                break;
+                            case 'stopped':
+                            case 'not_installed':
+                                taknetCheck.setAttribute('data-status', 'down');
+                                break;
+                        }
+                    }
+                }
                 
                 // Update FR24 feed table status if enabled
                 if (data.service_states && data.service_states.fr24) {

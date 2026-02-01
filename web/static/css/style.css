@@ -375,3 +375,110 @@ nav a.active {
         margin-bottom: 10px;
     }
 }
+
+/* Feed Table Styles */
+.feed-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    font-size: 0.95em;
+    border: 1px solid #d1d5db;
+}
+
+.feed-table thead {
+    background: #f3f4f6;
+    border-bottom: 2px solid #9ca3af;
+}
+
+.feed-table th {
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid #d1d5db;
+}
+
+.feed-table tbody tr {
+    border: 1px solid #d1d5db;
+    transition: background-color 0.2s;
+}
+
+.feed-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.feed-table td {
+    padding: 14px 16px;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+}
+
+/* Column widths for better spacing */
+.feed-table th:nth-child(1),
+.feed-table td:nth-child(1) {
+    width: 40%;
+    min-width: 180px;
+}
+
+.feed-table th:nth-child(2),
+.feed-table td:nth-child(2) {
+    width: 15%;
+    min-width: 80px;
+}
+
+.feed-table th:nth-child(3),
+.feed-table td:nth-child(3) {
+    width: 15%;
+    min-width: 70px;
+}
+
+.feed-table th:nth-child(4),
+.feed-table td:nth-child(4) {
+    width: 15%;
+    min-width: 70px;
+}
+
+.feed-table th:nth-child(5),
+.feed-table td:nth-child(5) {
+    width: 15%;
+    min-width: 80px;
+}
+
+/* Feed checkmark status colors */
+.feed-check {
+    font-size: 1.3em;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.feed-check[data-status="good"] {
+    color: #10b981 !important;  /* Green - good state */
+}
+
+.feed-check[data-status="down"] {
+    color: #ef4444 !important;  /* Red - feed down */
+}
+
+.feed-check[data-status="mlat-down"] {
+    color: #f59e0b !important;  /* Yellow - MLAT down */
+}
+
+.feed-check[data-status="unknown"] {
+    color: #374151 !important;  /* Black/gray - no information */
+}
+
+.feed-link {
+    color: #667eea;
+    text-decoration: none;
+    font-size: 1.2em;
+    transition: color 0.2s;
+}
+
+.feed-link:hover {
+    color: #764ba2;
+    text-decoration: none;
+}
+
