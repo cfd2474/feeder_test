@@ -25,7 +25,7 @@
             <!-- Status Cards -->
             <div class="card-grid">
                 <div class="card">
-                    <h3>Container Status</h3>
+                    <h3>Core Service</h3>
                     <div id="container-status">
                         {% if docker.get('ultrafeeder') %}
                             <div class="status-item">
@@ -35,14 +35,6 @@
                             </div>
                         {% else %}
                             <p class="text-muted">ultrafeeder not running</p>
-                        {% endif %}
-                        
-                        {% if config.get('FR24_ENABLED') == 'true' %}
-                            <div class="status-item">
-                                <span class="status-dot" id="fr24-status-dot"></span>
-                                <span>fr24</span>
-                                <span class="status-text" id="fr24-status-text">Checking...</span>
-                            </div>
                         {% endif %}
                     </div>
                 </div>
@@ -222,37 +214,23 @@
                 const response = await fetch('/api/status');
                 const data = await response.json();
                 
-                // Update FR24 status if enabled
+                // Update FR24 feed table status if enabled
                 if (data.service_states && data.service_states.fr24) {
                     const fr24State = data.service_states.fr24;
-                    const fr24Dot = document.getElementById('fr24-status-dot');
-                    const fr24Text = document.getElementById('fr24-status-text');
+                    const fr24Check = document.getElementById('fr24-check');
                     
-                    if (fr24Dot && fr24Text) {
+                    if (fr24Check) {
                         switch(fr24State) {
                             case 'running':
-                                fr24Dot.className = 'status-dot active';
-                                fr24Text.textContent = 'Running';
+                                fr24Check.setAttribute('data-status', 'good');
                                 break;
                             case 'downloading':
-                                fr24Dot.className = 'status-dot' + ' inactive';
-                                fr24Text.textContent = 'Downloading...';
-                                fr24Text.style.color = '#f59e0b';
-                                break;
                             case 'starting':
-                                fr24Dot.className = 'status-dot inactive';
-                                fr24Text.textContent = 'Starting...';
-                                fr24Text.style.color = '#f59e0b';
+                                fr24Check.setAttribute('data-status', 'unknown');
                                 break;
                             case 'stopped':
-                                fr24Dot.className = 'status-dot inactive';
-                                fr24Text.textContent = 'Not running';
-                                fr24Text.style.color = '';
-                                break;
                             case 'not_installed':
-                                fr24Dot.className = 'status-dot inactive';
-                                fr24Text.textContent = 'Not installed';
-                                fr24Text.style.color = '#9ca3af';
+                                fr24Check.setAttribute('data-status', 'down');
                                 break;
                         }
                     }
