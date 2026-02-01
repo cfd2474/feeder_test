@@ -16,7 +16,7 @@ import uuid
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.23.0"
+VERSION = "2.24.0"
 
 # Global progress tracking
 service_progress = {
@@ -545,7 +545,8 @@ def setup_sdr():
 def setup():
     """Setup wizard - Step 2: Location Configuration"""
     env = read_env()
-    return render_template('setup.html', config=env)
+    feeder_uuid = get_or_create_feeder_uuid()
+    return render_template('setup.html', config=env, feeder_uuid=feeder_uuid)
 
 @app.route('/loading')
 def loading():

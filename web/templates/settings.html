@@ -286,20 +286,6 @@
             </div>
 
             <div class="card">
-                <h3>ADS-B Exchange</h3>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="adsbx_enabled" {{ 'checked' if config.get('ADSBX_ENABLED') == 'true' else '' }}>
-                        Enable ADSBX
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>UUID</label>
-                    <input type="text" id="adsbx_uuid" value="{{ config.get('ADSBX_UUID', '') }}">
-                </div>
-            </div>
-
-            <div class="card">
                 <h3>adsb.fi</h3>
                 <p style="margin-bottom: 15px; color: #6b7280; font-size: 0.9em;">
                     ✈️ Community-driven flight tracker with hundreds of feeders worldwide
@@ -801,9 +787,6 @@
                 
                 FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
                 FR24_SHARING_KEY: document.getElementById('fr24_key').value,
-                
-                ADSBX_ENABLED: document.getElementById('adsbx_enabled').checked ? 'true' : 'false',
-                ADSBX_UUID: document.getElementById('adsbx_uuid').value,
                 
                 ADSBFI_ENABLED: document.getElementById('adsbfi_enabled').checked ? 'true' : 'false',
                 

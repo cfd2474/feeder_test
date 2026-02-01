@@ -230,13 +230,6 @@ def build_config(env_vars):
         else:
             print("⚠ FlightRadar24 enabled but no sharing key provided")
     
-    # ADS-B Exchange
-    if env_vars.get('ADSBX_ENABLED', '').lower() == 'true':
-        if env_vars.get('ADSBX_UUID', '').strip():
-            config_parts.append("adsb,feed.adsb.exchange,30004,beast_reduce_plus_out")
-            config_parts.append("mlat,feed.adsb.exchange,31090,39001")
-            print("✓ ADS-B Exchange")
-    
     # adsb.fi
     if env_vars.get('ADSBFI_ENABLED', '').lower() == 'true':
         # adsb.fi doesn't strictly require UUID - they can auto-generate

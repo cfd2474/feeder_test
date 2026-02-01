@@ -271,17 +271,16 @@ async function saveAndStart() {
         console.log("Online mode: Reading aggregator fields...");
         fr24Enabled = document.getElementById('fr24_enabled').checked;
         fr24Key = document.getElementById('fr24_key').value;
-        adsbxEnabled = document.getElementById('adsbx_enabled').checked;
-        adsbxUuid = document.getElementById('adsbx_uuid').value;
         airplanesLiveEnabled = document.getElementById('airplaneslive_enabled').checked;
         airplanesLiveUuid = document.getElementById('airplaneslive_uuid').value;
         adsbfiEnabled = document.getElementById('adsbfi_enabled').checked;
+        adsblolEnabled = document.getElementById('adsblol_enabled').checked;
         
         console.log("Aggregators:", {
             fr24: fr24Enabled,
-            adsbx: adsbxEnabled,
             airplanesLive: airplanesLiveEnabled,
-            adsbfi: adsbfiEnabled
+            adsbfi: adsbfiEnabled,
+            adsblol: adsblolEnabled
         });
     } else {
         // OFFLINE MODE: Disable all internet-dependent services
@@ -290,11 +289,10 @@ async function saveAndStart() {
         tailscaleKey = '';
         fr24Enabled = false;
         fr24Key = '';
-        adsbxEnabled = false;
-        adsbxUuid = '';
         airplanesLiveEnabled = false;
         airplanesLiveUuid = '';
         adsbfiEnabled = false;
+        adsblolEnabled = false;
     }
     
     const config = {
@@ -317,13 +315,12 @@ async function saveAndStart() {
         FR24_ENABLED: fr24Enabled ? 'true' : 'false',
         FR24_SHARING_KEY: fr24Key || '',
         
-        ADSBX_ENABLED: adsbxEnabled ? 'true' : 'false',
-        ADSBX_UUID: adsbxUuid || '',
-        
         AIRPLANESLIVE_ENABLED: airplanesLiveEnabled ? 'true' : 'false',
         AIRPLANESLIVE_UUID: airplanesLiveUuid || '',
         
-        ADSBFI_ENABLED: adsbfiEnabled ? 'true' : 'false'
+        ADSBFI_ENABLED: adsbfiEnabled ? 'true' : 'false',
+        
+        ADSBLOL_ENABLED: adsblolEnabled ? 'true' : 'false'
     };
     
     console.log("Config object built:", config);
