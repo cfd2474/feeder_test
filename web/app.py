@@ -11,11 +11,12 @@ from pathlib import Path
 import json
 import threading
 import time
+import uuid
 
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.22.0"
+VERSION = "2.23.0"
 
 # Global progress tracking
 service_progress = {
@@ -104,6 +105,27 @@ def write_env(env_vars):
         lines.append(f"{key}={value}\n")
     with open(ENV_FILE, 'w') as f:
         f.writelines(lines)
+
+def get_or_create_feeder_uuid():
+    """
+    Get existing feeder UUID from .env or generate a new one.
+    The UUID persists across reboots and is used by aggregators like adsb.lol
+    """
+    env_vars = read_env()
+    
+    # Check if UUID already exists
+    if 'FEEDER_UUID' in env_vars and env_vars['FEEDER_UUID']:
+        return env_vars['FEEDER_UUID']
+    
+    # Generate new UUID
+    feeder_uuid = str(uuid.uuid4())
+    
+    # Save to .env
+    env_vars['FEEDER_UUID'] = feeder_uuid
+    write_env(env_vars)
+    
+    print(f"Generated new feeder UUID: {feeder_uuid}")
+    return feeder_uuid
 
 def get_docker_status():
     """Get Docker container status"""
@@ -536,7 +558,8 @@ def dashboard():
     env = read_env()
     docker_status = get_docker_status()
     taknet_status = get_taknet_connection_status(env)
-    return render_template('dashboard.html', config=env, docker=docker_status, version=VERSION, taknet_status=taknet_status)
+    feeder_uuid = get_or_create_feeder_uuid()
+    return render_template('dashboard.html', config=env, docker=docker_status, version=VERSION, taknet_status=taknet_status, feeder_uuid=feeder_uuid)
 
 @app.route('/logs')
 def logs():

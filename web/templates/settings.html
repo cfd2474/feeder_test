@@ -318,6 +318,29 @@
                 </div>
             </div>
 
+            <!-- adsb.lol Configuration -->
+            <div class="setting-section">
+                <h2>🌐 adsb.lol</h2>
+                <p class="setting-description">
+                    📡 Open-source ADS-B aggregator with focus on community and data quality
+                </p>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="adsblol_enabled" {{ 'checked' if config.get('ADSBLOL_ENABLED') == 'true' else '' }}>
+                        Enable adsb.lol Feed
+                    </label>
+                </div>
+                <div class="info-box" style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 12px; margin-top: 15px;">
+                    <p style="margin: 0 0 8px 0; color: #065f46; font-size: 0.85em;">
+                        ℹ️ <strong>Automatic UUID:</strong> adsb.lol uses your feeder UUID for identification.
+                    </p>
+                    <p style="margin: 0; color: #047857; font-size: 0.85em;">
+                        Your UUID is shown in the "Core Service" section on the dashboard.
+                        Visit <a href="https://adsb.lol" target="_blank" style="color: #059669;">adsb.lol</a> to track your feeder.
+                    </p>
+                </div>
+            </div>
+
             <div class="actions">
                 <button class="btn btn-success" onclick="saveSettings()">💾 Save Configuration</button>
                 <button class="btn" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
@@ -782,7 +805,9 @@
                 ADSBX_ENABLED: document.getElementById('adsbx_enabled').checked ? 'true' : 'false',
                 ADSBX_UUID: document.getElementById('adsbx_uuid').value,
                 
-                ADSBFI_ENABLED: document.getElementById('adsbfi_enabled').checked ? 'true' : 'false'
+                ADSBFI_ENABLED: document.getElementById('adsbfi_enabled').checked ? 'true' : 'false',
+                
+                ADSBLOL_ENABLED: document.getElementById('adsblol_enabled').checked ? 'true' : 'false'
             };
             
             try {

@@ -245,6 +245,17 @@ def build_config(env_vars):
         config_parts.append("mlat,feed.adsb.fi,31090,39003")
         print("✓ adsb.fi")
     
+    # adsb.lol
+    if env_vars.get('ADSBLOL_ENABLED', '').lower() == 'true':
+        # adsb.lol uses feeder UUID for identification
+        feeder_uuid = env_vars.get('FEEDER_UUID', '').strip()
+        if feeder_uuid:
+            config_parts.append("adsb,feed.adsb.lol,30004,beast_reduce_plus_out")
+            config_parts.append("mlat,in.adsb.lol,31090,39001")
+            print(f"✓ adsb.lol (UUID: {feeder_uuid[:8]}...)")
+        else:
+            print("⚠ adsb.lol enabled but no UUID found - skipping")
+    
     # Airplanes.Live
     if env_vars.get('AIRPLANESLIVE_ENABLED', '').lower() == 'true':
         if env_vars.get('AIRPLANESLIVE_UUID', '').strip():
@@ -274,6 +285,7 @@ def build_docker_compose(env_vars):
                     'LAT=${FEEDER_LAT}',
                     'LONG=${FEEDER_LONG}',
                     'ALT=${FEEDER_ALT_M}m',
+                    'UUID=${FEEDER_UUID}',
                     'READSB_DEVICE_TYPE=rtlsdr',
                     'READSB_RTLSDR_DEVICE=${READSB_DEVICE:-0}',
                     'READSB_GAIN=${READSB_GAIN:-autogain}',

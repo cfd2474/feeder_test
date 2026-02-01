@@ -36,6 +36,10 @@
                         {% else %}
                             <p class="text-muted">ultrafeeder not running</p>
                         {% endif %}
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                            <p style="font-size: 0.85em; color: #6b7280; margin-bottom: 5px;">Feeder UUID:</p>
+                            <p style="font-family: monospace; font-size: 0.9em; color: #374151; word-break: break-all;">{{ feeder_uuid }}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -131,6 +135,16 @@
                             </tr>
                             {% endif %}
                             
+                            {% if config.get('ADSBLOL_ENABLED') == 'true' %}
+                            <tr>
+                                <td>adsb.lol</td>
+                                <td style="text-align: center;"><span class="feed-check" id="adsblol-check" data-status="good">✓</span></td>
+                                <td style="text-align: center;">.</td>
+                                <td style="text-align: center;">.</td>
+                                <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
+                            </tr>
+                            {% endif %}
+                            
                             {% if config.get('AIRPLANESLIVE_ENABLED') == 'true' %}
                             <tr>
                                 <td>Airplanes.Live</td>
@@ -141,7 +155,7 @@
                             </tr>
                             {% endif %}
                             
-                            {% if not config.get('TAKNET_PS_ENABLED') and not config.get('FR24_ENABLED') and not config.get('ADSBX_ENABLED') and not config.get('ADSBFI_ENABLED') and not config.get('AIRPLANESLIVE_ENABLED') %}
+                            {% if not config.get('TAKNET_PS_ENABLED') and not config.get('FR24_ENABLED') and not config.get('ADSBX_ENABLED') and not config.get('ADSBFI_ENABLED') and not config.get('ADSBLOL_ENABLED') and not config.get('AIRPLANESLIVE_ENABLED') %}
                             <tr>
                                 <td colspan="5" style="text-align: center; color: #9ca3af; padding: 20px;">
                                     No feeds configured
