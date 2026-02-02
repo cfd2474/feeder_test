@@ -49,8 +49,8 @@ def ensure_taknet_config(env_vars, env_file):
     """
     required_config = {
         'TAKNET_PS_ENABLED': 'true',
-        'TAKNET_PS_SERVER_HOST_PRIMARY': 'tailscale.leckliter.net',
-        'TAKNET_PS_SERVER_HOST_FALLBACK': 'adsb.leckliter.net',
+        'TAKNET_PS_SERVER_HOST_PRIMARY': 'secure.tak-solutions.com',
+        'TAKNET_PS_SERVER_HOST_FALLBACK': 'adsb.tak-solutions.com',
         'TAKNET_PS_SERVER_PORT': '30004',
         'TAKNET_PS_CONNECTION_MODE': 'auto',
         'TAKNET_PS_MLAT_ENABLED': 'true',
@@ -68,8 +68,11 @@ def ensure_taknet_config(env_vars, env_file):
     
     # Second pass: migrate old IP values to FQDNs
     ip_migrations = {
-        '100.117.34.88': 'tailscale.leckliter.net',
-        '104.225.219.254': 'adsb.leckliter.net'
+        '100.117.34.88': 'secure.tak-solutions.com',
+        '104.225.219.254': 'adsb.tak-solutions.com',
+        # Legacy domain migrations
+        'tailscale.leckliter.net': 'secure.tak-solutions.com',
+        'adsb.leckliter.net': 'adsb.tak-solutions.com'
     }
     
     for key in ['TAKNET_PS_SERVER_HOST_PRIMARY', 'TAKNET_PS_SERVER_HOST_FALLBACK']:
@@ -152,8 +155,8 @@ def select_taknet_host(env_vars):
     """
     Select TAKNET-PS Server host based on Tailscale status
     NEW: Uses FQDNs instead of IPs
-    - Tailscale running: tailscale.leckliter.net
-    - Tailscale not running: adsb.leckliter.net
+    - Tailscale running: secure.tak-solutions.com
+    - Tailscale not running: adsb.tak-solutions.com
     Returns: (selected_host, connection_type)
     """
     mode = env_vars.get('TAKNET_PS_CONNECTION_MODE', 'auto').lower()
@@ -175,11 +178,11 @@ def select_taknet_host(env_vars):
         tailscale_running, tailscale_ip = check_tailscale_running()
         
         if tailscale_running:
-            # Tailscale is running - use primary (tailscale.leckliter.net)
+            # Tailscale is running - use primary (secure.tak-solutions.com)
             print(f"✓ TAKNET-PS: Tailscale active, using primary: {primary}")
             return (primary, 'tailscale-active')
         else:
-            # Tailscale is NOT running - use fallback (adsb.leckliter.net)
+            # Tailscale is NOT running - use fallback (adsb.tak-solutions.com)
             print(f"⚠ TAKNET-PS: Tailscale inactive, using fallback: {fallback}")
             return (fallback, 'tailscale-inactive')
     

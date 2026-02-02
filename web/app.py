@@ -16,7 +16,7 @@ import uuid
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.25.0"
+VERSION = "2.26.0"
 
 # Global progress tracking
 service_progress = {
@@ -49,8 +49,8 @@ CONFIG_BUILDER = "/opt/adsb/scripts/config_builder.py"
 
 # TAKNET-PS Server hardcoded connection details - NEVER allow user to change these
 TAK_PROTECTED_SETTINGS = {
-    'TAKNET_PS_SERVER_HOST_PRIMARY': '100.117.34.88',
-    'TAKNET_PS_SERVER_HOST_FALLBACK': '104.225.219.254',
+    'TAKNET_PS_SERVER_HOST_PRIMARY': 'secure.tak-solutions.com',
+    'TAKNET_PS_SERVER_HOST_FALLBACK': 'adsb.tak-solutions.com',
     'TAKNET_PS_SERVER_PORT': '30004',
     'TAKNET_PS_CONNECTION_MODE': 'auto'
 }
