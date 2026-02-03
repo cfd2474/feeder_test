@@ -404,9 +404,13 @@ async function connectTailscale() {
         return;
     }
     
-    showStatus('Installing and connecting Tailscale...', 'info');
+    // Show progress modal
+    document.getElementById('tailscaleProgressModal').style.display = 'block';
+    document.getElementById('progress-status-text').textContent = 'Starting Tailscale installation...';
+    document.getElementById('progress-details').innerHTML = '<div>[' + new Date().toLocaleTimeString() + '] Initializing...</div>';
     
     try {
+        // Start installation
         const response = await fetch('/api/tailscale/install', {
             method: 'POST',
             headers: {
@@ -419,32 +423,167 @@ async function connectTailscale() {
         
         const result = await response.json();
         
-        if (result.success) {
-            showStatus('✓ Tailscale connected successfully!', 'success');
-            
-            // Save the key to config
-            const configData = {
+        if (!response.ok) {
+            throw new Error(result.message || 'Failed to start Tailscale installation');
+        }
+        
+        // Save the key to config immediately
+        await fetch('/api/config/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 TAILSCALE_ENABLED: 'true',
                 TAILSCALE_AUTH_KEY: authKey
-            };
-            
-            await fetch('/api/config/update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(configData)
-            });
-            
-            // Wait a moment for user to see success message, then continue to location step
-            setTimeout(() => {
-                nextStep(1); // Go to location/system info step
-            }, 1500);
-        } else {
-            showStatus(`Failed to connect Tailscale: ${result.message}`, 'error');
-        }
+            })
+        });
+        
+        // Start polling for progress
+        pollTailscaleProgress();
+        
     } catch (error) {
-        showStatus(`Error connecting Tailscale: ${error.message}`, 'error');
+        console.error('Failed to connect Tailscale:', error);
+        document.getElementById('progress-status-text').textContent = 'Error: ' + error.message;
+        document.getElementById('progress-status-text').style.color = '#ef4444';
+        document.getElementById('progress-modal-buttons').style.display = 'block';
+    }
+}
+
+// Skip Tailscale and go to Location step
+function skipTailscale() {
+    // Save that Tailscale is disabled
+    fetch('/api/config/update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            TAILSCALE_ENABLED: 'false'
+        })
+    }).then(() => {
+        nextStep(1); // Go to Location step
+    }).catch(error => {
+        console.error('Failed to save Tailscale disabled:', error);
+        nextStep(1); // Go anyway
+    });
+}
+
+// Poll Tailscale installation progress
+let progressPollInterval = null;
+
+async function pollTailscaleProgress() {
+    let attempts = 0;
+    const maxAttempts = 60; // 60 seconds timeout
+    
+    progressPollInterval = setInterval(async () => {
+        attempts++;
+        
+        try {
+            const response = await fetch('/api/tailscale/progress');
+            const data = await response.json();
+            
+            updateTailscaleProgressUI(data);
+            
+            // Check if complete or failed
+            if (data.status === 'completed' || data.status === 'failed' || attempts >= maxAttempts) {
+                clearInterval(progressPollInterval);
+                
+                if (data.status === 'completed') {
+                    // Success - wait 2 seconds then proceed to next step
+                    setTimeout(() => {
+                        closeProgressModal();
+                        nextStep(1); // Go to Location step
+                    }, 2000);
+                } else {
+                    // Failed or timeout - show close button
+                    document.getElementById('progress-modal-buttons').style.display = 'block';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to poll progress:', error);
+            
+            if (attempts >= maxAttempts) {
+                clearInterval(progressPollInterval);
+                document.getElementById('progress-status-text').textContent = 'Connection timeout - check status in Settings';
+                document.getElementById('progress-status-text').style.color = '#f59e0b';
+                document.getElementById('progress-modal-buttons').style.display = 'block';
+            }
+        }
+    }, 1000); // Poll every 1 second
+}
+
+// Update Tailscale progress UI
+function updateTailscaleProgressUI(data) {
+    const statusText = document.getElementById('progress-status-text');
+    const downloadPercent = document.getElementById('download-percent');
+    const downloadProgress = document.getElementById('download-progress');
+    const installPercent = document.getElementById('install-percent');
+    const installProgress = document.getElementById('install-progress');
+    const progressDetails = document.getElementById('progress-details');
+    
+    // Update status text
+    if (data.status === 'downloading') {
+        statusText.textContent = 'Downloading Tailscale...';
+        statusText.style.color = '#374151';
+        downloadPercent.textContent = `${data.download_progress || 0}%`;
+        downloadProgress.style.width = `${data.download_progress || 0}%`;
+        installPercent.textContent = '0%';
+        installProgress.style.width = '0%';
+    } else if (data.status === 'installing') {
+        statusText.textContent = 'Installing Tailscale...';
+        statusText.style.color = '#374151';
+        downloadPercent.textContent = '100%';
+        downloadProgress.style.width = '100%';
+        installPercent.textContent = `${data.install_progress || 0}%`;
+        installProgress.style.width = `${data.install_progress || 0}%`;
+    } else if (data.status === 'connecting') {
+        statusText.textContent = 'Connecting to Tailscale network...';
+        statusText.style.color = '#374151';
+        downloadPercent.textContent = '100%';
+        downloadProgress.style.width = '100%';
+        installPercent.textContent = `${data.install_progress || 75}%`;
+        installProgress.style.width = `${data.install_progress || 75}%`;
+    } else if (data.status === 'completed') {
+        statusText.textContent = '✓ Tailscale connected successfully!';
+        statusText.style.color = '#10b981';
+        downloadPercent.textContent = '100%';
+        downloadProgress.style.width = '100%';
+        installPercent.textContent = '100%';
+        installProgress.style.width = '100%';
+    } else if (data.status === 'failed') {
+        statusText.textContent = '✗ Tailscale installation failed';
+        statusText.style.color = '#ef4444';
+    }
+    
+    // Update details
+    if (data.message) {
+        const detailLine = document.createElement('div');
+        detailLine.textContent = `[${new Date().toLocaleTimeString()}] ${data.message}`;
+        detailLine.style.marginBottom = '4px';
+        progressDetails.appendChild(detailLine);
+        progressDetails.scrollTop = progressDetails.scrollHeight;
+    }
+}
+
+// Close progress modal
+function closeProgressModal() {
+    document.getElementById('tailscaleProgressModal').style.display = 'none';
+    
+    // Reset UI
+    document.getElementById('progress-status-text').textContent = 'Initializing...';
+    document.getElementById('progress-status-text').style.color = '#374151';
+    document.getElementById('download-percent').textContent = '0%';
+    document.getElementById('download-progress').style.width = '0%';
+    document.getElementById('install-percent').textContent = '0%';
+    document.getElementById('install-progress').style.width = '0%';
+    document.getElementById('progress-details').innerHTML = '';
+    document.getElementById('progress-modal-buttons').style.display = 'none';
+    
+    // Clear polling interval if still running
+    if (progressPollInterval) {
+        clearInterval(progressPollInterval);
+        progressPollInterval = null;
     }
 }
 
