@@ -480,13 +480,9 @@ async function pollTailscaleProgress() {
                 progressPollInterval = null;
                 
                 if (data.status === 'completed') {
-                    console.log('[Tailscale Poll] ✓ Completed! Auto-proceeding to step2 (Location) in 2 seconds...');
-                    // Success - wait 2 seconds then proceed to next step
-                    setTimeout(() => {
-                        closeProgressModal();
-                        console.log('[Tailscale Poll] Calling nextStep(2) to go to Location');
-                        nextStep(2); // Go to Location step (step2)
-                    }, 2000);
+                    console.log('[Tailscale Poll] ✓ Completed! User must click Continue button.');
+                    // Success - show Continue button (no auto-proceed)
+                    // User must manually click to continue
                 } else if (data.status === 'failed') {
                     console.error('[Tailscale Poll] ✗ Failed:', data.message);
                     // Failed - show close button with option to continue anyway
@@ -547,6 +543,15 @@ function updateTailscaleProgressUI(data) {
     let currentLabelText = '';
     let currentPercentText = '';
     
+    // Helper function to format bytes
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 10) / 10 + ' ' + sizes[i];
+    }
+    
     // Calculate overall and current progress based on phase
     if (data.status === 'downloading') {
         // Download phase: 0-40% overall
@@ -554,7 +559,16 @@ function updateTailscaleProgressUI(data) {
         overallValue = Math.floor(downloadProgress * 0.40);  // 0-40%
         currentValue = downloadProgress;
         currentLabelText = 'Downloading Tailscale';
-        currentPercentText = `${downloadProgress}%`;
+        
+        // Show file size if available
+        if (data.download_bytes && data.total_bytes) {
+            const downloaded = formatBytes(data.download_bytes);
+            const total = formatBytes(data.total_bytes);
+            currentPercentText = `${downloaded} / ${total}`;
+        } else {
+            currentPercentText = `${downloadProgress}%`;
+        }
+        
         statusText.textContent = 'Downloading Tailscale...';
         statusText.style.color = '#374151';
         
@@ -587,7 +601,7 @@ function updateTailscaleProgressUI(data) {
         statusText.textContent = '✓ Tailscale connected successfully!';
         statusText.style.color = '#10b981';
         
-        // Show Continue button immediately (in case auto-proceed fails)
+        // Show Continue button (user must click - no auto-proceed)
         const buttonsDiv = document.getElementById('progress-modal-buttons');
         buttonsDiv.style.display = 'block';
         buttonsDiv.innerHTML = `
