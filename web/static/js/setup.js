@@ -82,47 +82,9 @@ async function initializeOfflineMode() {
 // Setup wizard navigation
 function nextStep(step) {
     console.log("=== nextStep called, step:", step);
-    // Validate step 1 (location AND feeder name) before allowing navigation to step 2
-    if (step === 2) {
-        console.log("Validating for step 2...");
-        const lat = document.getElementById('lat').value.trim();
-        const lon = document.getElementById('lon').value.trim();
-        const alt = document.getElementById('alt').value.trim();
-        const tz = document.getElementById('tz').value;
-        const siteName = document.getElementById('site_name').value.trim();
-        
-        console.log("Field values:", {lat, lon, alt, tz, siteName});
-        // Check required fields (including site_name!)
-        if (!lat || !lon || !alt || !tz) {
-            showStatus('Please fill in all required location fields', 'error');
-            return;
-        }
-        
-        if (!siteName) {
-            showStatus('Please enter a feeder name', 'error');
-            return;
-        }
-        
-        // Validate coordinate format
-        const latPattern = /^-?\d+\.\d+$/;
-        const lonPattern = /^-?\d+\.\d+$/;
-        const altPattern = /^\d+$/;
-        
-        if (!latPattern.test(lat)) {
-            showStatus('Latitude must be in decimal format (e.g., 33.55390)', 'error');
-            return;
-        }
-        
-        if (!lonPattern.test(lon)) {
-            showStatus('Longitude must be in decimal format (e.g., -117.21390)', 'error');
-            return;
-        }
-        
-        if (!altPattern.test(alt)) {
-            showStatus('Altitude must be a whole number (e.g., 304)', 'error');
-            return;
-        }
-    }
+    
+    // No validation needed here anymore - we validate in saveAndStart() instead
+    // Old logic validated location BEFORE showing step2, but now step2 IS the location form (empty!)
     
     // Navigation approved - show next step
     document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
@@ -188,10 +150,12 @@ async function saveAndStart() {
     const siteName = document.getElementById('site_name').value.trim();
     const userZipCode = document.getElementById('zip_code').value.trim();
     
+    console.log('=== saveAndStart called - validating Location fields ===');
+    
     // Validate required fields
     if (!lat || !lon || !alt) {
         showStatus('Please enter latitude, longitude, and altitude', 'error');
-        nextStep(1);
+        // Stay on current page (Location = step2)
         return;
     }
     
@@ -201,27 +165,29 @@ async function saveAndStart() {
     
     if (!latPattern.test(lat)) {
         showStatus('Latitude must be in decimal format (e.g., 33.55390)', 'error');
-        nextStep(1);
+        // Stay on current page (Location = step2)
         return;
     }
     
     if (!lonPattern.test(lon)) {
         showStatus('Longitude must be in decimal format (e.g., -117.21390)', 'error');
-        nextStep(1);
+        // Stay on current page (Location = step2)
         return;
     }
     
     if (!tz) {
         showStatus('Please select a timezone', 'error');
-        nextStep(1);
+        // Stay on current page (Location = step2)
         return;
     }
     
     if (!siteName) {
         showStatus('Please enter a feeder name', 'error');
-        nextStep(1);
+        // Stay on current page (Location = step2)
         return;
     }
+    
+    console.log('✅ Validation passed - processing configuration...');
     
     let finalSiteName;
     let zipCode;
