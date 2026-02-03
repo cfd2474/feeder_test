@@ -410,3 +410,80 @@ function showSuccessOverlay(message, detail) {
     `;
     overlay.style.display = 'flex';
 }
+
+// Enable/disable Connect Tailscale button based on key input
+function checkTailscaleKey() {
+    const keyInput = document.getElementById('tailscale_key');
+    const connectBtn = document.getElementById('connect-tailscale-btn');
+    
+    if (keyInput && connectBtn) {
+        const key = keyInput.value.trim();
+        // Enable button if key looks valid (starts with tskey- and is reasonably long)
+        const isValidFormat = key.startsWith('tskey-') && key.length > 20;
+        connectBtn.disabled = !isValidFormat;
+    }
+}
+
+// Connect Tailscale with auth key
+async function connectTailscale() {
+    const keyInput = document.getElementById('tailscale_key');
+    const authKey = keyInput.value.trim();
+    
+    if (!authKey) {
+        showStatus('Please enter a Tailscale auth key', 'error');
+        return;
+    }
+    
+    showStatus('Installing and connecting Tailscale...', 'info');
+    
+    try {
+        const response = await fetch('/api/tailscale/install', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                auth_key: authKey
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showStatus('✓ Tailscale connected successfully!', 'success');
+            
+            // Save the key to config
+            const configData = {
+                TAILSCALE_ENABLED: 'true',
+                TAILSCALE_AUTH_KEY: authKey
+            };
+            
+            await fetch('/api/config/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(configData)
+            });
+            
+            // Wait a moment for user to see success message, then continue to location step
+            setTimeout(() => {
+                nextStep(1); // Go to location/system info step
+            }, 1500);
+        } else {
+            showStatus(`Failed to connect Tailscale: ${result.message}`, 'error');
+        }
+    } catch (error) {
+        showStatus(`Error connecting Tailscale: ${error.message}`, 'error');
+    }
+}
+
+// Initialize Tailscale key checking
+document.addEventListener('DOMContentLoaded', function() {
+    const keyInput = document.getElementById('tailscale_key');
+    if (keyInput) {
+        keyInput.addEventListener('input', checkTailscaleKey);
+        // Check on page load in case value is pre-filled
+        checkTailscaleKey();
+    }
+});

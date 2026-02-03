@@ -16,7 +16,7 @@ import uuid
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.26.0"
+VERSION = "2.27.0"
 
 # Global progress tracking
 service_progress = {
@@ -572,6 +572,13 @@ def settings():
     """Settings page"""
     env = read_env()
     return render_template('settings.html', config=env)
+
+@app.route('/feeds')
+def feeds():
+    """Feeds configuration page"""
+    env = read_env()
+    feeder_uuid = get_or_create_feeder_uuid()
+    return render_template('feeds.html', config=env, feeder_uuid=feeder_uuid, version=VERSION)
 
 # API Endpoints
 

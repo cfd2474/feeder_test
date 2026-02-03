@@ -73,6 +73,7 @@
             <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
             <nav>
                 <a href="/dashboard">Dashboard</a>
+                <a href="/feeds">Feeds</a>
                 <a href="/settings" class="active">Settings</a>
                 <a href="/logs">Logs</a>
                 <a href="http://{{ request.host.split(':')[0] }}:8080" target="_blank">Map</a>
@@ -265,66 +266,10 @@
                 </div>
             </div>
 
-            <div class="card">
-                <h3>FlightRadar24</h3>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="fr24_enabled" {{ 'checked' if config.get('FR24_ENABLED') == 'true' else '' }}>
-                        Enable FR24
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>Sharing Key</label>
-                    <input type="text" id="fr24_key" value="{{ config.get('FR24_SHARING_KEY', '') }}">
-                </div>
-                <div class="form-group" style="margin-top: 15px;">
-                    <button class="btn btn-primary" onclick="activateFR24()">🚀 Activate FR24 Service</button>
-                    <small style="color: #666; display: block; margin-top: 5px;">
-                        This will install and start the FR24 feeder container
-                    </small>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>adsb.fi</h3>
-                <p style="margin-bottom: 15px; color: #6b7280; font-size: 0.9em;">
-                    ✈️ Community-driven flight tracker with hundreds of feeders worldwide
+            <div class="info-box" style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; margin-top: 20px;">
+                <p style="margin: 0; color: #1e40af;">
+                    📡 <strong>Configure Additional Feeds:</strong> To enable FlightRadar24, Airplanes.Live, adsb.fi, and adsb.lol, visit the <a href="/feeds" style="color: #2563eb; font-weight: 600;">Feeds</a> page.
                 </p>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="adsbfi_enabled" {{ 'checked' if config.get('ADSBFI_ENABLED') == 'true' else '' }}>
-                        Enable adsb.fi Feed
-                    </label>
-                </div>
-                <div class="info-box" style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; margin-top: 15px;">
-                    <p style="margin: 0; color: #1e40af; font-size: 0.85em;">
-                        ℹ️ <strong>No UUID required!</strong> adsb.fi will automatically track your station. 
-                        Visit <a href="https://adsb.fi" target="_blank" style="color: #2563eb;">adsb.fi</a> after feeding to see your station.
-                    </p>
-                </div>
-            </div>
-
-            <!-- adsb.lol Configuration -->
-            <div class="setting-section">
-                <h2>🌐 adsb.lol</h2>
-                <p class="setting-description">
-                    📡 Open-source ADS-B aggregator with focus on community and data quality
-                </p>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="adsblol_enabled" {{ 'checked' if config.get('ADSBLOL_ENABLED') == 'true' else '' }}>
-                        Enable adsb.lol Feed
-                    </label>
-                </div>
-                <div class="info-box" style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 12px; margin-top: 15px;">
-                    <p style="margin: 0 0 8px 0; color: #065f46; font-size: 0.85em;">
-                        ℹ️ <strong>Automatic UUID:</strong> adsb.lol uses your feeder UUID for identification.
-                    </p>
-                    <p style="margin: 0; color: #047857; font-size: 0.85em;">
-                        Your UUID is shown in the "Core Service" section on the dashboard.
-                        Visit <a href="https://adsb.lol" target="_blank" style="color: #059669;">adsb.lol</a> to track your feeder.
-                    </p>
-                </div>
             </div>
 
             <div class="actions">
@@ -636,58 +581,6 @@
             location.reload();
         }
         
-        // FR24 Activation Function
-        async function activateFR24() {
-            const fr24Enabled = document.getElementById('fr24_enabled').checked;
-            const fr24Key = document.getElementById('fr24_key').value.trim();
-            
-            if (!fr24Enabled) {
-                showStatus('Please enable FR24 checkbox first', 'error');
-                return;
-            }
-            
-            if (!fr24Key) {
-                showStatus('Please enter FR24 sharing key first', 'error');
-                return;
-            }
-            
-            // Save FR24 config first
-            try {
-                showStatus('Saving FR24 configuration...', 'info');
-                
-                const saveResponse = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        FR24_ENABLED: 'true',
-                        FR24_SHARING_KEY: fr24Key
-                    })
-                });
-                
-                if (!saveResponse.ok) {
-                    throw new Error('Failed to save FR24 configuration');
-                }
-                
-                // Now activate FR24 service
-                const activateResponse = await fetch('/api/fr24/activate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                const result = await activateResponse.json();
-                
-                if (result.success) {
-                    // Show progress modal
-                    showServiceProgressModal('fr24');
-                } else {
-                    showStatus('Error: ' + result.message, 'error');
-                }
-                
-            } catch (error) {
-                showStatus('Error: ' + error.message, 'error');
-            }
-        }
-        
         function displayTailscaleStatus(statusData) {
             const statusDiv = document.getElementById('tailscale-status');
             const contentDiv = document.getElementById('tailscale-status-content');
@@ -783,14 +676,7 @@
                 TAILSCALE_AUTH_KEY: document.getElementById('tailscale_key').value.trim(),
                 
                 TAKNET_PS_ENABLED: document.getElementById('tak_enabled').checked ? 'true' : 'false',
-                TAKNET_PS_MLAT_ENABLED: document.getElementById('tak_mlat_enabled').checked ? 'true' : 'false',
-                
-                FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
-                FR24_SHARING_KEY: document.getElementById('fr24_key').value,
-                
-                ADSBFI_ENABLED: document.getElementById('adsbfi_enabled').checked ? 'true' : 'false',
-                
-                ADSBLOL_ENABLED: document.getElementById('adsblol_enabled').checked ? 'true' : 'false'
+                TAKNET_PS_MLAT_ENABLED: document.getElementById('tak_mlat_enabled').checked ? 'true' : 'false'
             };
             
             try {

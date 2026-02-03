@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feeds - TAKNET-PS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
+            <p style="margin: 5px 0 5px 0; color: #9ca3af; font-size: 0.9em;">Tactical Awareness Kit Network for Enhanced Tracking – Public Safety</p>
+            <p style="margin: 0 0 15px 0; color: #6b7280; font-size: 0.8em;">v{{ version }}</p>
+            <nav>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/feeds" class="active">Feeds</a>
+                <a href="/settings">Settings</a>
+                <a href="/logs">Logs</a>
+                <a href="http://{{ request.host.split(':')[0] }}:8080" target="_blank">Map</a>
+            </nav>
+        </header>
+
+        <div class="settings-container">
+            <h2>📡 Data Feed Configuration</h2>
+            <p class="text-muted">Configure which aggregators receive your ADS-B data</p>
+
+            <!-- UUID Display -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 30px;">
+                <h3 style="color: white; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 32px;">🆔</span>
+                    <span>Your Feeder UUID</span>
+                </h3>
+                <p style="font-family: monospace; font-size: 1.1em; background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    {{ feeder_uuid }}
+                </p>
+                <p style="margin: 0; opacity: 0.9;">
+                    This UUID uniquely identifies your feeder to aggregators like Airplanes.Live and adsb.lol
+                </p>
+            </div>
+
+            <!-- TAKNET-PS Server -->
+            <div class="card">
+                <h3>🎯 TAKNET-PS Server (Always Active)</h3>
+                <p style="color: #6b7280; margin-bottom: 15px;">
+                    Primary aggregator - automatically configured and always enabled
+                </p>
+                <div class="status-indicator" style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; border-radius: 8px;">
+                    <p style="margin: 0; color: #2e7d32; font-weight: 500;">✓ Active and feeding data</p>
+                    <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #666;">
+                        Connection: {{ 'Tailscale VPN' if config.get('TAILSCALE_ENABLED') == 'true' else 'Public Internet' }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- FlightRadar24 -->
+            <div class="card">
+                <h3>✈️ FlightRadar24</h3>
+                <p style="color: #6b7280;">Popular flight tracking service</p>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="fr24_enabled" {{ 'checked' if config.get('FR24_ENABLED') == 'true' else '' }}>
+                        <strong>Enable FlightRadar24 Feed</strong>
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label>FR24 Sharing Key</label>
+                    <input type="text" id="fr24_key" placeholder="Your FlightRadar24 sharing key" value="{{ config.get('FR24_SHARING_KEY', '') }}">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Required to send data to FlightRadar24
+                    </small>
+                </div>
+            </div>
+
+            <!-- Airplanes.Live -->
+            <div class="card">
+                <h3>🛫 Airplanes.Live</h3>
+                <p style="color: #6b7280;">Open-source flight tracking platform</p>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="airplaneslive_enabled" {{ 'checked' if config.get('AIRPLANESLIVE_ENABLED') == 'true' else '' }}>
+                        <strong>Enable Airplanes.Live Feed</strong>
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label>UUID (auto-populated)</label>
+                    <input type="text" id="airplaneslive_uuid" value="{{ config.get('AIRPLANESLIVE_UUID', feeder_uuid) }}" readonly style="background: #f3f4f6; color: #6b7280;">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        ℹ️ Using your feeder UUID automatically
+                    </small>
+                </div>
+            </div>
+
+            <!-- adsb.fi -->
+            <div class="card">
+                <h3>🌍 adsb.fi</h3>
+                <p style="color: #6b7280;">Community flight tracker - No registration required</p>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="adsbfi_enabled" {{ 'checked' if config.get('ADSBFI_ENABLED') == 'true' else '' }}>
+                        <strong>Enable adsb.fi Feed</strong>
+                    </label>
+                </div>
+            </div>
+
+            <!-- adsb.lol -->
+            <div class="card">
+                <h3>😄 adsb.lol</h3>
+                <p style="color: #6b7280;">Open-source aggregator with automatic UUID</p>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="adsblol_enabled" {{ 'checked' if config.get('ADSBLOL_ENABLED') == 'true' else '' }}>
+                        <strong>Enable adsb.lol Feed</strong>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div style="margin-top: 30px; display: flex; gap: 15px;">
+                <button class="btn btn-success" onclick="saveFeeds()">💾 Save Feed Configuration</button>
+            </div>
+
+            <div id="status" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            const colors = {
+                'success': '#10b981',
+                'error': '#ef4444',
+                'info': '#3b82f6'
+            };
+            
+            statusDiv.innerHTML = `
+                <div style="padding: 15px; background: ${colors[type]}22; border-left: 4px solid ${colors[type]}; border-radius: 8px;">
+                    <p style="margin: 0; color: ${colors[type]}; font-weight: 500;">${message}</p>
+                </div>
+            `;
+            
+            // Auto-hide after 5 seconds for success messages
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        async function saveFeeds() {
+            showStatus('Saving feed configuration...', 'info');
+            
+            const config = {
+                FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
+                FR24_SHARING_KEY: document.getElementById('fr24_key').value.trim(),
+                AIRPLANESLIVE_ENABLED: document.getElementById('airplaneslive_enabled').checked ? 'true' : 'false',
+                AIRPLANESLIVE_UUID: document.getElementById('airplaneslive_uuid').value.trim(),
+                ADSBFI_ENABLED: document.getElementById('adsbfi_enabled').checked ? 'true' : 'false',
+                ADSBLOL_ENABLED: document.getElementById('adsblol_enabled').checked ? 'true' : 'false'
+            };
+            
+            try {
+                const response = await fetch('/api/config/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus('✓ Feed configuration saved successfully! Rebuilding configuration...', 'success');
+                    
+                    // Rebuild config
+                    const rebuildResponse = await fetch('/api/config/rebuild', {
+                        method: 'POST'
+                    });
+                    
+                    if (rebuildResponse.ok) {
+                        showStatus('✓ Configuration rebuilt! Restarting services...', 'success');
+                        
+                        // Restart ultrafeeder
+                        await fetch('/api/restart', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ service: 'ultrafeeder' })
+                        });
+                        
+                        showStatus('✓ Feed configuration updated successfully! Services restarted.', 'success');
+                    }
+                } else {
+                    showStatus('Failed to save configuration', 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
