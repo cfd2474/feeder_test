@@ -399,10 +399,14 @@ async function connectTailscale() {
     const keyInput = document.getElementById('tailscale_key');
     const authKey = keyInput.value.trim();
     
+    console.log('=== connectTailscale called ===');
+    
     if (!authKey) {
         showStatus('Please enter a Tailscale auth key', 'error');
         return;
     }
+    
+    console.log('Auth key provided, showing modal...');
     
     // Show progress modal
     document.getElementById('tailscaleProgressModal').style.display = 'block';
@@ -410,6 +414,8 @@ async function connectTailscale() {
     document.getElementById('progress-details').innerHTML = '<div>[' + new Date().toLocaleTimeString() + '] Initializing...</div>';
     
     try {
+        console.log('Calling /api/tailscale/install...');
+        
         // Start installation
         const response = await fetch('/api/tailscale/install', {
             method: 'POST',
@@ -422,10 +428,13 @@ async function connectTailscale() {
         });
         
         const result = await response.json();
+        console.log('Install API response:', result);
         
         if (!response.ok) {
             throw new Error(result.message || 'Failed to start Tailscale installation');
         }
+        
+        console.log('Saving config...');
         
         // Save the key to config immediately
         await fetch('/api/config/update', {
@@ -439,6 +448,8 @@ async function connectTailscale() {
             })
         });
         
+        console.log('Config saved, starting progress polling...');
+        
         // Start polling for progress
         pollTailscaleProgress();
         
@@ -447,11 +458,18 @@ async function connectTailscale() {
         document.getElementById('progress-status-text').textContent = 'Error: ' + error.message;
         document.getElementById('progress-status-text').style.color = '#ef4444';
         document.getElementById('progress-modal-buttons').style.display = 'block';
+        
+        const buttonsDiv = document.getElementById('progress-modal-buttons');
+        buttonsDiv.innerHTML = `
+            <button class="btn" onclick="closeProgressModal()">Close</button>
+            <button class="btn btn-primary" onclick="closeProgressModal(); nextStep(2);">Continue Anyway →</button>
+        `;
     }
 }
 
 // Skip Tailscale and go to Location step
 function skipTailscale() {
+    console.log('=== skipTailscale called - going to step2 (Location)');
     // Save that Tailscale is disabled
     fetch('/api/config/update', {
         method: 'POST',
@@ -462,10 +480,12 @@ function skipTailscale() {
             TAILSCALE_ENABLED: 'false'
         })
     }).then(() => {
-        nextStep(1); // Go to Location step
+        console.log('Tailscale disabled saved, navigating to step2');
+        nextStep(2); // Go to Location step (step2)
     }).catch(error => {
         console.error('Failed to save Tailscale disabled:', error);
-        nextStep(1); // Go anyway
+        console.log('Navigating to step2 anyway');
+        nextStep(2); // Go anyway to Location step (step2)
     });
 }
 
@@ -474,40 +494,73 @@ let progressPollInterval = null;
 
 async function pollTailscaleProgress() {
     let attempts = 0;
-    const maxAttempts = 60; // 60 seconds timeout
+    const maxAttempts = 120; // 120 seconds timeout (increased from 60)
     
     progressPollInterval = setInterval(async () => {
         attempts++;
+        console.log(`[Tailscale Poll] Attempt ${attempts}/${maxAttempts}`);
         
         try {
             const response = await fetch('/api/tailscale/progress');
             const data = await response.json();
+            
+            console.log('[Tailscale Poll] Progress data:', data);
             
             updateTailscaleProgressUI(data);
             
             // Check if complete or failed
             if (data.status === 'completed' || data.status === 'failed' || attempts >= maxAttempts) {
                 clearInterval(progressPollInterval);
+                progressPollInterval = null;
                 
                 if (data.status === 'completed') {
+                    console.log('[Tailscale Poll] ✓ Completed! Auto-proceeding to step2 (Location) in 2 seconds...');
                     // Success - wait 2 seconds then proceed to next step
                     setTimeout(() => {
                         closeProgressModal();
-                        nextStep(1); // Go to Location step
+                        console.log('[Tailscale Poll] Calling nextStep(2) to go to Location');
+                        nextStep(2); // Go to Location step (step2)
                     }, 2000);
-                } else {
-                    // Failed or timeout - show close button
+                } else if (data.status === 'failed') {
+                    console.error('[Tailscale Poll] ✗ Failed:', data.message);
+                    // Failed - show close button with option to continue anyway
                     document.getElementById('progress-modal-buttons').style.display = 'block';
+                    
+                    // Add "Continue Anyway" button
+                    const buttonsDiv = document.getElementById('progress-modal-buttons');
+                    buttonsDiv.innerHTML = `
+                        <button class="btn" onclick="closeProgressModal()">Close</button>
+                        <button class="btn btn-primary" onclick="closeProgressModal(); nextStep(2);">Continue to Location →</button>
+                    `;
+                } else {
+                    console.warn('[Tailscale Poll] ⏱ Timeout after', maxAttempts, 'seconds');
+                    // Timeout - show option to continue anyway
+                    document.getElementById('progress-status-text').textContent = 'Connection taking longer than expected...';
+                    document.getElementById('progress-status-text').style.color = '#f59e0b';
+                    document.getElementById('progress-modal-buttons').style.display = 'block';
+                    
+                    const buttonsDiv = document.getElementById('progress-modal-buttons');
+                    buttonsDiv.innerHTML = `
+                        <button class="btn" onclick="closeProgressModal()">Stay Here</button>
+                        <button class="btn btn-primary" onclick="closeProgressModal(); nextStep(2);">Continue Anyway →</button>
+                    `;
                 }
             }
         } catch (error) {
-            console.error('Failed to poll progress:', error);
+            console.error('[Tailscale Poll] Error:', error);
             
             if (attempts >= maxAttempts) {
                 clearInterval(progressPollInterval);
+                progressPollInterval = null;
                 document.getElementById('progress-status-text').textContent = 'Connection timeout - check status in Settings';
                 document.getElementById('progress-status-text').style.color = '#f59e0b';
                 document.getElementById('progress-modal-buttons').style.display = 'block';
+                
+                const buttonsDiv = document.getElementById('progress-modal-buttons');
+                buttonsDiv.innerHTML = `
+                    <button class="btn" onclick="closeProgressModal()">Close</button>
+                    <button class="btn btn-primary" onclick="closeProgressModal(); nextStep(2);">Continue to Location →</button>
+                `;
             }
         }
     }, 1000); // Poll every 1 second
@@ -551,6 +604,13 @@ function updateTailscaleProgressUI(data) {
         downloadProgress.style.width = '100%';
         installPercent.textContent = '100%';
         installProgress.style.width = '100%';
+        
+        // Show Continue button immediately (in case auto-proceed fails)
+        const buttonsDiv = document.getElementById('progress-modal-buttons');
+        buttonsDiv.style.display = 'block';
+        buttonsDiv.innerHTML = `
+            <button class="btn btn-primary" onclick="closeProgressModal(); nextStep(2);">Continue to Location →</button>
+        `;
     } else if (data.status === 'failed') {
         statusText.textContent = '✗ Connection Failed';
         statusText.style.color = '#ef4444';
