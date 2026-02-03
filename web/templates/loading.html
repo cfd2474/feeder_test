@@ -236,9 +236,8 @@
                 
                 // Step 2: Install & Configure Tailscale (if enabled)
                 if (config.TAILSCALE_ENABLED === 'true' && config.TAILSCALE_AUTH_KEY) {
-                    updateServiceProgress('Step 2: Tailscale VPN', 0, 'Installing...');
-                    addStatusLine('🔐', 'Installing Tailscale VPN...', 'pending');
-                    addStatusLine('ℹ', 'This may take 30-90 seconds on first install...', 'info');
+                    updateServiceProgress('Step 2: Tailscale VPN', 0, 'Checking...');
+                    addStatusLine('🔐', 'Checking for Tailscale...', 'pending');
                     
                     try {
                         updateServiceProgress('Step 2: Tailscale VPN', 25, 'Downloading...');
