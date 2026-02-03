@@ -16,7 +16,7 @@ import uuid
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.27.2"
+VERSION = "2.28.0"
 
 # Global progress tracking
 service_progress = {
@@ -27,6 +27,16 @@ service_progress = {
     'details': ''
 }
 progress_lock = threading.Lock()
+
+# Tailscale installation progress tracking
+tailscale_progress = {
+    'status': 'idle',  # idle, downloading, installing, connecting, completed, failed
+    'download_progress': 0,
+    'install_progress': 0,
+    'message': '',
+    'error': None
+}
+tailscale_progress_lock = threading.Lock()
 
 def update_progress(service, progress, total=100, status='', details=''):
     """Update global progress state"""
@@ -491,21 +501,172 @@ def install_tailscale(auth_key=None, hostname=None):
         return {'success': False, 'message': str(e)}
 
 def get_tailscale_status():
-    """Get Tailscale connection status"""
+    """Get Tailscale connection status with detailed information"""
     try:
         tailscale_bin = '/usr/bin/tailscale'
-        result = subprocess.run([tailscale_bin, 'status'], 
+        
+        # Check if installed
+        if not os.path.exists(tailscale_bin):
+            return {
+                'installed': False,
+                'connected': False,
+                'message': 'Tailscale not installed'
+            }
+        
+        # Get status
+        result = subprocess.run([tailscale_bin, 'status', '--json'], 
                                capture_output=True, text=True, timeout=5)
         
         if result.returncode == 0:
-            return {'success': True, 'status': result.stdout}
+            try:
+                status_data = json.loads(result.stdout)
+                
+                # Check if connected (BackendState should be "Running")
+                backend_state = status_data.get('BackendState', '')
+                connected = backend_state == 'Running'
+                
+                # Get self info
+                self_info = status_data.get('Self', {})
+                ip = self_info.get('TailscaleIPs', [''])[0] if self_info.get('TailscaleIPs') else None
+                hostname = self_info.get('DNSName', '').rstrip('.')
+                
+                return {
+                    'installed': True,
+                    'connected': connected,
+                    'ip': ip,
+                    'hostname': hostname,
+                    'backend_state': backend_state
+                }
+            except json.JSONDecodeError:
+                # Fall back to non-JSON status
+                result = subprocess.run([tailscale_bin, 'status'], 
+                                       capture_output=True, text=True, timeout=5)
+                return {
+                    'installed': True,
+                    'connected': 'running' in result.stdout.lower(),
+                    'message': 'Connected' if result.returncode == 0 else 'Not connected'
+                }
         else:
-            return {'success': False, 'status': 'Tailscale not running'}
+            return {
+                'installed': True,
+                'connected': False,
+                'message': 'Tailscale installed but not running'
+            }
             
     except FileNotFoundError:
-        return {'success': False, 'status': 'Tailscale not installed'}
+        return {
+            'installed': False,
+            'connected': False,
+            'message': 'Tailscale not installed'
+        }
     except Exception as e:
-        return {'success': False, 'status': str(e)}
+        return {
+            'installed': False,
+            'connected': False,
+            'error': str(e)
+        }
+
+def update_tailscale_progress(status, download_progress=0, install_progress=0, message=''):
+    """Update global Tailscale progress state"""
+    global tailscale_progress
+    with tailscale_progress_lock:
+        tailscale_progress['status'] = status
+        tailscale_progress['download_progress'] = download_progress
+        tailscale_progress['install_progress'] = install_progress
+        tailscale_progress['message'] = message
+        print(f"[Tailscale Progress] {status}: {message} (download: {download_progress}%, install: {install_progress}%)")
+
+def install_tailscale_with_progress(auth_key=None, hostname=None):
+    """Install and configure Tailscale with progress tracking"""
+    try:
+        tailscale_bin = '/usr/bin/tailscale'
+        
+        # Check if already installed
+        check_result = subprocess.run(['which', 'tailscale'], 
+                                     capture_output=True, timeout=5)
+        
+        was_just_installed = False
+        if check_result.returncode != 0:
+            # Install Tailscale with progress tracking
+            update_tailscale_progress('downloading', 10, 0, 'Downloading Tailscale installer...')
+            
+            install_cmd = 'curl -fsSL https://tailscale.com/install.sh | sh'
+            
+            # Start installation process
+            update_tailscale_progress('downloading', 50, 0, 'Running installation script...')
+            
+            install_result = subprocess.run(install_cmd, shell=True, timeout=120, 
+                                          capture_output=True, text=True)
+            
+            if install_result.returncode != 0:
+                update_tailscale_progress('failed', 0, 0, f'Installation failed: {install_result.stderr}')
+                return
+            
+            # Verify installation succeeded
+            if not os.path.exists(tailscale_bin):
+                update_tailscale_progress('failed', 0, 0, 'Installation completed but binary not found')
+                return
+            
+            update_tailscale_progress('installing', 100, 30, 'Tailscale installed successfully')
+            was_just_installed = True
+        else:
+            # Already installed, skip download phase
+            update_tailscale_progress('installing', 100, 30, 'Tailscale already installed')
+        
+        # If auth key provided, authenticate
+        if auth_key:
+            # Only run 'down' if Tailscale was already installed
+            if not was_just_installed:
+                update_tailscale_progress('installing', 100, 40, 'Clearing previous connection...')
+                try:
+                    subprocess.run([tailscale_bin, 'down'], timeout=10, capture_output=True)
+                except Exception as e:
+                    print(f"⚠ Warning: Could not run 'tailscale down': {e}")
+            
+            # Build up command with optional hostname
+            cmd = [tailscale_bin, 'up', '--authkey', auth_key]
+            
+            if hostname:
+                cmd.extend(['--hostname', hostname])
+            
+            update_tailscale_progress('connecting', 100, 60, f'Connecting to Tailscale network...')
+            
+            # Up with new key and hostname
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode != 0:
+                update_tailscale_progress('failed', 100, 60, f'Authentication failed: {result.stderr}')
+                return
+            
+            update_tailscale_progress('connecting', 100, 80, 'Connected to Tailscale network')
+        else:
+            # Just start Tailscale (no auth key provided)
+            update_tailscale_progress('connecting', 100, 60, 'Starting Tailscale...')
+            result = subprocess.run([tailscale_bin, 'up'], timeout=30, 
+                                  capture_output=True, text=True)
+            if result.returncode != 0:
+                update_tailscale_progress('failed', 100, 60, f'Failed to start: {result.stderr}')
+                return
+        
+        # Configure SSH for Tailscale-only access
+        update_tailscale_progress('connecting', 100, 90, 'Configuring SSH security...')
+        try:
+            ssh_config_script = '/opt/adsb/configure-ssh-tailscale.sh'
+            if os.path.exists(ssh_config_script):
+                subprocess.run(['bash', ssh_config_script], 
+                             capture_output=True, 
+                             timeout=10,
+                             check=False)
+        except Exception as e:
+            print(f"⚠️ SSH configuration failed (non-critical): {e}")
+        
+        # Success!
+        update_tailscale_progress('completed', 100, 100, 'Tailscale connected successfully!')
+        
+    except subprocess.TimeoutExpired:
+        update_tailscale_progress('failed', 0, 0, 'Installation timed out')
+    except Exception as e:
+        update_tailscale_progress('failed', 0, 0, str(e))
 
 # Routes
 @app.route('/')
@@ -723,12 +884,26 @@ def api_install_tailscale():
         auth_key = data.get('auth_key', None)
         hostname = data.get('hostname', None)
         
-        result = install_tailscale(auth_key, hostname)
+        # Reset progress
+        global tailscale_progress
+        with tailscale_progress_lock:
+            tailscale_progress = {
+                'status': 'downloading',
+                'download_progress': 0,
+                'install_progress': 0,
+                'message': 'Starting installation...',
+                'error': None
+            }
         
-        if result['success']:
-            return jsonify(result)
-        else:
-            return jsonify(result), 500
+        # Start installation in background thread
+        install_thread = threading.Thread(
+            target=install_tailscale_with_progress, 
+            args=(auth_key, hostname),
+            daemon=True
+        )
+        install_thread.start()
+        
+        return jsonify({'success': True, 'message': 'Installation started'})
             
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -741,6 +916,13 @@ def api_tailscale_status():
         return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'status': str(e)}), 500
+
+@app.route('/api/tailscale/progress', methods=['GET'])
+def api_tailscale_progress():
+    """Get Tailscale installation progress"""
+    global tailscale_progress
+    with tailscale_progress_lock:
+        return jsonify(tailscale_progress)
 
 @app.route('/api/fr24/activate', methods=['POST'])
 def api_activate_fr24():
