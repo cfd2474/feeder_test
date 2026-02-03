@@ -552,8 +552,28 @@ function updateTailscaleProgressUI(data) {
         installPercent.textContent = '100%';
         installProgress.style.width = '100%';
     } else if (data.status === 'failed') {
-        statusText.textContent = '✗ Tailscale installation failed';
+        statusText.textContent = '✗ Connection Failed';
         statusText.style.color = '#ef4444';
+        
+        // Show error details
+        if (data.message || data.error) {
+            const errorMessage = data.message || data.error || 'Unknown error occurred';
+            const errorDetail = document.createElement('div');
+            errorDetail.style.marginTop = '15px';
+            errorDetail.style.padding = '12px';
+            errorDetail.style.background = '#fee2e2';
+            errorDetail.style.border = '1px solid #ef4444';
+            errorDetail.style.borderRadius = '6px';
+            errorDetail.style.color = '#991b1b';
+            errorDetail.innerHTML = `<strong>Error:</strong> ${errorMessage}`;
+            
+            // Only add if not already there
+            const existingError = progressDetails.querySelector('.error-detail');
+            if (!existingError) {
+                errorDetail.className = 'error-detail';
+                progressDetails.appendChild(errorDetail);
+            }
+        }
     }
     
     // Update details

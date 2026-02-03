@@ -16,7 +16,7 @@ import uuid
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.29.0"
+VERSION = "2.29.1"
 
 # Global progress tracking
 service_progress = {
@@ -638,7 +638,7 @@ def install_tailscale_with_progress(auth_key=None, hostname=None):
                 update_tailscale_progress('failed', 100, 60, f'Authentication failed: {result.stderr}')
                 return
             
-            update_tailscale_progress('connecting', 100, 80, 'Connected to Tailscale network')
+            update_tailscale_progress('connecting', 100, 80, 'Verifying connection...')
         else:
             # Just start Tailscale (no auth key provided)
             update_tailscale_progress('connecting', 100, 60, 'Starting Tailscale...')
@@ -647,6 +647,35 @@ def install_tailscale_with_progress(auth_key=None, hostname=None):
             if result.returncode != 0:
                 update_tailscale_progress('failed', 100, 60, f'Failed to start: {result.stderr}')
                 return
+            
+            update_tailscale_progress('connecting', 100, 80, 'Verifying connection...')
+        
+        # Verify Tailscale is actually connected (poll for up to 10 seconds)
+        connected = False
+        for attempt in range(10):
+            try:
+                status_result = subprocess.run([tailscale_bin, 'status', '--json'], 
+                                             capture_output=True, text=True, timeout=5)
+                if status_result.returncode == 0:
+                    try:
+                        status_data = json.loads(status_result.stdout)
+                        backend_state = status_data.get('BackendState', '')
+                        if backend_state == 'Running':
+                            connected = True
+                            update_tailscale_progress('connecting', 100, 85, f'Connection verified!')
+                            break
+                    except:
+                        pass
+            except:
+                pass
+            
+            # Wait 1 second before retry
+            time.sleep(1)
+            update_tailscale_progress('connecting', 100, 80 + attempt, f'Waiting for connection... ({attempt + 1}/10)')
+        
+        if not connected:
+            update_tailscale_progress('failed', 100, 90, 'Tailscale started but connection not verified. Check status in Settings.')
+            return
         
         # Configure SSH for Tailscale-only access
         update_tailscale_progress('connecting', 100, 90, 'Configuring SSH security...')
