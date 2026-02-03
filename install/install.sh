@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.27.2
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.27.3
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.27.2"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.27.3"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -225,6 +225,7 @@ wget -q $REPO/web/app.py -O /opt/adsb/web/app.py
 wget -q $REPO/web/templates/setup.html -O /opt/adsb/web/templates/setup.html
 wget -q $REPO/web/templates/setup-sdr.html -O /opt/adsb/web/templates/setup-sdr.html
 wget -q $REPO/web/templates/dashboard.html -O /opt/adsb/web/templates/dashboard.html
+wget -q $REPO/web/templates/feeds.html -O /opt/adsb/web/templates/feeds.html
 wget -q $REPO/web/templates/settings.html -O /opt/adsb/web/templates/settings.html
 wget -q $REPO/web/templates/logs.html -O /opt/adsb/web/templates/logs.html
 wget -q $REPO/web/templates/loading.html -O /opt/adsb/web/templates/loading.html
