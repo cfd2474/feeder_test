@@ -41,14 +41,34 @@
 
             <!-- TAKNET-PS Server -->
             <div class="card">
-                <h3>🎯 TAKNET-PS Server (Always Active)</h3>
+                <h3>🎯 TAKNET-PS Server</h3>
                 <p style="color: #6b7280; margin-bottom: 15px;">
-                    Primary aggregator - automatically configured and always enabled
+                    Primary aggregator with automatic Tailscale failover
                 </p>
-                <div class="status-indicator" style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; border-radius: 8px;">
-                    <p style="margin: 0; color: #2e7d32; font-weight: 500;">✓ Active and feeding data</p>
-                    <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #666;">
-                        Connection: {{ 'Tailscale VPN' if config.get('TAILSCALE_ENABLED') == 'true' else 'Public Internet' }}
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="tak_enabled" {{ 'checked' if config.get('TAKNET_PS_ENABLED', 'true') == 'true' else '' }}>
+                        <strong>Enable TAKNET-PS Server Feed</strong>
+                    </label>
+                </div>
+                
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>
+                        <input type="checkbox" id="tak_mlat_enabled" {{ 'checked' if config.get('TAKNET_PS_MLAT_ENABLED', 'true') == 'true' else '' }}>
+                        <strong>Enable MLAT (Multilateration)</strong>
+                    </label>
+                    <small style="color: #666; display: block; margin-top: 5px; margin-left: 25px;">
+                        Improves position accuracy for aircraft without ADS-B
+                    </small>
+                </div>
+                
+                <div class="info-box" style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 12px; margin-top: 15px;">
+                    <p style="margin: 0; color: #065f46; font-size: 0.85em;">
+                        ℹ️ <strong>Connection:</strong> {{ 'Tailscale VPN (secure)' if config.get('TAILSCALE_ENABLED') == 'true' else 'Public Internet' }}
+                    </p>
+                    <p style="margin: 5px 0 0 0; color: #047857; font-size: 0.85em;">
+                        Automatically selects best connection method with failover
                     </p>
                 </div>
             </div>
@@ -157,6 +177,8 @@
             showStatus('Saving feed configuration...', 'info');
             
             const config = {
+                TAKNET_PS_ENABLED: document.getElementById('tak_enabled').checked ? 'true' : 'false',
+                TAKNET_PS_MLAT_ENABLED: document.getElementById('tak_mlat_enabled').checked ? 'true' : 'false',
                 FR24_ENABLED: document.getElementById('fr24_enabled').checked ? 'true' : 'false',
                 FR24_SHARING_KEY: document.getElementById('fr24_key').value.trim(),
                 AIRPLANESLIVE_ENABLED: document.getElementById('airplaneslive_enabled').checked ? 'true' : 'false',
