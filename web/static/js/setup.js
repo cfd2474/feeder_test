@@ -535,41 +535,57 @@ async function pollTailscaleProgress() {
 // Update Tailscale progress UI
 function updateTailscaleProgressUI(data) {
     const statusText = document.getElementById('progress-status-text');
-    const downloadPercent = document.getElementById('download-percent');
-    const downloadProgress = document.getElementById('download-progress');
-    const installPercent = document.getElementById('install-percent');
-    const installProgress = document.getElementById('install-progress');
+    const overallPercent = document.getElementById('overall-percent');
+    const overallProgress = document.getElementById('overall-progress');
+    const currentLabel = document.getElementById('current-process-label');
+    const currentPercent = document.getElementById('current-percent');
+    const currentProgress = document.getElementById('current-progress');
     const progressDetails = document.getElementById('progress-details');
     
-    // Update status text
+    let overallValue = 0;
+    let currentValue = 0;
+    let currentLabelText = '';
+    let currentPercentText = '';
+    
+    // Calculate overall and current progress based on phase
     if (data.status === 'downloading') {
+        // Download phase: 0-40% overall
+        const downloadProgress = data.download_progress || 0;
+        overallValue = Math.floor(downloadProgress * 0.40);  // 0-40%
+        currentValue = downloadProgress;
+        currentLabelText = 'Downloading Tailscale';
+        currentPercentText = `${downloadProgress}%`;
         statusText.textContent = 'Downloading Tailscale...';
         statusText.style.color = '#374151';
-        downloadPercent.textContent = `${data.download_progress || 0}%`;
-        downloadProgress.style.width = `${data.download_progress || 0}%`;
-        installPercent.textContent = '0%';
-        installProgress.style.width = '0%';
+        
     } else if (data.status === 'installing') {
+        // Install phase: 40-75% overall
+        const installProgress = data.install_progress || 0;
+        overallValue = 40 + Math.floor(installProgress * 0.35);  // 40-75%
+        currentValue = installProgress;
+        currentLabelText = 'Installing';
+        currentPercentText = ''; // Don't show percentage for time-based progress
         statusText.textContent = 'Installing Tailscale...';
         statusText.style.color = '#374151';
-        downloadPercent.textContent = '100%';
-        downloadProgress.style.width = '100%';
-        installPercent.textContent = `${data.install_progress || 0}%`;
-        installProgress.style.width = `${data.install_progress || 0}%`;
-    } else if (data.status === 'connecting') {
-        statusText.textContent = 'Connecting to Tailscale network...';
+        
+    } else if (data.status === 'registering') {
+        // Register phase: 75-100% overall
+        const registerProgress = data.register_progress || 0;
+        overallValue = 75 + Math.floor(registerProgress * 0.25);  // 75-100%
+        currentValue = registerProgress;
+        currentLabelText = 'Registering to Tailscale network';
+        currentPercentText = ''; // Don't show percentage for time-based progress
+        statusText.textContent = 'Registering to Tailscale network...';
         statusText.style.color = '#374151';
-        downloadPercent.textContent = '100%';
-        downloadProgress.style.width = '100%';
-        installPercent.textContent = `${data.install_progress || 75}%`;
-        installProgress.style.width = `${data.install_progress || 75}%`;
+        
     } else if (data.status === 'completed') {
+        // Completed: 100% everything
+        overallValue = 100;
+        currentValue = 100;
+        currentLabelText = 'Complete';
+        currentPercentText = '100%';
         statusText.textContent = '✓ Tailscale connected successfully!';
         statusText.style.color = '#10b981';
-        downloadPercent.textContent = '100%';
-        downloadProgress.style.width = '100%';
-        installPercent.textContent = '100%';
-        installProgress.style.width = '100%';
         
         // Show Continue button immediately (in case auto-proceed fails)
         const buttonsDiv = document.getElementById('progress-modal-buttons');
@@ -577,39 +593,37 @@ function updateTailscaleProgressUI(data) {
         buttonsDiv.innerHTML = `
             <button class="btn btn-primary" onclick="closeProgressModal(); nextStep(2);">Continue to Location →</button>
         `;
+        
     } else if (data.status === 'failed') {
+        // Failed: show error
         statusText.textContent = '✗ Connection Failed';
         statusText.style.color = '#ef4444';
         
         // Show error details
-        if (data.message || data.error) {
-            const errorMessage = data.message || data.error || 'Unknown error occurred';
-            const errorDetail = document.createElement('div');
-            errorDetail.style.marginTop = '15px';
-            errorDetail.style.padding = '12px';
-            errorDetail.style.background = '#fee2e2';
-            errorDetail.style.border = '1px solid #ef4444';
-            errorDetail.style.borderRadius = '6px';
-            errorDetail.style.color = '#991b1b';
-            errorDetail.innerHTML = `<strong>Error:</strong> ${errorMessage}`;
-            
-            // Only add if not already there
-            const existingError = progressDetails.querySelector('.error-detail');
-            if (!existingError) {
-                errorDetail.className = 'error-detail';
-                progressDetails.appendChild(errorDetail);
-            }
-        }
+        progressDetails.style.display = 'block';
+        const errorMessage = data.message || data.error || 'Unknown error occurred';
+        progressDetails.innerHTML = `<strong>Error:</strong> ${errorMessage}`;
+        
+        // Show buttons
+        const buttonsDiv = document.getElementById('progress-modal-buttons');
+        buttonsDiv.style.display = 'block';
+        buttonsDiv.innerHTML = `
+            <button class="btn" onclick="closeProgressModal()">Close</button>
+            <button class="btn btn-primary" onclick="closeProgressModal(); nextStep(2);">Continue to Location →</button>
+        `;
+        
+        return; // Don't update progress bars on failure
     }
     
-    // Update details
-    if (data.message) {
-        const detailLine = document.createElement('div');
-        detailLine.textContent = `[${new Date().toLocaleTimeString()}] ${data.message}`;
-        detailLine.style.marginBottom = '4px';
-        progressDetails.appendChild(detailLine);
-        progressDetails.scrollTop = progressDetails.scrollHeight;
-    }
+    // Update UI elements
+    overallPercent.textContent = `${overallValue}%`;
+    overallProgress.style.width = `${overallValue}%`;
+    currentLabel.textContent = currentLabelText;
+    currentPercent.textContent = currentPercentText;
+    currentProgress.style.width = `${currentValue}%`;
+    
+    // Hide error details on normal progress
+    progressDetails.style.display = 'none';
 }
 
 // Close progress modal
@@ -619,11 +633,13 @@ function closeProgressModal() {
     // Reset UI
     document.getElementById('progress-status-text').textContent = 'Initializing...';
     document.getElementById('progress-status-text').style.color = '#374151';
-    document.getElementById('download-percent').textContent = '0%';
-    document.getElementById('download-progress').style.width = '0%';
-    document.getElementById('install-percent').textContent = '0%';
-    document.getElementById('install-progress').style.width = '0%';
+    document.getElementById('overall-percent').textContent = '0%';
+    document.getElementById('overall-progress').style.width = '0%';
+    document.getElementById('current-process-label').textContent = 'Initializing...';
+    document.getElementById('current-percent').textContent = '0%';
+    document.getElementById('current-progress').style.width = '0%';
     document.getElementById('progress-details').innerHTML = '';
+    document.getElementById('progress-details').style.display = 'none';
     document.getElementById('progress-modal-buttons').style.display = 'none';
     
     // Clear polling interval if still running

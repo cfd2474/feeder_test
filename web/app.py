@@ -16,7 +16,7 @@ import uuid
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.29.3"
+VERSION = "2.30.0"
 
 # Global progress tracking
 service_progress = {
@@ -30,9 +30,10 @@ progress_lock = threading.Lock()
 
 # Tailscale installation progress tracking
 tailscale_progress = {
-    'status': 'idle',  # idle, downloading, installing, connecting, completed, failed
+    'status': 'idle',  # idle, downloading, installing, registering, completed, failed
     'download_progress': 0,
     'install_progress': 0,
+    'register_progress': 0,
     'message': '',
     'error': None
 }
@@ -566,91 +567,106 @@ def get_tailscale_status():
             'error': str(e)
         }
 
-def update_tailscale_progress(status, download_progress=0, install_progress=0, message=''):
+def update_tailscale_progress(status, download_progress=0, install_progress=0, register_progress=0, message=''):
     """Update global Tailscale progress state"""
     global tailscale_progress
     with tailscale_progress_lock:
         tailscale_progress['status'] = status
         tailscale_progress['download_progress'] = download_progress
         tailscale_progress['install_progress'] = install_progress
+        tailscale_progress['register_progress'] = register_progress
         tailscale_progress['message'] = message
-        print(f"[Tailscale Progress] {status}: {message} (download: {download_progress}%, install: {install_progress}%)")
+        print(f"[Tailscale Progress] {status}: {message} (download: {download_progress}%, install: {install_progress}%, register: {register_progress}%)")
 
 def install_tailscale_with_progress(auth_key=None, hostname=None):
     """Install and configure Tailscale with progress tracking"""
     try:
         tailscale_bin = '/usr/bin/tailscale'
         
-        # Check if already installed
+        # === PHASE 1: DOWNLOAD (0-100%) ===
         check_result = subprocess.run(['which', 'tailscale'], 
                                      capture_output=True, timeout=5)
         
         was_just_installed = False
         if check_result.returncode != 0:
-            # Install Tailscale with progress tracking
-            update_tailscale_progress('downloading', 10, 0, 'Downloading Tailscale installer...')
+            # Download Tailscale
+            update_tailscale_progress('downloading', 10, 0, 0, 'Downloading Tailscale installer...')
             
             install_cmd = 'curl -fsSL https://tailscale.com/install.sh | sh'
             
-            # Start installation process
-            update_tailscale_progress('downloading', 50, 0, 'Running installation script...')
+            update_tailscale_progress('downloading', 50, 0, 0, 'Running installation script...')
             
             install_result = subprocess.run(install_cmd, shell=True, timeout=120, 
                                           capture_output=True, text=True)
             
             if install_result.returncode != 0:
-                update_tailscale_progress('failed', 0, 0, f'Installation failed: {install_result.stderr}')
+                update_tailscale_progress('failed', 0, 0, 0, f'Installation failed: {install_result.stderr}')
                 return
             
             # Verify installation succeeded
             if not os.path.exists(tailscale_bin):
-                update_tailscale_progress('failed', 0, 0, 'Installation completed but binary not found')
+                update_tailscale_progress('failed', 0, 0, 0, 'Installation completed but binary not found')
                 return
             
-            update_tailscale_progress('installing', 100, 30, 'Tailscale installed successfully')
+            update_tailscale_progress('downloading', 100, 0, 0, 'Download complete')
             was_just_installed = True
         else:
-            # Already installed, skip download phase
-            update_tailscale_progress('installing', 100, 30, 'Tailscale already installed')
+            # Already installed, skip download phase quickly
+            update_tailscale_progress('downloading', 100, 0, 0, 'Tailscale already installed')
         
-        # If auth key provided, authenticate
+        time.sleep(0.5)  # Brief pause between phases
+        
+        # === PHASE 2: INSTALL (0-100%) ===
+        # Simulate install progress over ~10 seconds (not actual 90 seconds in backend)
+        # Frontend will show "Installing..." without time
+        for i in range(0, 101, 20):
+            update_tailscale_progress('installing', 100, i, 0, 'Installing...')
+            time.sleep(0.5)  # 5 steps x 0.5s = 2.5 seconds total
+        
+        # Clear previous connection if needed
+        if auth_key and not was_just_installed:
+            try:
+                subprocess.run([tailscale_bin, 'down'], timeout=10, capture_output=True)
+            except Exception as e:
+                print(f"⚠ Warning: Could not run 'tailscale down': {e}")
+        
+        update_tailscale_progress('installing', 100, 100, 0, 'Installation complete')
+        time.sleep(0.5)  # Brief pause between phases
+        
+        # === PHASE 3: REGISTER (0-100%) ===
         if auth_key:
-            # Only run 'down' if Tailscale was already installed
-            if not was_just_installed:
-                update_tailscale_progress('installing', 100, 40, 'Clearing previous connection...')
-                try:
-                    subprocess.run([tailscale_bin, 'down'], timeout=10, capture_output=True)
-                except Exception as e:
-                    print(f"⚠ Warning: Could not run 'tailscale down': {e}")
-            
-            # Build up command with optional hostname
+            # Build command with optional hostname
             cmd = [tailscale_bin, 'up', '--authkey', auth_key]
-            
             if hostname:
                 cmd.extend(['--hostname', hostname])
             
-            update_tailscale_progress('connecting', 100, 60, f'Connecting to Tailscale network...')
+            update_tailscale_progress('registering', 100, 100, 10, 'Registering to Tailscale network...')
             
-            # Up with new key and hostname
+            # Start registration
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             
             if result.returncode != 0:
-                update_tailscale_progress('failed', 100, 60, f'Authentication failed: {result.stderr}')
+                update_tailscale_progress('failed', 100, 100, 0, f'Authentication failed: {result.stderr}')
                 return
             
-            update_tailscale_progress('connecting', 100, 80, 'Verifying connection...')
+            # Show progress during registration
+            for i in range(20, 70, 10):
+                update_tailscale_progress('registering', 100, 100, i, 'Registering to Tailscale network...')
+                time.sleep(0.5)  # Simulate registration steps
         else:
-            # Just start Tailscale (no auth key provided)
-            update_tailscale_progress('connecting', 100, 60, 'Starting Tailscale...')
+            # Just start Tailscale (no auth key)
+            update_tailscale_progress('registering', 100, 100, 10, 'Starting Tailscale...')
             result = subprocess.run([tailscale_bin, 'up'], timeout=30, 
                                   capture_output=True, text=True)
             if result.returncode != 0:
-                update_tailscale_progress('failed', 100, 60, f'Failed to start: {result.stderr}')
+                update_tailscale_progress('failed', 100, 100, 0, f'Failed to start: {result.stderr}')
                 return
             
-            update_tailscale_progress('connecting', 100, 80, 'Verifying connection...')
+            for i in range(20, 70, 10):
+                update_tailscale_progress('registering', 100, 100, i, 'Starting Tailscale...')
+                time.sleep(0.5)
         
-        # Verify Tailscale is actually connected (poll for up to 30 seconds)
+        # Verify connection (70-95% register progress)
         connected = False
         for attempt in range(30):
             try:
@@ -662,24 +678,24 @@ def install_tailscale_with_progress(auth_key=None, hostname=None):
                         backend_state = status_data.get('BackendState', '')
                         if backend_state == 'Running':
                             connected = True
-                            update_tailscale_progress('connecting', 100, 85, f'Connection verified!')
+                            update_tailscale_progress('registering', 100, 100, 95, 'Connection verified!')
                             break
                     except:
                         pass
             except:
                 pass
             
-            # Wait 1 second before retry
+            # Wait and update progress (70-95%)
             time.sleep(1)
-            update_tailscale_progress('connecting', 100, 80 + min(attempt // 3, 10), f'Waiting for connection... ({attempt + 1}/30)')
+            verify_progress = 70 + min(attempt, 25)
+            update_tailscale_progress('registering', 100, 100, verify_progress, 'Verifying connection...')
         
         if not connected:
-            # Don't fail - Tailscale might be working even if we can't verify
-            update_tailscale_progress('connecting', 100, 95, 'Connection verification timed out - Tailscale may still be working')
-            # Continue anyway instead of returning
+            # Don't fail - Tailscale might be working
+            update_tailscale_progress('registering', 100, 100, 95, 'Verification timed out - Tailscale may still be working')
         
-        # Configure SSH for Tailscale-only access
-        update_tailscale_progress('connecting', 100, 90, 'Configuring SSH security...')
+        # Configure SSH (98% register progress)
+        update_tailscale_progress('registering', 100, 100, 98, 'Configuring SSH security...')
         try:
             ssh_config_script = '/opt/adsb/configure-ssh-tailscale.sh'
             if os.path.exists(ssh_config_script):
@@ -690,12 +706,13 @@ def install_tailscale_with_progress(auth_key=None, hostname=None):
         except Exception as e:
             print(f"⚠️ SSH configuration failed (non-critical): {e}")
         
-        # Success!
-        update_tailscale_progress('completed', 100, 100, 'Tailscale connected successfully!')
+        # Success! (100% register progress)
+        update_tailscale_progress('completed', 100, 100, 100, 'Tailscale connected successfully!')
         
     except subprocess.TimeoutExpired:
-        update_tailscale_progress('failed', 0, 0, 'Installation timed out')
+        update_tailscale_progress('failed', 0, 0, 0, 'Installation timed out')
     except Exception as e:
+        update_tailscale_progress('failed', 0, 0, 0, str(e))
         update_tailscale_progress('failed', 0, 0, str(e))
 
 # Routes
@@ -921,6 +938,7 @@ def api_install_tailscale():
                 'status': 'downloading',
                 'download_progress': 0,
                 'install_progress': 0,
+                'register_progress': 0,
                 'message': 'Starting installation...',
                 'error': None
             }
