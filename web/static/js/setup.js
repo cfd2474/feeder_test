@@ -248,51 +248,29 @@ async function saveAndStart() {
 
     console.log("Zip code processing complete. finalSiteName:", finalSiteName);
     
-    // Declare variables for Tailscale and aggregators
+    // Declare variables for Tailscale
     let tailscaleEnabled, tailscaleKey;
-    let fr24Enabled, fr24Key;
-    let adsbxEnabled, adsbxUuid;
-    let airplanesLiveEnabled, airplanesLiveUuid;
-    let adsbfiEnabled;
     
     // Check if we're online or offline
     if (isOnline) {
-        // ONLINE MODE: Read from DOM elements
-        console.log("Online mode: Reading Tailscale fields...");
-        tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
+        // ONLINE MODE: Read Tailscale key field
+        console.log("Online mode: Reading Tailscale key...");
         tailscaleKey = document.getElementById('tailscale_key').value.trim();
+        
+        // Enable Tailscale if key is provided
+        tailscaleEnabled = tailscaleKey.length > 0;
         console.log("Tailscale:", {enabled: tailscaleEnabled, hasKey: tailscaleKey.length > 0});
         
-        // Validate Tailscale
-        if (tailscaleEnabled && !tailscaleKey) {
-            showStatus('Tailscale enabled but no key provided. You can configure it later in Settings.', 'info');
+        if (tailscaleKey && tailscaleKey.length > 0) {
+            console.log("Tailscale key provided, will be enabled");
+        } else {
+            console.log("No Tailscale key, will be disabled");
         }
-        
-        console.log("Online mode: Reading aggregator fields...");
-        fr24Enabled = document.getElementById('fr24_enabled').checked;
-        fr24Key = document.getElementById('fr24_key').value;
-        airplanesLiveEnabled = document.getElementById('airplaneslive_enabled').checked;
-        airplanesLiveUuid = document.getElementById('airplaneslive_uuid').value;
-        adsbfiEnabled = document.getElementById('adsbfi_enabled').checked;
-        adsblolEnabled = document.getElementById('adsblol_enabled').checked;
-        
-        console.log("Aggregators:", {
-            fr24: fr24Enabled,
-            airplanesLive: airplanesLiveEnabled,
-            adsbfi: adsbfiEnabled,
-            adsblol: adsblolEnabled
-        });
     } else {
         // OFFLINE MODE: Disable all internet-dependent services
-        console.log("Offline mode: Disabling all internet-dependent services");
+        console.log("Offline mode: Disabling Tailscale");
         tailscaleEnabled = false;
         tailscaleKey = '';
-        fr24Enabled = false;
-        fr24Key = '';
-        airplanesLiveEnabled = false;
-        airplanesLiveUuid = '';
-        adsbfiEnabled = false;
-        adsblolEnabled = false;
     }
     
     const config = {
@@ -306,21 +284,13 @@ async function saveAndStart() {
         
         // Tailscale settings
         TAILSCALE_ENABLED: tailscaleEnabled ? 'true' : 'false',
-        TAILSCALE_AUTH_KEY: tailscaleKey || '',
+        TAILSCALE_AUTH_KEY: tailscaleKey || ''
         
         // TAKNET-PS Server is hardcoded - DO NOT send these parameters
         // TAKNET_PS_ENABLED, TAKNET_PS_SERVER_HOST_*, TAKNET_PS_SERVER_PORT will use defaults from env-template
         
-        // Optional aggregators only
-        FR24_ENABLED: fr24Enabled ? 'true' : 'false',
-        FR24_SHARING_KEY: fr24Key || '',
-        
-        AIRPLANESLIVE_ENABLED: airplanesLiveEnabled ? 'true' : 'false',
-        AIRPLANESLIVE_UUID: airplanesLiveUuid || '',
-        
-        ADSBFI_ENABLED: adsbfiEnabled ? 'true' : 'false',
-        
-        ADSBLOL_ENABLED: adsblolEnabled ? 'true' : 'false'
+        // Note: Aggregators (FR24, Airplanes.Live, adsb.fi, adsb.lol) are configured on the Feeds page
+        // They are not part of the wizard anymore
     };
     
     console.log("Config object built:", config);

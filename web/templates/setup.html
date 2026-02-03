@@ -259,17 +259,6 @@
             if (currentTz) {
                 tzSelect.value = currentTz;
             }
-            
-            // Show/hide Tailscale config section
-            const tailscaleCheckbox = document.getElementById('tailscale_enabled');
-            const tailscaleConfig = document.getElementById('tailscale-config');
-            
-            function toggleTailscaleConfig() {
-                tailscaleConfig.style.display = tailscaleCheckbox.checked ? 'block' : 'none';
-            }
-            
-            tailscaleCheckbox.addEventListener('change', toggleTailscaleConfig);
-            toggleTailscaleConfig(); // Initial state
         });
     </script>
 </body>
