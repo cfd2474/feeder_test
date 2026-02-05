@@ -129,6 +129,39 @@
             border-color: #9ca3af;
             background: #f9fafb;
         }
+        
+        .setup-method-btn {
+            flex: 1;
+            padding: 12px 24px;
+            background: #f3f4f6;
+            color: #6b7280;
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .setup-method-btn:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+        
+        .setup-method-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .setup-section {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -169,29 +202,117 @@
                         </span>
                     </div>
                     
-                    <div class="config-section">
-                        <label class="config-label" for="fr24-feeder-id">
-                            Feeder ID (Sharing Key)
+                    <!-- Enable/Disable Toggle -->
+                    <div class="config-section" style="padding: 15px; background: #f3f4f6; border-radius: 6px; margin-bottom: 20px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input 
+                                type="checkbox" 
+                                id="fr24-enabled" 
+                                {% if fr24_enabled %}checked{% endif %}
+                                onchange="toggleFR24Enabled(this.checked)"
+                                style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;"
+                            >
+                            <span style="font-weight: 600; color: #374151;">Enable FR24 Feed</span>
                         </label>
-                        <input 
-                            type="text" 
-                            id="fr24-feeder-id" 
-                            class="config-input" 
-                            placeholder="Enter your FR24 feeder ID (e.g., EXAMPLEKEY123456)"
-                            value="{{ fr24_key }}"
-                        >
-                        <p class="config-hint">
-                            Don't have a feeder ID? Visit <a href="https://www.flightradar24.com/share-your-data" target="_blank" style="color: #3b82f6;">flightradar24.com/share-your-data</a> to register
+                        <p class="config-hint" style="margin: 8px 0 0 30px;">
+                            Toggle to start/stop feeding data to FlightRadar24
                         </p>
                     </div>
                     
-                    <div class="config-actions">
-                        <button class="btn-primary" onclick="setupFR24()" id="setup-fr24-btn">
-                            <span id="setup-fr24-text">Install & Setup FR24</span>
-                        </button>
-                        <button class="btn-secondary" onclick="testFR24()" id="test-fr24-btn">
-                            Test Connection
-                        </button>
+                    <!-- Setup Method Selector -->
+                    <div class="config-section">
+                        <label class="config-label">Setup Method</label>
+                        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                            <button 
+                                class="setup-method-btn active" 
+                                id="method-have-key"
+                                onclick="switchSetupMethod('have-key')"
+                            >
+                                I Have a Key
+                            </button>
+                            <button 
+                                class="setup-method-btn" 
+                                id="method-need-key"
+                                onclick="switchSetupMethod('need-key')"
+                            >
+                                I Need a Key
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Have Key Section -->
+                    <div id="have-key-section" class="setup-section">
+                        <div class="config-section">
+                            <label class="config-label" for="fr24-feeder-id">
+                                Feeder ID (Sharing Key)
+                            </label>
+                            <input 
+                                type="text" 
+                                id="fr24-feeder-id" 
+                                class="config-input" 
+                                placeholder="Enter your FR24 feeder ID (e.g., EXAMPLEKEY123456)"
+                                value="{{ fr24_key }}"
+                            >
+                            <p class="config-hint">
+                                Enter your existing FlightRadar24 sharing key
+                            </p>
+                        </div>
+                        
+                        <div class="config-actions">
+                            <button class="btn-primary" onclick="setupFR24WithKey()" id="setup-fr24-btn">
+                                <span id="setup-fr24-text">Install & Setup FR24</span>
+                            </button>
+                            <button class="btn-secondary" onclick="testFR24()" id="test-fr24-btn">
+                                Test Connection
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Need Key Section -->
+                    <div id="need-key-section" class="setup-section" style="display: none;">
+                        <div class="config-section">
+                            <label class="config-label" for="fr24-email">
+                                Email Address (for reference)
+                            </label>
+                            <input 
+                                type="email" 
+                                id="fr24-email" 
+                                class="config-input" 
+                                placeholder="your.email@example.com"
+                            >
+                            <p class="config-hint">
+                                You'll need this email to register with FlightRadar24
+                            </p>
+                        </div>
+                        
+                        <div class="config-section">
+                            <label class="config-label">
+                                Registration Process
+                            </label>
+                            <div style="padding: 15px; background: #eff6ff; border-radius: 6px; border-left: 4px solid #3b82f6;">
+                                <p style="margin: 0 0 10px 0; color: #1e40af; font-weight: 600;">
+                                    Option 1: Register Online (Easiest)
+                                </p>
+                                <ol style="margin: 0 0 15px 0; padding-left: 20px; color: #1e40af;">
+                                    <li>Visit <a href="https://www.flightradar24.com/share-your-data" target="_blank" style="color: #3b82f6; text-decoration: underline;">flightradar24.com/share-your-data</a></li>
+                                    <li>Complete the signup form with your location</li>
+                                    <li>Receive your sharing key via email</li>
+                                    <li>Return here and use "I Have a Key" to enter it</li>
+                                </ol>
+                                <p style="margin: 0 0 5px 0; color: #1e40af; font-weight: 600;">
+                                    Option 2: Manual CLI Registration
+                                </p>
+                                <p style="margin: 0 0 5px 0; color: #1e40af; font-size: 0.9em;">
+                                    Click the button below for detailed CLI instructions
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="config-actions">
+                            <button class="btn-primary" onclick="registerFR24()" id="register-fr24-btn">
+                                <span id="register-fr24-text">Get Registration Instructions</span>
+                            </button>
+                        </div>
                     </div>
                     
                     <div id="fr24-result" style="margin-top: 15px; display: none;"></div>
@@ -217,7 +338,57 @@
     </div>
     
     <script>
-        async function setupFR24() {
+        // Switch between setup methods
+        function switchSetupMethod(method) {
+            const haveKeyBtn = document.getElementById('method-have-key');
+            const needKeyBtn = document.getElementById('method-need-key');
+            const haveKeySection = document.getElementById('have-key-section');
+            const needKeySection = document.getElementById('need-key-section');
+            
+            if (method === 'have-key') {
+                haveKeyBtn.classList.add('active');
+                needKeyBtn.classList.remove('active');
+                haveKeySection.style.display = 'block';
+                needKeySection.style.display = 'none';
+            } else {
+                needKeyBtn.classList.add('active');
+                haveKeyBtn.classList.remove('active');
+                needKeySection.style.display = 'block';
+                haveKeySection.style.display = 'none';
+            }
+        }
+        
+        // Toggle FR24 enabled/disabled
+        async function toggleFR24Enabled(enabled) {
+            const checkbox = document.getElementById('fr24-enabled');
+            
+            try {
+                const response = await fetch('/api/feeds/fr24/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: enabled })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('success', `FR24 feed ${enabled ? 'enabled' : 'disabled'} successfully`);
+                    document.getElementById('fr24-status').textContent = enabled ? 'Active' : 'Inactive';
+                    document.getElementById('fr24-status').className = 'feed-status-badge ' + (enabled ? 'status-active' : 'status-inactive');
+                } else {
+                    // Revert checkbox on error
+                    checkbox.checked = !enabled;
+                    showResult('error', `Failed to toggle FR24: ${data.message}`);
+                }
+            } catch (error) {
+                // Revert checkbox on error
+                checkbox.checked = !enabled;
+                showResult('error', `Error: ${error.message}`);
+            }
+        }
+        
+        // Setup FR24 with existing key
+        async function setupFR24WithKey() {
             const feederId = document.getElementById('fr24-feeder-id').value.trim();
             const setupBtn = document.getElementById('setup-fr24-btn');
             const setupText = document.getElementById('setup-fr24-text');
@@ -238,7 +409,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        feeder_id: feederId
+                        feeder_id: feederId,
+                        method: 'existing_key'
                     })
                 });
                 
@@ -248,6 +420,7 @@
                     showResult('success', 'FR24 installed and configured successfully!');
                     document.getElementById('fr24-status').textContent = 'Active';
                     document.getElementById('fr24-status').className = 'feed-status-badge status-active';
+                    document.getElementById('fr24-enabled').checked = true;
                 } else {
                     showResult('error', `Setup failed: ${data.message}`);
                 }
@@ -259,6 +432,62 @@
             }
         }
         
+        // Register new FR24 account and setup
+        async function registerFR24() {
+            const email = document.getElementById('fr24-email').value.trim();
+            const registerBtn = document.getElementById('register-fr24-btn');
+            const registerText = document.getElementById('register-fr24-text');
+            const resultDiv = document.getElementById('fr24-result');
+            
+            if (!email) {
+                showResult('error', 'Please enter an email address');
+                return;
+            }
+            
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showResult('error', 'Please enter a valid email address');
+                return;
+            }
+            
+            // Disable button and show loading
+            registerBtn.disabled = true;
+            registerText.textContent = 'Getting registration instructions...';
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/feeds/fr24/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: email
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Show instructions
+                if (data.instructions) {
+                    showResult('info', `FR24 Registration requires manual setup. Visit https://www.flightradar24.com/share-your-data or follow CLI instructions. After receiving your sharing key, click "I Have a Key" and enter it.`);
+                } else if (data.success) {
+                    showResult('success', `FR24 registered successfully! Your sharing key: ${data.sharing_key}`);
+                    document.getElementById('fr24-status').textContent = 'Active';
+                    document.getElementById('fr24-status').className = 'feed-status-badge status-active';
+                    document.getElementById('fr24-enabled').checked = true;
+                    document.getElementById('fr24-feeder-id').value = data.sharing_key;
+                } else {
+                    showResult('error', data.message || 'Registration failed');
+                }
+            } catch (error) {
+                showResult('error', `Error: ${error.message}`);
+            } finally {
+                registerBtn.disabled = false;
+                registerText.textContent = 'Register & Setup FR24';
+            }
+        }
+        
+        // Test FR24 connection
         async function testFR24() {
             const feederId = document.getElementById('fr24-feeder-id').value.trim();
             const testBtn = document.getElementById('test-fr24-btn');
@@ -306,6 +535,10 @@
                 resultDiv.style.background = '#d1fae5';
                 resultDiv.style.color = '#065f46';
                 resultDiv.style.border = '2px solid #10b981';
+            } else if (type === 'info') {
+                resultDiv.style.background = '#dbeafe';
+                resultDiv.style.color = '#1e40af';
+                resultDiv.style.border = '2px solid #3b82f6';
             } else {
                 resultDiv.style.background = '#fee2e2';
                 resultDiv.style.color = '#991b1b';

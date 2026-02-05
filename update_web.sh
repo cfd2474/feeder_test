@@ -1,11 +1,11 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.30.7
+# Quick Web App Update Script for v2.31.1
 # Updates only the web interface without touching Docker containers
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.30.7"
+echo "  TAKNET-PS Web App Update to v2.31.1"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -80,12 +80,12 @@ if systemctl is-active --quiet adsb-web.service; then
     echo "Access your updated interface:"
     echo "   http://taknet-ps.local:5000"
     echo ""
-    echo "New in v2.30.7:"
-    echo "   • FIXED: Feed checkboxes now match actual enabled/disabled states"
-    echo "   • Added Machine Name to Network Status (MLAT_SITE_NAME)"
-    echo "   • Removed feed descriptions, showing only feed names"
-    echo "   • Added notice about waiting for popup confirmation"
-    echo "   • Dashboard Network Status now shows actual values"
+    echo "New in v2.31.1:"
+    echo "   • CRITICAL FIX: Added BEASTHOST=ultrafeeder to FR24 Docker container"
+    echo "   • CRITICAL FIX: Removed --network host for proper container networking"
+    echo "   • Changed registration to manual process (more reliable than automated)"
+    echo "   • Added tmpfs for /var/log to reduce SD card wear"
+    echo "   • Implementation verified against official FR24 manual"
     echo ""
 else
     echo ""

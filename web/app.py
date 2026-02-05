@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.30.7"
+VERSION = "2.31.1"
 
 # Global progress tracking
 service_progress = {
@@ -928,7 +928,7 @@ def api_feeds_toggle():
 
 @app.route('/api/feeds/fr24/setup', methods=['POST'])
 def api_fr24_setup():
-    """Setup FR24 feeder"""
+    """Setup FR24 feeder with existing key"""
     try:
         data = request.json
         feeder_id = data.get('feeder_id', '').strip()
@@ -936,23 +936,44 @@ def api_fr24_setup():
         if not feeder_id:
             return jsonify({'success': False, 'message': 'Feeder ID is required'})
         
-        # Update .env with FR24 key
+        # Read current env
+        env = read_env()
+        
+        # Update .env with FR24 key and enable it
         update_env_var('FR24_KEY', feeder_id)
+        update_env_var('FR24_ENABLED', 'true')
         
         # Check if FR24 container exists
-        check_result = subprocess.run(['docker', 'ps', '-a', '--filter', 'name=fr24', '--format', '{{.Names}}'],
+        check_result = subprocess.run(['docker', 'ps', '-a', '--filter', 'name=fr24feed', '--format', '{{.Names}}'],
                                      capture_output=True, text=True, timeout=5)
         
-        if 'fr24' in check_result.stdout:
-            # Container exists, restart it
-            subprocess.run(['docker', 'restart', 'fr24'], timeout=30, check=True)
+        if 'fr24feed' in check_result.stdout:
+            # Container exists, remove it first
+            subprocess.run(['docker', 'rm', '-f', 'fr24feed'], timeout=30, check=True)
+        
+        # Create new FR24 container
+        # CRITICAL: Must specify BEASTHOST to tell FR24 where to get ADSB data
+        docker_cmd = [
+            'docker', 'run', '-d',
+            '--name', 'fr24feed',
+            '--restart', 'unless-stopped',
+            '-e', 'BEASTHOST=ultrafeeder',  # CRITICAL: Points to ultrafeeder for data
+            '-e', f'FR24KEY={feeder_id}',
+            '-e', 'MLAT=yes',
+            '-p', '8754:8754',
+            '--tmpfs', '/var/log',  # Reduce SD card wear
+            'ghcr.io/sdr-enthusiasts/docker-flightradar24:latest'
+        ]
+        
+        result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=60, check=True)
+        
+        if result.returncode == 0:
+            return jsonify({'success': True, 'message': 'FR24 container created and started successfully'})
         else:
-            # Create new FR24 container
-            # TODO: Add FR24 container creation logic here
-            pass
+            return jsonify({'success': False, 'message': f'Failed to create container: {result.stderr}'})
         
-        return jsonify({'success': True, 'message': 'FR24 configured successfully'})
-        
+    except subprocess.CalledProcessError as e:
+        return jsonify({'success': False, 'message': f'Docker error: {e.stderr if e.stderr else str(e)}'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -971,14 +992,110 @@ def api_fr24_test():
             return jsonify({'success': False, 'message': 'Feeder ID appears invalid (too short)'})
         
         # Check if FR24 container is running
-        check_result = subprocess.run(['docker', 'ps', '--filter', 'name=fr24', '--format', '{{.Names}}'],
+        check_result = subprocess.run(['docker', 'ps', '--filter', 'name=fr24feed', '--format', '{{.Names}}'],
                                      capture_output=True, text=True, timeout=5)
         
-        if 'fr24' not in check_result.stdout:
+        if 'fr24feed' not in check_result.stdout:
             return jsonify({'success': False, 'message': 'FR24 container not running'})
         
         return jsonify({'success': True, 'message': 'FR24 connection test passed'})
         
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/feeds/fr24/register', methods=['POST'])
+def api_fr24_register():
+    """Guide user through FR24 registration process"""
+    try:
+        data = request.json
+        email = data.get('email', '').strip()
+        
+        if not email:
+            return jsonify({'success': False, 'message': 'Email is required'})
+        
+        # Read current env
+        env = read_env()
+        lat = env.get('FEEDER_LAT', '0')
+        lon = env.get('FEEDER_LONG', '0')
+        alt = env.get('FEEDER_ALT_FT', '0')
+        
+        # Check if FR24 container exists and remove it
+        check_result = subprocess.run(['docker', 'ps', '-a', '--filter', 'name=fr24feed', '--format', '{{.Names}}'],
+                                     capture_output=True, text=True, timeout=5)
+        
+        if 'fr24feed' in check_result.stdout:
+            subprocess.run(['docker', 'rm', '-f', 'fr24feed'], timeout=30, check=True)
+        
+        # Create temporary FR24 container for signup
+        docker_cmd = [
+            'docker', 'run', '-it', '--rm',
+            '--name', 'fr24feed-signup',
+            'ghcr.io/sdr-enthusiasts/docker-flightradar24:latest',
+            'fr24feed', '--signup'
+        ]
+        
+        # Run signup in interactive mode
+        # Note: This is complex to automate, better to provide instructions
+        
+        instructions = f"""
+FR24 Registration Instructions:
+
+1. Run this command on your feeder:
+   docker run -it --rm ghcr.io/sdr-enthusiasts/docker-flightradar24:latest fr24feed --signup
+
+2. Answer the questions:
+   - Email: {email}
+   - Latitude: {lat}
+   - Longitude: {lon}
+   - Altitude: {alt} feet
+   - Enable MLAT: yes
+   - Receiver type: 5 (AVR Compatible)
+   - Connection type: 1 (Network)
+   - Host: ultrafeeder:30005
+
+3. Copy your sharing key from the output
+
+4. Return to this page and use "I Have a Key" to enter your key
+
+Alternative: Visit https://www.flightradar24.com/share-your-data to register online
+"""
+        
+        return jsonify({
+            'success': False, 
+            'message': 'Automatic registration is not available. Please follow the manual process.',
+            'instructions': instructions
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/feeds/fr24/toggle', methods=['POST'])
+def api_fr24_toggle():
+    """Toggle FR24 feed enabled/disabled"""
+    try:
+        data = request.json
+        enabled = data.get('enabled', False)
+        
+        # Update .env
+        update_env_var('FR24_ENABLED', 'true' if enabled else 'false')
+        
+        # Start or stop FR24 container
+        if enabled:
+            # Start container if it exists
+            check_result = subprocess.run(['docker', 'ps', '-a', '--filter', 'name=fr24feed', '--format', '{{.Names}}'],
+                                         capture_output=True, text=True, timeout=5)
+            if 'fr24feed' in check_result.stdout:
+                subprocess.run(['docker', 'start', 'fr24feed'], timeout=30, check=True)
+                return jsonify({'success': True, 'message': 'FR24 feed enabled'})
+            else:
+                return jsonify({'success': False, 'message': 'FR24 container not found. Please set up FR24 first.'})
+        else:
+            # Stop container
+            subprocess.run(['docker', 'stop', 'fr24feed'], timeout=30, check=True)
+            return jsonify({'success': True, 'message': 'FR24 feed disabled'})
+        
+    except subprocess.CalledProcessError as e:
+        return jsonify({'success': False, 'message': f'Docker error: {e.stderr if e.stderr else str(e)}'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -1002,8 +1119,9 @@ def feeds_account_required():
     
     # Check FR24 status
     fr24_key = env.get('FR24_KEY', '')
+    fr24_enabled = env.get('FR24_ENABLED', 'false') == 'true'
     fr24_status = False
-    if fr24_key:
+    if fr24_key and fr24_enabled:
         # Check if FR24 container is running
         try:
             result = subprocess.run(['docker', 'ps', '--filter', 'name=fr24', '--format', '{{.Names}}'],
@@ -1014,6 +1132,7 @@ def feeds_account_required():
     
     return render_template('feeds-account-required.html', 
                          fr24_key=fr24_key,
+                         fr24_enabled=fr24_enabled,
                          fr24_status=fr24_status)
 
 # API Endpoints
