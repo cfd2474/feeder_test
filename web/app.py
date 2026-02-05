@@ -16,7 +16,7 @@ import uuid
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.30.2"
+VERSION = "2.30.3"
 
 # Global progress tracking
 service_progress = {
@@ -836,6 +836,51 @@ def dashboard():
 def logs():
     """Logs page (placeholder)"""
     return render_template('logs.html')
+
+@app.route('/api/logs/<source>')
+def get_logs(source):
+    """Fetch logs from various sources"""
+    try:
+        if source == 'ultrafeeder':
+            # Get ultrafeeder logs from docker
+            result = subprocess.run(['docker', 'logs', '--tail', '500', 'ultrafeeder'],
+                                  capture_output=True, text=True, timeout=10)
+            logs = result.stdout + result.stderr
+            
+        elif source == 'tailscale':
+            # Get tailscale logs from journalctl
+            result = subprocess.run(['journalctl', '-u', 'tailscaled', '-n', '500', '--no-pager'],
+                                  capture_output=True, text=True, timeout=10)
+            logs = result.stdout
+            
+        elif source == 'fr24':
+            # Get fr24 logs from docker
+            result = subprocess.run(['docker', 'logs', '--tail', '500', 'fr24'],
+                                  capture_output=True, text=True, timeout=10)
+            logs = result.stdout + result.stderr
+            
+        elif source == 'vnstat':
+            # Get vnstat hour and day reports
+            hour_result = subprocess.run(['vnstat', '-h'],
+                                       capture_output=True, text=True, timeout=10)
+            day_result = subprocess.run(['vnstat', '-d'],
+                                      capture_output=True, text=True, timeout=10)
+            logs = "=== HOURLY REPORT ===\n" + hour_result.stdout + "\n\n=== DAILY REPORT ===\n" + day_result.stdout
+            
+        else:
+            return jsonify({'success': False, 'message': f'Unknown log source: {source}'})
+        
+        if not logs or logs.strip() == '':
+            logs = f'No logs available for {source}'
+        
+        return jsonify({'success': True, 'logs': logs})
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'message': 'Timeout while fetching logs'})
+    except FileNotFoundError:
+        return jsonify({'success': False, 'message': f'Service {source} not found or not installed'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/settings')
 def settings():
