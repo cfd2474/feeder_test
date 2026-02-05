@@ -1,11 +1,11 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.30.5
+# Quick Web App Update Script for v2.30.6
 # Updates only the web interface without touching Docker containers
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.30.5"
+echo "  TAKNET-PS Web App Update to v2.30.6"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -44,6 +44,7 @@ if [ -d ./web ]; then
     cp ./web/templates/settings.html /opt/adsb/web/templates/
     cp ./web/templates/logs.html /opt/adsb/web/templates/
     cp ./web/templates/setup.html /opt/adsb/web/templates/
+    cp ./web/templates/setup-sdr.html /opt/adsb/web/templates/
     cp ./web/templates/loading.html /opt/adsb/web/templates/
     
     # Update static files
@@ -79,12 +80,11 @@ if systemctl is-active --quiet adsb-web.service; then
     echo "Access your updated interface:"
     echo "   http://taknet-ps.local:5000"
     echo ""
-    echo "New in v2.30.5:"
-    echo "   • Redesigned Feed Selection page"
-    echo "   • Accountless feeds with simple checkboxes"
-    echo "   • Account-required feeds configuration"
-    echo "   • Interactive logs viewer"
-    echo "   • Dashboard refresh: 60 seconds"
+    echo "New in v2.30.6:"
+    echo "   • FIXED: Account-required feeds page internal server error"
+    echo "   • FIXED: Missing feeds-account-required.html template in install script"
+    echo "   • FIXED: Missing setup-sdr.html template in update script"
+    echo "   • All 8 web templates now deploy correctly"
     echo ""
 else
     echo ""

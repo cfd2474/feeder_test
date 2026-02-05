@@ -16,7 +16,7 @@ import uuid
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.30.5"
+VERSION = "2.30.6"
 
 # Global progress tracking
 service_progress = {
