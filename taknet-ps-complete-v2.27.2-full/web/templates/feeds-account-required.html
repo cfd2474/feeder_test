@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account-Required Feeds - TAKNET-PS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .feed-config-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            background: #f9fafb;
+        }
+        
+        .feed-config-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .feed-icon {
+            font-size: 2.5em;
+            margin-right: 15px;
+        }
+        
+        .feed-title {
+            flex: 1;
+        }
+        
+        .feed-title h3 {
+            margin: 0 0 5px 0;
+            color: #111827;
+            font-size: 1.3em;
+        }
+        
+        .feed-title p {
+            margin: 0;
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+        
+        .feed-status-badge {
+            padding: 6px 14px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .config-section {
+            margin-bottom: 20px;
+        }
+        
+        .config-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #374151;
+        }
+        
+        .config-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1em;
+            font-family: 'Courier New', monospace;
+            transition: border-color 0.2s;
+        }
+        
+        .config-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
+        .config-hint {
+            color: #6b7280;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+        
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn-primary {
+            flex: 1;
+            padding: 12px 24px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-primary:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            padding: 12px 24px;
+            background: white;
+            color: #374151;
+            border: 2px solid #d1d5db;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary:hover {
+            border-color: #9ca3af;
+            background: #f9fafb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
+            <p style="margin: 5px 0 15px 0; color: #9ca3af; font-size: 0.9em;">Tactical Awareness Kit Network for Enhanced Tracking – Public Safety</p>
+            <nav>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/feeds">Feed Selection</a>
+                <a href="/settings">Settings</a>
+                <a href="/logs">Logs</a>
+                <a href="#" id="map-link" target="_blank">Map</a>
+            </nav>
+        </header>
+        
+        <script>
+        // Set map link dynamically
+        document.getElementById('map-link').href = 'http://' + window.location.hostname + ':8080';
+        </script>
+
+        <div class="dashboard">
+            <div class="card">
+                <h2>🔐 Account-Required Feeds</h2>
+                <p style="color: #666; margin-bottom: 30px;">
+                    Configure feeds that require account registration and API keys.
+                </p>
+                
+                <!-- FlightRadar24 Configuration -->
+                <div class="feed-config-card">
+                    <div class="feed-config-header">
+                        <div class="feed-icon">✈️</div>
+                        <div class="feed-title">
+                            <h3>FlightRadar24</h3>
+                            <p>Share your ADS-B data for free Business plan access</p>
+                        </div>
+                        <span class="feed-status-badge {{ 'status-active' if fr24_status else 'status-inactive' }}" id="fr24-status">
+                            {{ 'Active' if fr24_status else 'Inactive' }}
+                        </span>
+                    </div>
+                    
+                    <div class="config-section">
+                        <label class="config-label" for="fr24-feeder-id">
+                            Feeder ID (Sharing Key)
+                        </label>
+                        <input 
+                            type="text" 
+                            id="fr24-feeder-id" 
+                            class="config-input" 
+                            placeholder="Enter your FR24 feeder ID (e.g., EXAMPLEKEY123456)"
+                            value="{{ fr24_key }}"
+                        >
+                        <p class="config-hint">
+                            📝 Don't have a feeder ID? Visit <a href="https://www.flightradar24.com/share-your-data" target="_blank" style="color: #3b82f6;">flightradar24.com/share-your-data</a> to register
+                        </p>
+                    </div>
+                    
+                    <div class="config-actions">
+                        <button class="btn-primary" onclick="setupFR24()" id="setup-fr24-btn">
+                            <span id="setup-fr24-text">💾 Install & Setup FR24</span>
+                        </button>
+                        <button class="btn-secondary" onclick="testFR24()" id="test-fr24-btn">
+                            🔍 Test Connection
+                        </button>
+                    </div>
+                    
+                    <div id="fr24-result" style="margin-top: 15px; display: none;"></div>
+                </div>
+                
+                <div style="padding: 20px; background: #eff6ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <p style="margin: 0; color: #1e40af;">
+                        <strong>💡 Pro Tip:</strong> After setting up FR24, you'll receive a free Business plan subscription that includes:
+                    </p>
+                    <ul style="margin: 10px 0 0 20px; color: #1e40af;">
+                        <li>90-day flight history</li>
+                        <li>Unlimited alerts</li>
+                        <li>No ads</li>
+                        <li>Advanced filters</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button class="btn" onclick="window.location.href='/feeds'">← Back to Feed Selection</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function setupFR24() {
+            const feederId = document.getElementById('fr24-feeder-id').value.trim();
+            const setupBtn = document.getElementById('setup-fr24-btn');
+            const setupText = document.getElementById('setup-fr24-text');
+            const resultDiv = document.getElementById('fr24-result');
+            
+            if (!feederId) {
+                showResult('error', 'Please enter a feeder ID');
+                return;
+            }
+            
+            // Disable button and show loading
+            setupBtn.disabled = true;
+            setupText.textContent = '⏳ Installing FR24...';
+            resultDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/feeds/fr24/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        feeder_id: feederId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('success', '✅ FR24 installed and configured successfully!');
+                    document.getElementById('fr24-status').textContent = 'Active';
+                    document.getElementById('fr24-status').className = 'feed-status-badge status-active';
+                } else {
+                    showResult('error', `❌ Setup failed: ${data.message}`);
+                }
+            } catch (error) {
+                showResult('error', `❌ Error: ${error.message}`);
+            } finally {
+                setupBtn.disabled = false;
+                setupText.textContent = '💾 Install & Setup FR24';
+            }
+        }
+        
+        async function testFR24() {
+            const feederId = document.getElementById('fr24-feeder-id').value.trim();
+            const testBtn = document.getElementById('test-fr24-btn');
+            
+            if (!feederId) {
+                showResult('error', 'Please enter a feeder ID');
+                return;
+            }
+            
+            testBtn.disabled = true;
+            testBtn.textContent = '⏳ Testing...';
+            
+            try {
+                const response = await fetch('/api/feeds/fr24/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        feeder_id: feederId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('success', '✅ Connection test successful!');
+                } else {
+                    showResult('error', `❌ Test failed: ${data.message}`);
+                }
+            } catch (error) {
+                showResult('error', `❌ Error: ${error.message}`);
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = '🔍 Test Connection';
+            }
+        }
+        
+        function showResult(type, message) {
+            const resultDiv = document.getElementById('fr24-result');
+            resultDiv.style.display = 'block';
+            resultDiv.style.padding = '12px';
+            resultDiv.style.borderRadius = '6px';
+            resultDiv.style.fontWeight = '500';
+            
+            if (type === 'success') {
+                resultDiv.style.background = '#d1fae5';
+                resultDiv.style.color = '#065f46';
+                resultDiv.style.border = '2px solid #10b981';
+            } else {
+                resultDiv.style.background = '#fee2e2';
+                resultDiv.style.color = '#991b1b';
+                resultDiv.style.border = '2px solid #ef4444';
+            }
+            
+            resultDiv.textContent = message;
+        }
+    </script>
+</body>
+</html>
