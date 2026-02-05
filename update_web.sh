@@ -1,53 +1,69 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.9.0
+# Quick Web App Update Script for v2.30.5
 # Updates only the web interface without touching Docker containers
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.9.0"
+echo "  TAKNET-PS Web App Update to v2.30.5"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
-    echo "❌ Please run as root: sudo bash update_web.sh"
+    echo "ERROR: Please run as root: sudo bash update_web.sh"
     exit 1
 fi
 
 # Backup current web directory
-echo "📦 Backing up current web app..."
+echo "Backing up current web app..."
 if [ -d /opt/adsb/web ]; then
     cp -r /opt/adsb/web /opt/adsb/web.backup.$(date +%Y%m%d-%H%M%S)
-    echo "✓ Backup created"
+    echo "Backup created"
 else
-    echo "⚠️  Web directory not found, creating fresh install"
+    echo "WARNING: Web directory not found, creating fresh install"
 fi
 
-# Download the complete package
+# Stop web service
 echo ""
-echo "⬇️  Downloading v2.9.0..."
-cd /tmp
-curl -fsSL https://github.com/cfd2474/feeder_test/raw/main/taknet-ps-complete-v2.9.0.tar.gz -o taknet-ps-v2.9.0.tar.gz
+echo "Stopping web service..."
+systemctl stop adsb-web.service
 
-# Extract
-echo "📂 Extracting files..."
-tar -xzf taknet-ps-v2.9.0.tar.gz
-
-# Update only the web directory
-echo "🔄 Updating web app files..."
-if [ -d /opt/adsb/web ]; then
-    rm -rf /opt/adsb/web
+# Update web app files
+echo "Updating web app files..."
+if [ -d ./web ]; then
+    # Update main app
+    echo "  - Copying app.py..."
+    cp ./web/app.py /opt/adsb/web/
+    
+    # Update templates individually
+    echo "  - Copying templates..."
+    cp ./web/templates/dashboard.html /opt/adsb/web/templates/
+    cp ./web/templates/feeds.html /opt/adsb/web/templates/
+    cp ./web/templates/feeds-account-required.html /opt/adsb/web/templates/
+    cp ./web/templates/settings.html /opt/adsb/web/templates/
+    cp ./web/templates/logs.html /opt/adsb/web/templates/
+    cp ./web/templates/setup.html /opt/adsb/web/templates/
+    cp ./web/templates/loading.html /opt/adsb/web/templates/
+    
+    # Update static files
+    echo "  - Copying static files..."
+    cp -r ./web/static/* /opt/adsb/web/static/
+    
+    echo "Files updated successfully"
+else
+    echo "ERROR: web directory not found"
+    echo "Are you running this from the extracted package directory?"
+    exit 1
 fi
-cp -r taknet-ps-complete-v2.9.0/web /opt/adsb/
 
 # Set permissions
-echo "🔐 Setting permissions..."
+echo "Setting permissions..."
 chown -R adsb:adsb /opt/adsb/web
 chmod +x /opt/adsb/web/app.py
 
 # Restart the web service
-echo "🔄 Restarting web service..."
+echo "Restarting web service..."
 systemctl restart adsb-web.service
 
 # Wait for service to start
@@ -57,32 +73,30 @@ sleep 2
 if systemctl is-active --quiet adsb-web.service; then
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  ✅ Update Complete!"
+    echo "  Update Complete!"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo "🌐 Access your updated interface:"
+    echo "Access your updated interface:"
     echo "   http://taknet-ps.local:5000"
     echo ""
-    echo "✨ New in v2.9.0:"
-    echo "   • Blank location fields with validation"
-    echo "   • Zip code priority system"
-    echo "   • Network status display"
-    echo "   • Full-screen status overlays"
-    echo "   • New Logs tab"
+    echo "New in v2.30.5:"
+    echo "   • Redesigned Feed Selection page"
+    echo "   • Accountless feeds with simple checkboxes"
+    echo "   • Account-required feeds configuration"
+    echo "   • Interactive logs viewer"
+    echo "   • Dashboard refresh: 60 seconds"
     echo ""
 else
     echo ""
-    echo "⚠️  Web service failed to start"
+    echo "WARNING: Web service failed to start"
     echo "Check logs: sudo journalctl -u adsb-web.service -n 50"
     echo ""
     echo "To restore backup:"
+    echo "   sudo systemctl stop adsb-web.service"
     echo "   sudo rm -rf /opt/adsb/web"
     echo "   sudo cp -r /opt/adsb/web.backup.* /opt/adsb/web"
     echo "   sudo systemctl restart adsb-web.service"
     exit 1
 fi
-
-# Cleanup
-rm -rf /tmp/taknet-ps-v2.9.0.tar.gz /tmp/taknet-ps-complete-v2.9.0
 
 echo "Done!"

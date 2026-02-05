@@ -109,7 +109,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
+            <h1>TAKNET-PS-ADSB-Feeder</h1>
             <p style="margin: 5px 0 15px 0; color: #9ca3af; font-size: 0.9em;">Tactical Awareness Kit Network for Enhanced Tracking – Public Safety</p>
             <nav>
                 <a href="/dashboard">Dashboard</a>
@@ -127,7 +127,7 @@
 
         <div class="dashboard">
             <div class="card">
-                <h2>📋 System Logs</h2>
+                <h2>System Logs</h2>
                 <p style="color: #666; margin-bottom: 20px;">
                     Select a log source to view real-time logs from your TAKNET-PS system.
                 </p>
@@ -135,13 +135,13 @@
                 <!-- Log Source Buttons -->
                 <div class="log-controls">
                     <button class="log-btn" onclick="loadLogs('ultrafeeder')" id="btn-ultrafeeder">
-                        📡 Ultrafeeder
+                        Ultrafeeder
                     </button>
                     <button class="log-btn" onclick="loadLogs('tailscale')" id="btn-tailscale">
-                        🔐 Tailscale
+                        Tailscale
                     </button>
                     <button class="log-btn" onclick="loadLogs('vnstat')" id="btn-vnstat">
-                        📊 Network Stats
+                        Network Stats
                     </button>
                 </div>
                 
@@ -233,9 +233,9 @@
         
         function getLogTitle(source) {
             const titles = {
-                'ultrafeeder': '📡 Ultrafeeder Logs',
-                'tailscale': '🔐 Tailscale Logs',
-                'vnstat': '📊 Network Statistics'
+                'ultrafeeder': 'Ultrafeeder Logs',
+                'tailscale': 'Tailscale Logs',
+                'vnstat': 'Network Statistics'
             };
             return titles[source] || 'Logs';
         }

@@ -22,11 +22,6 @@
             border-bottom: 2px solid #e5e7eb;
         }
         
-        .feed-icon {
-            font-size: 2.5em;
-            margin-right: 15px;
-        }
-        
         .feed-title {
             flex: 1;
         }
@@ -139,7 +134,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
+            <h1>TAKNET-PS-ADSB-Feeder</h1>
             <p style="margin: 5px 0 15px 0; color: #9ca3af; font-size: 0.9em;">Tactical Awareness Kit Network for Enhanced Tracking – Public Safety</p>
             <nav>
                 <a href="/dashboard">Dashboard</a>
@@ -157,7 +152,7 @@
 
         <div class="dashboard">
             <div class="card">
-                <h2>🔐 Account-Required Feeds</h2>
+                <h2>Account-Required Feeds</h2>
                 <p style="color: #666; margin-bottom: 30px;">
                     Configure feeds that require account registration and API keys.
                 </p>
@@ -165,7 +160,6 @@
                 <!-- FlightRadar24 Configuration -->
                 <div class="feed-config-card">
                     <div class="feed-config-header">
-                        <div class="feed-icon">✈️</div>
                         <div class="feed-title">
                             <h3>FlightRadar24</h3>
                             <p>Share your ADS-B data for free Business plan access</p>
@@ -187,16 +181,16 @@
                             value="{{ fr24_key }}"
                         >
                         <p class="config-hint">
-                            📝 Don't have a feeder ID? Visit <a href="https://www.flightradar24.com/share-your-data" target="_blank" style="color: #3b82f6;">flightradar24.com/share-your-data</a> to register
+                            Don't have a feeder ID? Visit <a href="https://www.flightradar24.com/share-your-data" target="_blank" style="color: #3b82f6;">flightradar24.com/share-your-data</a> to register
                         </p>
                     </div>
                     
                     <div class="config-actions">
                         <button class="btn-primary" onclick="setupFR24()" id="setup-fr24-btn">
-                            <span id="setup-fr24-text">💾 Install & Setup FR24</span>
+                            <span id="setup-fr24-text">Install & Setup FR24</span>
                         </button>
                         <button class="btn-secondary" onclick="testFR24()" id="test-fr24-btn">
-                            🔍 Test Connection
+                            Test Connection
                         </button>
                     </div>
                     
@@ -205,7 +199,7 @@
                 
                 <div style="padding: 20px; background: #eff6ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
                     <p style="margin: 0; color: #1e40af;">
-                        <strong>💡 Pro Tip:</strong> After setting up FR24, you'll receive a free Business plan subscription that includes:
+                        <strong>Pro Tip:</strong> After setting up FR24, you'll receive a free Business plan subscription that includes:
                     </p>
                     <ul style="margin: 10px 0 0 20px; color: #1e40af;">
                         <li>90-day flight history</li>
@@ -217,7 +211,7 @@
             </div>
             
             <div class="actions">
-                <button class="btn" onclick="window.location.href='/feeds'">← Back to Feed Selection</button>
+                <button class="btn" onclick="window.location.href='/feeds'">Back to Feed Selection</button>
             </div>
         </div>
     </div>
@@ -236,7 +230,7 @@
             
             // Disable button and show loading
             setupBtn.disabled = true;
-            setupText.textContent = '⏳ Installing FR24...';
+            setupText.textContent = 'Installing FR24...';
             resultDiv.style.display = 'none';
             
             try {
@@ -251,17 +245,17 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showResult('success', '✅ FR24 installed and configured successfully!');
+                    showResult('success', 'FR24 installed and configured successfully!');
                     document.getElementById('fr24-status').textContent = 'Active';
                     document.getElementById('fr24-status').className = 'feed-status-badge status-active';
                 } else {
-                    showResult('error', `❌ Setup failed: ${data.message}`);
+                    showResult('error', `Setup failed: ${data.message}`);
                 }
             } catch (error) {
-                showResult('error', `❌ Error: ${error.message}`);
+                showResult('error', `Error: ${error.message}`);
             } finally {
                 setupBtn.disabled = false;
-                setupText.textContent = '💾 Install & Setup FR24';
+                setupText.textContent = 'Install & Setup FR24';
             }
         }
         
@@ -275,7 +269,7 @@
             }
             
             testBtn.disabled = true;
-            testBtn.textContent = '⏳ Testing...';
+            testBtn.textContent = 'Testing...';
             
             try {
                 const response = await fetch('/api/feeds/fr24/test', {
@@ -289,15 +283,15 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showResult('success', '✅ Connection test successful!');
+                    showResult('success', 'Connection test successful!');
                 } else {
-                    showResult('error', `❌ Test failed: ${data.message}`);
+                    showResult('error', `Test failed: ${data.message}`);
                 }
             } catch (error) {
-                showResult('error', `❌ Error: ${error.message}`);
+                showResult('error', `Error: ${error.message}`);
             } finally {
                 testBtn.disabled = false;
-                testBtn.textContent = '🔍 Test Connection';
+                testBtn.textContent = 'Test Connection';
             }
         }
         

@@ -107,12 +107,84 @@
             margin: 10px 0;
             word-break: break-all;
         }
+        
+        /* Warning Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modal-header {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #dc2626;
+        }
+        
+        .modal-body {
+            color: #374151;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .modal-btn-cancel {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .modal-btn-cancel:hover {
+            background: #d1d5db;
+        }
+        
+        .modal-btn-confirm {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .modal-btn-confirm:hover {
+            background: #b91c1c;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🛩️ TAKNET-PS-ADSB-Feeder</h1>
+            <h1>TAKNET-PS-ADSB-Feeder</h1>
             <p style="margin: 5px 0 15px 0; color: #9ca3af; font-size: 0.9em;">Tactical Awareness Kit Network for Enhanced Tracking – Public Safety</p>
             <nav>
                 <a href="/dashboard">Dashboard</a>
@@ -130,7 +202,7 @@
 
         <div class="dashboard">
             <div class="card">
-                <h2>📡 Feed Selection</h2>
+                <h2>Feed Selection</h2>
                 <p style="color: #666; margin-bottom: 20px;">
                     Select which aggregators receive your ADS-B data. Changes are applied automatically.
                 </p>
@@ -138,7 +210,7 @@
                 <!-- UUID Display -->
                 <div class="uuid-display">
                     <h3 style="color: white; margin: 0 0 10px 0; font-size: 1.1em;">
-                        🆔 Your Feeder UUID
+                        Your Feeder UUID
                     </h3>
                     <div class="uuid-code">{{ feeder_uuid }}</div>
                     <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.9em;">
@@ -149,7 +221,7 @@
                 <!-- Accountless Feeds -->
                 <div class="feed-category">
                     <h3 style="margin-bottom: 15px; color: #374151;">
-                        ✅ Accountless Feeds
+                        Accountless Feeds
                     </h3>
                     <p style="color: #6b7280; margin-bottom: 20px; font-size: 0.95em;">
                         These feeds use your UUID for identification. Just check the box to enable.
@@ -159,68 +231,65 @@
                         <!-- TAKNET-PS -->
                         <div class="feed-item">
                             <input type="checkbox" id="feed-taknet" 
-                                   {{ 'checked' if config.get('TAKNET_PS_ENABLED', 'true') == 'true' else '' }}
+                                   checked
                                    onchange="toggleFeed('taknet', this.checked)">
                             <div class="feed-info">
-                                <div class="feed-name">🎯 TAKNET-PS</div>
+                                <div class="feed-name">TAKNET-PS</div>
                                 <div class="feed-description">
                                     Primary aggregator with automatic Tailscale failover
                                 </div>
                             </div>
-                            <span class="feed-status {{ 'enabled' if config.get('TAKNET_PS_ENABLED', 'true') == 'true' else 'disabled' }}" 
+                            <span class="feed-status enabled" 
                                   id="status-taknet">
-                                {{ 'Enabled' if config.get('TAKNET_PS_ENABLED', 'true') == 'true' else 'Disabled' }}
+                                Enabled
                             </span>
                         </div>
                         
                         <!-- Airplanes.Live -->
                         <div class="feed-item">
                             <input type="checkbox" id="feed-airplaneslive"
-                                   {{ 'checked' if config.get('AIRPLANESLIVE_ENABLED', 'true') == 'true' else '' }}
                                    onchange="toggleFeed('airplaneslive', this.checked)">
                             <div class="feed-info">
-                                <div class="feed-name">✈️ Airplanes.Live</div>
+                                <div class="feed-name">Airplanes.Live</div>
                                 <div class="feed-description">
                                     Community-driven global aircraft tracking aggregator
                                 </div>
                             </div>
-                            <span class="feed-status {{ 'enabled' if config.get('AIRPLANESLIVE_ENABLED', 'true') == 'true' else 'disabled' }}"
+                            <span class="feed-status disabled"
                                   id="status-airplaneslive">
-                                {{ 'Enabled' if config.get('AIRPLANESLIVE_ENABLED', 'true') == 'true' else 'Disabled' }}
+                                Disabled
                             </span>
                         </div>
                         
                         <!-- adsb.fi -->
                         <div class="feed-item">
                             <input type="checkbox" id="feed-adsbfi"
-                                   {{ 'checked' if config.get('ADSBFI_ENABLED', 'true') == 'true' else '' }}
                                    onchange="toggleFeed('adsbfi', this.checked)">
                             <div class="feed-info">
-                                <div class="feed-name">🇫🇮 adsb.fi</div>
+                                <div class="feed-name">adsb.fi</div>
                                 <div class="feed-description">
                                     Finnish ADS-B aggregator network
                                 </div>
                             </div>
-                            <span class="feed-status {{ 'enabled' if config.get('ADSBFI_ENABLED', 'true') == 'true' else 'disabled' }}"
+                            <span class="feed-status disabled"
                                   id="status-adsbfi">
-                                {{ 'Enabled' if config.get('ADSBFI_ENABLED', 'true') == 'true' else 'Disabled' }}
+                                Disabled
                             </span>
                         </div>
                         
                         <!-- adsb.lol -->
                         <div class="feed-item">
                             <input type="checkbox" id="feed-adsblol"
-                                   {{ 'checked' if config.get('ADSBLOL_ENABLED', 'true') == 'true' else '' }}
                                    onchange="toggleFeed('adsblol', this.checked)">
                             <div class="feed-info">
-                                <div class="feed-name">😂 adsb.lol</div>
+                                <div class="feed-name">adsb.lol</div>
                                 <div class="feed-description">
                                     Community ADS-B aggregator with global coverage
                                 </div>
                             </div>
-                            <span class="feed-status {{ 'enabled' if config.get('ADSBLOL_ENABLED', 'true') == 'true' else 'disabled' }}"
+                            <span class="feed-status disabled"
                                   id="status-adsblol">
-                                {{ 'Enabled' if config.get('ADSBLOL_ENABLED', 'true') == 'true' else 'Disabled' }}
+                                Disabled
                             </span>
                         </div>
                     </div>
@@ -229,30 +298,70 @@
                 <!-- Account-Required Feeds -->
                 <div class="feed-category">
                     <h3 style="margin-bottom: 15px; color: #374151;">
-                        🔐 Account-Required Feeds
+                        Account-Required Feeds
                     </h3>
                     <p style="color: #6b7280; margin-bottom: 20px; font-size: 0.95em;">
                         These feeds require account registration and configuration.
                     </p>
                     
                     <button class="account-required-btn" onclick="window.location.href='/feeds/account-required'">
-                        <span>
-                            <span style="font-size: 1.3em; margin-right: 10px;">🔐</span>
-                            Configure Account-Required Feeds
-                        </span>
+                        <span>Configure Account-Required Feeds</span>
                         <span style="font-size: 1.5em;">→</span>
                     </button>
                 </div>
             </div>
             
             <div class="actions">
-                <button class="btn" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
+                <button class="btn" onclick="window.location.href='/dashboard'">Back to Dashboard</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Warning Modal -->
+    <div class="modal-overlay" id="taknet-warning-modal">
+        <div class="modal-content">
+            <div class="modal-header">WARNING</div>
+            <div class="modal-body">
+                <p><strong>You are about to disable the TAKNET-PS feed.</strong></p>
+                <p>This is the primary aggregator for your feeder system. Disabling it will stop data transmission to the TAKNET-PS network.</p>
+                <p>Are you sure you want to continue?</p>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-cancel" onclick="cancelTaknetDisable()">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" onclick="confirmTaknetDisable()">Disable Feed</button>
             </div>
         </div>
     </div>
     
     <script>
+        let pendingTaknetDisable = false;
+        
         async function toggleFeed(feedName, enabled) {
+            // Special handling for TAKNET-PS disable
+            if (feedName === 'taknet' && !enabled) {
+                // Show warning modal
+                pendingTaknetDisable = true;
+                document.getElementById('taknet-warning-modal').classList.add('show');
+                return;
+            }
+            
+            // Proceed with toggle
+            await performToggle(feedName, enabled);
+        }
+        
+        function cancelTaknetDisable() {
+            document.getElementById('taknet-warning-modal').classList.remove('show');
+            document.getElementById('feed-taknet').checked = true;
+            pendingTaknetDisable = false;
+        }
+        
+        async function confirmTaknetDisable() {
+            document.getElementById('taknet-warning-modal').classList.remove('show');
+            await performToggle('taknet', false);
+            pendingTaknetDisable = false;
+        }
+        
+        async function performToggle(feedName, enabled) {
             const statusElement = document.getElementById(`status-${feedName}`);
             
             try {

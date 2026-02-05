@@ -16,7 +16,7 @@ import uuid
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.30.4"
+VERSION = "2.30.5"
 
 # Global progress tracking
 service_progress = {
@@ -118,6 +118,12 @@ def write_env(env_vars):
         lines.append(f"{key}={value}\n")
     with open(ENV_FILE, 'w') as f:
         f.writelines(lines)
+
+def update_env_var(key, value):
+    """Update a single environment variable in .env file"""
+    env_vars = read_env()
+    env_vars[key] = value
+    write_env(env_vars)
 
 def get_or_create_feeder_uuid():
     """
