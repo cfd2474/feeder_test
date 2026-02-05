@@ -16,7 +16,7 @@ import uuid
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.30.6"
+VERSION = "2.30.7"
 
 # Global progress tracking
 service_progress = {
@@ -836,7 +836,14 @@ def dashboard():
     docker_status = get_docker_status()
     taknet_status = get_taknet_connection_status(env)
     feeder_uuid = get_or_create_feeder_uuid()
-    return render_template('dashboard.html', config=env, docker=docker_status, version=VERSION, taknet_status=taknet_status, feeder_uuid=feeder_uuid)
+    
+    # Get network info
+    network_info = {
+        'hostname': env.get('TAILSCALE_HOSTNAME', socket.gethostname()),
+        'machine_name': env.get('MLAT_SITE_NAME', 'Unknown')
+    }
+    
+    return render_template('dashboard.html', config=env, docker=docker_status, version=VERSION, taknet_status=taknet_status, feeder_uuid=feeder_uuid, network_info=network_info)
 
 @app.route('/logs')
 def logs():

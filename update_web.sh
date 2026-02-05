@@ -1,11 +1,11 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.30.6
+# Quick Web App Update Script for v2.30.7
 # Updates only the web interface without touching Docker containers
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.30.6"
+echo "  TAKNET-PS Web App Update to v2.30.7"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -80,11 +80,12 @@ if systemctl is-active --quiet adsb-web.service; then
     echo "Access your updated interface:"
     echo "   http://taknet-ps.local:5000"
     echo ""
-    echo "New in v2.30.6:"
-    echo "   • FIXED: Account-required feeds page internal server error"
-    echo "   • FIXED: Missing feeds-account-required.html template in install script"
-    echo "   • FIXED: Missing setup-sdr.html template in update script"
-    echo "   • All 8 web templates now deploy correctly"
+    echo "New in v2.30.7:"
+    echo "   • FIXED: Feed checkboxes now match actual enabled/disabled states"
+    echo "   • Added Machine Name to Network Status (MLAT_SITE_NAME)"
+    echo "   • Removed feed descriptions, showing only feed names"
+    echo "   • Added notice about waiting for popup confirmation"
+    echo "   • Dashboard Network Status now shows actual values"
     echo ""
 else
     echo ""

@@ -223,73 +223,67 @@
                     <h3 style="margin-bottom: 15px; color: #374151;">
                         Accountless Feeds
                     </h3>
-                    <p style="color: #6b7280; margin-bottom: 20px; font-size: 0.95em;">
+                    <p style="color: #6b7280; margin-bottom: 10px; font-size: 0.95em;">
                         These feeds use your UUID for identification. Just check the box to enable.
+                    </p>
+                    <p style="color: #f59e0b; margin-bottom: 20px; font-size: 0.9em; font-style: italic;">
+                        Note: After checking a feed box, wait for the popup message to confirm the system has been enabled/disabled. This may take a few seconds.
                     </p>
                     
                     <div class="feed-list">
                         <!-- TAKNET-PS -->
                         <div class="feed-item">
                             <input type="checkbox" id="feed-taknet" 
-                                   checked
+                                   {% if config.get('TAKNET_PS_ENABLED') == 'true' %}checked{% endif %}
                                    onchange="toggleFeed('taknet', this.checked)">
                             <div class="feed-info">
                                 <div class="feed-name">TAKNET-PS</div>
-                                <div class="feed-description">
-                                    Primary aggregator with automatic Tailscale failover
-                                </div>
                             </div>
-                            <span class="feed-status enabled" 
+                            <span class="feed-status {% if config.get('TAKNET_PS_ENABLED') == 'true' %}enabled{% else %}disabled{% endif %}" 
                                   id="status-taknet">
-                                Enabled
+                                {% if config.get('TAKNET_PS_ENABLED') == 'true' %}Enabled{% else %}Disabled{% endif %}
                             </span>
                         </div>
                         
                         <!-- Airplanes.Live -->
                         <div class="feed-item">
                             <input type="checkbox" id="feed-airplaneslive"
+                                   {% if config.get('AIRPLANESLIVE_ENABLED') == 'true' %}checked{% endif %}
                                    onchange="toggleFeed('airplaneslive', this.checked)">
                             <div class="feed-info">
                                 <div class="feed-name">Airplanes.Live</div>
-                                <div class="feed-description">
-                                    Community-driven global aircraft tracking aggregator
-                                </div>
                             </div>
-                            <span class="feed-status disabled"
+                            <span class="feed-status {% if config.get('AIRPLANESLIVE_ENABLED') == 'true' %}enabled{% else %}disabled{% endif %}"
                                   id="status-airplaneslive">
-                                Disabled
+                                {% if config.get('AIRPLANESLIVE_ENABLED') == 'true' %}Enabled{% else %}Disabled{% endif %}
                             </span>
                         </div>
                         
                         <!-- adsb.fi -->
                         <div class="feed-item">
                             <input type="checkbox" id="feed-adsbfi"
+                                   {% if config.get('ADSBFI_ENABLED') == 'true' %}checked{% endif %}
                                    onchange="toggleFeed('adsbfi', this.checked)">
                             <div class="feed-info">
                                 <div class="feed-name">adsb.fi</div>
-                                <div class="feed-description">
-                                    Finnish ADS-B aggregator network
-                                </div>
                             </div>
-                            <span class="feed-status disabled"
+                            <span class="feed-status {% if config.get('ADSBFI_ENABLED') == 'true' %}enabled{% else %}disabled{% endif %}"
                                   id="status-adsbfi">
-                                Disabled
+                                {% if config.get('ADSBFI_ENABLED') == 'true' %}Enabled{% else %}Disabled{% endif %}
                             </span>
                         </div>
                         
                         <!-- adsb.lol -->
                         <div class="feed-item">
                             <input type="checkbox" id="feed-adsblol"
+                                   {% if config.get('ADSBLOL_ENABLED') == 'true' %}checked{% endif %}
                                    onchange="toggleFeed('adsblol', this.checked)">
                             <div class="feed-info">
                                 <div class="feed-name">adsb.lol</div>
-                                <div class="feed-description">
-                                    Community ADS-B aggregator with global coverage
-                                </div>
                             </div>
-                            <span class="feed-status disabled"
+                            <span class="feed-status {% if config.get('ADSBLOL_ENABLED') == 'true' %}enabled{% else %}disabled{% endif %}"
                                   id="status-adsblol">
-                                Disabled
+                                {% if config.get('ADSBLOL_ENABLED') == 'true' %}Enabled{% else %}Disabled{% endif %}
                             </span>
                         </div>
                     </div>
