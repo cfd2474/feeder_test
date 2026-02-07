@@ -1,11 +1,11 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.33.0
+# Quick Web App Update Script for v2.34.0
 # Updates only the web interface without touching Docker containers
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.33.0"
+echo "  TAKNET-PS Web App Update to v2.34.0"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -80,12 +80,12 @@ if systemctl is-active --quiet adsb-web.service; then
     echo "Access your updated interface:"
     echo "   http://taknet-ps.local:5000"
     echo ""
-    echo "New in v2.33.0:"
-    echo "   • Added status change modal for all feed enable/disable toggles"
-    echo "   • Modal shows: Loading → Success/Error → Auto-dismiss"
-    echo "   • Prevents multiple simultaneous changes (forces user to wait)"
-    echo "   • Improved UX with visual feedback for all feed status changes"
-    echo "   • Applies to: TAKNET-PS, adsb.fi, adsb.lol, airplanes.live, FR24"
+    echo "New in v2.34.0:"
+    echo "   • Added ADSBexchange to accountless feeds"
+    echo "   • ADSBexchange feed configuration: feed1.adsbexchange.com:30004"
+    echo "   • ADSBexchange MLAT configuration: feed.adsbexchange.com:31090"
+    echo "   • Uses feeder UUID for identification (no account required)"
+    echo "   • Integrated into ultrafeeder's built-in configuration"
     echo ""
 else
     echo ""

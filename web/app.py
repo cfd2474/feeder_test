@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.33.0"
+VERSION = "2.34.0"
 
 # Global progress tracking
 service_progress = {
@@ -903,7 +903,8 @@ def api_feeds_toggle():
             'taknet': 'TAKNET_PS_ENABLED',
             'airplaneslive': 'AIRPLANESLIVE_ENABLED',
             'adsbfi': 'ADSBFI_ENABLED',
-            'adsblol': 'ADSBLOL_ENABLED'
+            'adsblol': 'ADSBLOL_ENABLED',
+            'adsbexchange': 'ADSBX_ENABLED'
         }
         
         if feed_name not in feed_map:

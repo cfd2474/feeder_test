@@ -340,6 +340,20 @@
                                 {% if config.get('ADSBLOL_ENABLED') == 'true' %}Enabled{% else %}Disabled{% endif %}
                             </span>
                         </div>
+                        
+                        <!-- ADSBexchange -->
+                        <div class="feed-item">
+                            <input type="checkbox" id="feed-adsbexchange"
+                                   {% if config.get('ADSBX_ENABLED') == 'true' %}checked{% endif %}
+                                   onchange="toggleFeed('adsbexchange', this.checked)">
+                            <div class="feed-info">
+                                <div class="feed-name">ADSBexchange</div>
+                            </div>
+                            <span class="feed-status {% if config.get('ADSBX_ENABLED') == 'true' %}enabled{% else %}disabled{% endif %}"
+                                  id="status-adsbexchange">
+                                {% if config.get('ADSBX_ENABLED') == 'true' %}Enabled{% else %}Disabled{% endif %}
+                            </span>
+                        </div>
                     </div>
                 </div>
                 

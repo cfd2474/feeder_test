@@ -65,6 +65,9 @@ ADSBX_UUID=
 # adsb.fi
 ADSBFI_ENABLED=false
 
+# adsb.lol
+ADSBLOL_ENABLED=false
+
 # Airplanes.Live
 AIRPLANESLIVE_ENABLED=false
 AIRPLANESLIVE_UUID=

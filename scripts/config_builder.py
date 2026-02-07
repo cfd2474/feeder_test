@@ -252,6 +252,17 @@ def build_config(env_vars):
         else:
             print("⚠ adsb.lol enabled but no UUID found - skipping")
     
+    # ADSBexchange
+    if env_vars.get('ADSBX_ENABLED', '').lower() == 'true':
+        # ADSBexchange uses FEEDER_UUID for identification
+        feeder_uuid = env_vars.get('FEEDER_UUID', '').strip()
+        if feeder_uuid:
+            config_parts.append(f"adsb,feed1.adsbexchange.com,30004,beast_reduce_plus_out,uuid={feeder_uuid}")
+            config_parts.append(f"mlat,feed.adsbexchange.com,31090,39004,uuid={feeder_uuid}")
+            print(f"✓ ADSBexchange (UUID: {feeder_uuid[:8]}...)")
+        else:
+            print("⚠ ADSBexchange enabled but no UUID found - skipping")
+    
     # Airplanes.Live
     if env_vars.get('AIRPLANESLIVE_ENABLED', '').lower() == 'true':
         if env_vars.get('AIRPLANESLIVE_UUID', '').strip():
