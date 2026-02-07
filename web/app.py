@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.32.0"
+VERSION = "2.33.0"
 
 # Global progress tracking
 service_progress = {

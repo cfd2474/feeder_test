@@ -1,11 +1,11 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.32.0
+# Quick Web App Update Script for v2.33.0
 # Updates only the web interface without touching Docker containers
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.32.0"
+echo "  TAKNET-PS Web App Update to v2.33.0"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -80,12 +80,12 @@ if systemctl is-active --quiet adsb-web.service; then
     echo "Access your updated interface:"
     echo "   http://taknet-ps.local:5000"
     echo ""
-    echo "New in v2.32.0:"
-    echo "   • IMPLEMENTED: Automated FR24 registration using official fr24feed --signup"
-    echo "   • Auto-fills location data (lat/lon/alt) from feeder settings"
-    echo "   • Uses stdin piping for automation (no pexpect dependency)"
-    echo "   • Guides user to FR24 website to retrieve sharing key"
-    echo "   • Includes all v2.31.1 critical fixes (BEASTHOST, proper networking)"
+    echo "New in v2.33.0:"
+    echo "   • Added status change modal for all feed enable/disable toggles"
+    echo "   • Modal shows: Loading → Success/Error → Auto-dismiss"
+    echo "   • Prevents multiple simultaneous changes (forces user to wait)"
+    echo "   • Improved UX with visual feedback for all feed status changes"
+    echo "   • Applies to: TAKNET-PS, adsb.fi, adsb.lol, airplanes.live, FR24"
     echo ""
 else
     echo ""
