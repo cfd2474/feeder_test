@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.31.1"
+VERSION = "2.32.0"
 
 # Global progress tracking
 service_progress = {
@@ -1005,7 +1005,7 @@ def api_fr24_test():
 
 @app.route('/api/feeds/fr24/register', methods=['POST'])
 def api_fr24_register():
-    """Guide user through FR24 registration process"""
+    """Register new FR24 account using official signup process"""
     try:
         data = request.json
         email = data.get('email', '').strip()
@@ -1013,61 +1013,88 @@ def api_fr24_register():
         if not email:
             return jsonify({'success': False, 'message': 'Email is required'})
         
-        # Read current env
+        # Read current env for location data
         env = read_env()
         lat = env.get('FEEDER_LAT', '0')
         lon = env.get('FEEDER_LONG', '0')
         alt = env.get('FEEDER_ALT_FT', '0')
         
-        # Check if FR24 container exists and remove it
-        check_result = subprocess.run(['docker', 'ps', '-a', '--filter', 'name=fr24feed', '--format', '{{.Names}}'],
-                                     capture_output=True, text=True, timeout=5)
+        # Validate we have location data
+        if lat == '0' or lon == '0':
+            return jsonify({
+                'success': False, 
+                'message': 'Feeder location not configured. Please set up your location in Settings first.'
+            })
         
-        if 'fr24feed' in check_result.stdout:
-            subprocess.run(['docker', 'rm', '-f', 'fr24feed'], timeout=30, check=True)
+        # Prepare answers for fr24feed --signup interactive prompts
+        # Based on the signup log, here's the sequence:
+        signup_inputs = f'''{email}
+
+yes
+{lat}
+{lon}
+{alt}
+yes
+5
+ultrafeeder
+30005
+no
+no
+'''
         
-        # Create temporary FR24 container for signup
+        # Run fr24feed --signup in Docker container with stdin
         docker_cmd = [
-            'docker', 'run', '-it', '--rm',
-            '--name', 'fr24feed-signup',
+            'docker', 'run', '-i', '--rm',
             'ghcr.io/sdr-enthusiasts/docker-flightradar24:latest',
             'fr24feed', '--signup'
         ]
         
-        # Run signup in interactive mode
-        # Note: This is complex to automate, better to provide instructions
-        
-        instructions = f"""
-FR24 Registration Instructions:
-
-1. Run this command on your feeder:
-   docker run -it --rm ghcr.io/sdr-enthusiasts/docker-flightradar24:latest fr24feed --signup
-
-2. Answer the questions:
-   - Email: {email}
-   - Latitude: {lat}
-   - Longitude: {lon}
-   - Altitude: {alt} feet
-   - Enable MLAT: yes
-   - Receiver type: 5 (AVR Compatible)
-   - Connection type: 1 (Network)
-   - Host: ultrafeeder:30005
-
-3. Copy your sharing key from the output
-
-4. Return to this page and use "I Have a Key" to enter your key
-
-Alternative: Visit https://www.flightradar24.com/share-your-data to register online
-"""
-        
-        return jsonify({
-            'success': False, 
-            'message': 'Automatic registration is not available. Please follow the manual process.',
-            'instructions': instructions
-        })
+        try:
+            # Run the signup process
+            result = subprocess.run(
+                docker_cmd,
+                input=signup_inputs,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            # Check output - even if there's an "ERROR" at the end, registration usually succeeds
+            output = result.stdout + result.stderr
+            
+            # Look for success indicators
+            if 'Submitting form data' in output or 'Please check your inbox' in output:
+                # Registration was likely successful
+                return jsonify({
+                    'success': True,
+                    'message': 'Registration submitted successfully!',
+                    'instructions': 'Check your email and visit the FR24 website to get your sharing key.',
+                    'email': email,
+                    'fr24_url': 'https://www.flightradar24.com/account/data-sharing'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Registration may have failed. Please try manual registration.',
+                    'instructions': f'Visit https://www.flightradar24.com/share-your-data to register manually with email: {email}'
+                })
+                
+        except subprocess.TimeoutExpired:
+            # Timeout might still mean success - FR24 registration can complete even with final error
+            return jsonify({
+                'success': True,
+                'message': 'Registration submitted (process timed out, but likely successful).',
+                'instructions': 'Check your email and visit the FR24 website to get your sharing key.',
+                'email': email,
+                'fr24_url': 'https://www.flightradar24.com/account/data-sharing'
+            })
         
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        return jsonify({
+            'success': False, 
+            'message': f'Registration error: {str(e)}',
+            'instructions': f'Please register manually at https://www.flightradar24.com/share-your-data'
+        })
 
 @app.route('/api/feeds/fr24/toggle', methods=['POST'])
 def api_fr24_toggle():

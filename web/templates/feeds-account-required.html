@@ -272,7 +272,7 @@
                     <div id="need-key-section" class="setup-section" style="display: none;">
                         <div class="config-section">
                             <label class="config-label" for="fr24-email">
-                                Email Address (for reference)
+                                Email Address
                             </label>
                             <input 
                                 type="email" 
@@ -281,36 +281,35 @@
                                 placeholder="your.email@example.com"
                             >
                             <p class="config-hint">
-                                You'll need this email to register with FlightRadar24
+                                Enter the email you'll use for your FlightRadar24 account
                             </p>
                         </div>
                         
                         <div class="config-section">
                             <label class="config-label">
-                                Registration Process
+                                Automated Registration Process
                             </label>
                             <div style="padding: 15px; background: #eff6ff; border-radius: 6px; border-left: 4px solid #3b82f6;">
                                 <p style="margin: 0 0 10px 0; color: #1e40af; font-weight: 600;">
-                                    Option 1: Register Online (Easiest)
+                                    How it works:
                                 </p>
-                                <ol style="margin: 0 0 15px 0; padding-left: 20px; color: #1e40af;">
-                                    <li>Visit <a href="https://www.flightradar24.com/share-your-data" target="_blank" style="color: #3b82f6; text-decoration: underline;">flightradar24.com/share-your-data</a></li>
-                                    <li>Complete the signup form with your location</li>
-                                    <li>Receive your sharing key via email</li>
-                                    <li>Return here and use "I Have a Key" to enter it</li>
+                                <ol style="margin: 0; padding-left: 20px; color: #1e40af;">
+                                    <li>Enter your email address above</li>
+                                    <li>Click "Register with FR24" button</li>
+                                    <li>System automatically submits registration using your feeder location</li>
+                                    <li>You'll receive confirmation and instructions</li>
+                                    <li>Visit FR24 website to get your sharing key</li>
+                                    <li>Return here and use "I Have a Key" to complete setup</li>
                                 </ol>
-                                <p style="margin: 0 0 5px 0; color: #1e40af; font-weight: 600;">
-                                    Option 2: Manual CLI Registration
-                                </p>
-                                <p style="margin: 0 0 5px 0; color: #1e40af; font-size: 0.9em;">
-                                    Click the button below for detailed CLI instructions
+                                <p style="margin: 10px 0 0 0; color: #1e40af; font-size: 0.9em; font-style: italic;">
+                                    Note: Your feeder location (lat/lon/altitude) will be automatically used from your system settings.
                                 </p>
                             </div>
                         </div>
                         
                         <div class="config-actions">
                             <button class="btn-primary" onclick="registerFR24()" id="register-fr24-btn">
-                                <span id="register-fr24-text">Get Registration Instructions</span>
+                                <span id="register-fr24-text">Register with FR24</span>
                             </button>
                         </div>
                     </div>
@@ -453,7 +452,7 @@
             
             // Disable button and show loading
             registerBtn.disabled = true;
-            registerText.textContent = 'Getting registration instructions...';
+            registerText.textContent = 'Submitting registration to FR24...';
             resultDiv.style.display = 'none';
             
             try {
@@ -467,23 +466,32 @@
                 
                 const data = await response.json();
                 
-                // Show instructions
-                if (data.instructions) {
-                    showResult('info', `FR24 Registration requires manual setup. Visit https://www.flightradar24.com/share-your-data or follow CLI instructions. After receiving your sharing key, click "I Have a Key" and enter it.`);
-                } else if (data.success) {
-                    showResult('success', `FR24 registered successfully! Your sharing key: ${data.sharing_key}`);
-                    document.getElementById('fr24-status').textContent = 'Active';
-                    document.getElementById('fr24-status').className = 'feed-status-badge status-active';
-                    document.getElementById('fr24-enabled').checked = true;
-                    document.getElementById('fr24-feeder-id').value = data.sharing_key;
+                if (data.success) {
+                    // Registration submitted successfully
+                    const message = `${data.message}\n\n` +
+                                  `Next steps:\n` +
+                                  `1. Check your email (${data.email})\n` +
+                                  `2. Visit: ${data.fr24_url}\n` +
+                                  `3. Copy your sharing key\n` +
+                                  `4. Click "I Have a Key" and enter it`;
+                    showResult('success', message);
+                    
+                    // Switch to "I Have a Key" tab after 3 seconds
+                    setTimeout(() => {
+                        switchSetupMethod('have-key');
+                    }, 3000);
                 } else {
-                    showResult('error', data.message || 'Registration failed');
+                    if (data.instructions) {
+                        showResult('error', data.message + '\n\n' + data.instructions);
+                    } else {
+                        showResult('error', data.message);
+                    }
                 }
             } catch (error) {
                 showResult('error', `Error: ${error.message}`);
             } finally {
                 registerBtn.disabled = false;
-                registerText.textContent = 'Register & Setup FR24';
+                registerText.textContent = 'Register with FR24';
             }
         }
         
@@ -530,6 +538,8 @@
             resultDiv.style.padding = '12px';
             resultDiv.style.borderRadius = '6px';
             resultDiv.style.fontWeight = '500';
+            resultDiv.style.whiteSpace = 'pre-wrap';  // Preserve newlines
+            resultDiv.style.fontFamily = 'inherit';
             
             if (type === 'success') {
                 resultDiv.style.background = '#d1fae5';

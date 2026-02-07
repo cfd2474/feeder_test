@@ -1,11 +1,11 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.31.1
+# Quick Web App Update Script for v2.32.0
 # Updates only the web interface without touching Docker containers
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.31.1"
+echo "  TAKNET-PS Web App Update to v2.32.0"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -80,12 +80,12 @@ if systemctl is-active --quiet adsb-web.service; then
     echo "Access your updated interface:"
     echo "   http://taknet-ps.local:5000"
     echo ""
-    echo "New in v2.31.1:"
-    echo "   • CRITICAL FIX: Added BEASTHOST=ultrafeeder to FR24 Docker container"
-    echo "   • CRITICAL FIX: Removed --network host for proper container networking"
-    echo "   • Changed registration to manual process (more reliable than automated)"
-    echo "   • Added tmpfs for /var/log to reduce SD card wear"
-    echo "   • Implementation verified against official FR24 manual"
+    echo "New in v2.32.0:"
+    echo "   • IMPLEMENTED: Automated FR24 registration using official fr24feed --signup"
+    echo "   • Auto-fills location data (lat/lon/alt) from feeder settings"
+    echo "   • Uses stdin piping for automation (no pexpect dependency)"
+    echo "   • Guides user to FR24 website to retrieve sharing key"
+    echo "   • Includes all v2.31.1 critical fixes (BEASTHOST, proper networking)"
     echo ""
 else
     echo ""
