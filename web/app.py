@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.39.2"
+VERSION = "2.40.6"
 
 # Global progress tracking
 service_progress = {
@@ -253,151 +253,176 @@ def get_service_state(service_name):
     return state
 
 def monitor_docker_progress(service_name='ultrafeeder'):
-    """Monitor Docker pull progress in background thread for any service"""
+    """
+    Monitor docker-compose up in real-time by streaming its output
+    v2.40.6: No timeout - monitors until actually complete
+    Parses actual Docker output for accurate progress
+    """
     try:
-        update_progress(service_name, 10, 100, 'Pulling image...', 'Starting')
+        reset_progress()
+        update_progress(service_name, 1, 100, 'Initializing...', 'Starting')
         
-        # For FR24 (Docker container), monitor container creation and startup
-        # For other services (systemd), watch journalctl
-        if service_name == 'fr24':
-            # FR24 is a Docker container managed by docker compose
-            # Monitor by polling container state
-            start_time = time.time()
-            max_wait = 180  # 3 minutes max
+        # Run config builder first
+        subprocess.run(
+            ['python3', '/opt/adsb/scripts/config_builder.py'],
+            capture_output=True,
+            timeout=10,
+            cwd='/opt/adsb'
+        )
+        
+        update_progress(service_name, 5, 100, 'Starting Docker Compose...', 'Preparing')
+        
+        # Run docker compose with streaming output
+        process = subprocess.Popen(
+            ['docker', 'compose', 'up', '-d'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # Merge stderr to stdout
+            text=True,
+            bufsize=1,  # Line buffered
+            cwd='/opt/adsb/config'
+        )
+        
+        current_image = None
+        images_pulled = set()
+        total_images = 3  # ultrafeeder, piaware, fr24
+        containers_created = set()
+        containers_started = set()
+        
+        # Read output line by line until process completes
+        for line in process.stdout:
+            line = line.strip()
+            if not line:
+                continue
             
-            update_progress(service_name, 20, 100, 'Initiating download...', 'Pulling image')
+            # Image pulling started
+            if 'Pulling' in line and 'Container' not in line:
+                if 'ultrafeeder' in line.lower():
+                    current_image = 'ultrafeeder'
+                    update_progress(service_name, 10, 100, 'Pulling ultrafeeder image...', 'Downloading')
+                elif 'piaware' in line.lower():
+                    current_image = 'piaware'
+                    update_progress(service_name, 30, 100, 'Pulling piaware image...', 'Downloading')
+                elif 'fr24' in line.lower() or 'flightradar' in line.lower():
+                    current_image = 'fr24'
+                    update_progress(service_name, 50, 100, 'Pulling fr24 image...', 'Downloading')
             
-            while time.time() - start_time < max_wait:
+            # Download progress (format: " 14324c29e8df Downloading  25.5MB/100MB")
+            elif 'Downloading' in line and 'MB' in line:
                 try:
-                    # Check if container exists
-                    result = subprocess.run(
-                        ['docker', 'ps', '-a', '--filter', 'name=^fr24$', '--format', '{{.Status}}'],
-                        capture_output=True,
-                        text=True,
-                        timeout=5
-                    )
-                    
-                    if result.returncode == 0 and result.stdout.strip():
-                        status = result.stdout.strip()
+                    # Look for pattern like "25.5MB/100MB"
+                    import re
+                    match = re.search(r'(\d+\.?\d*)\s*MB\s*/\s*(\d+\.?\d*)\s*MB', line)
+                    if match:
+                        downloaded = float(match.group(1))
+                        total = float(match.group(2))
                         
-                        if 'Up' in status:
-                            # Container is running!
-                            update_progress(service_name, 100, 100, 'Running', 'Complete')
-                            break
-                        elif 'Created' in status or 'Exited' in status:
-                            # Container exists but not running yet
-                            update_progress(service_name, 85, 100, 'Starting container...', 'Almost done')
-                        else:
-                            # Container exists in some other state
-                            update_progress(service_name, 70, 100, 'Initializing...', 'Starting')
-                    else:
-                        # Container doesn't exist yet - image is still pulling
-                        elapsed = time.time() - start_time
-                        # Gradual progress from 20% to 80% over 2 minutes
-                        progress = min(80, 20 + int((elapsed / 120) * 60))
-                        update_progress(service_name, progress, 100, 'Downloading image...', f'{int(elapsed)}s elapsed')
-                    
-                    time.sleep(2)  # Poll every 2 seconds
-                    
-                except Exception as e:
-                    print(f"FR24 monitoring error: {e}")
-                    time.sleep(2)
+                        # Calculate base progress based on which image
+                        base = 10 if current_image == 'ultrafeeder' else (30 if current_image == 'piaware' else 50)
+                        img_progress = int((downloaded / total) * 18) if total > 0 else 0
+                        
+                        update_progress(
+                            service_name,
+                            base + img_progress,
+                            100,
+                            f'Downloading {current_image}...',
+                            f'{downloaded:.1f}MB / {total:.1f}MB'
+                        )
+                except:
+                    pass
             
-            # If we timed out, set to a reasonable state
-            if time.time() - start_time >= max_wait:
-                update_progress(service_name, 90, 100, 'Starting...', 'Please wait')
+            # Extract progress
+            elif 'Extracting' in line:
+                if current_image:
+                    base = 10 if current_image == 'ultrafeeder' else (30 if current_image == 'piaware' else 50)
+                    update_progress(service_name, base + 15, 100, f'Extracting {current_image}...', 'Preparing')
             
+            # Image pulled completely
+            elif 'Pull complete' in line or ('Pulled' in line and 'Image' in line):
+                if current_image and current_image not in images_pulled:
+                    images_pulled.add(current_image)
+                    progress = 10 + (len(images_pulled) * 20)
+                    update_progress(
+                        service_name,
+                        min(68, progress),
+                        100,
+                        f'{len(images_pulled)}/{total_images} images ready',
+                        f'{current_image} ✓'
+                    )
+            
+            # Network creation
+            elif 'Network' in line and ('Creating' in line or 'Created' in line):
+                update_progress(service_name, 70, 100, 'Creating network...', 'Setting up')
+            
+            # Container creation
+            elif 'Container' in line and 'Creating' in line:
+                parts = line.split()
+                container_name = parts[1] if len(parts) > 1 else 'container'
+                update_progress(service_name, 75, 100, f'Creating {container_name}...', 'Initializing')
+            
+            elif 'Container' in line and 'Created' in line:
+                parts = line.split()
+                container_name = parts[1] if len(parts) > 1 else 'container'
+                if container_name not in containers_created:
+                    containers_created.add(container_name)
+                    progress = 75 + (len(containers_created) * 5)
+                    update_progress(service_name, progress, 100, f'{container_name} created', 'Ready')
+            
+            # Container starting
+            elif 'Container' in line and 'Starting' in line:
+                parts = line.split()
+                container_name = parts[1] if len(parts) > 1 else 'container'
+                update_progress(service_name, 90, 100, f'Starting {container_name}...', 'Almost done')
+            
+            elif 'Container' in line and 'Started' in line:
+                parts = line.split()
+                container_name = parts[1] if len(parts) > 1 else 'container'
+                if container_name not in containers_started:
+                    containers_started.add(container_name)
+                    progress = 90 + (len(containers_started) * 3)
+                    update_progress(service_name, min(99, progress), 100, f'{container_name} started', '✓')
+        
+        # Wait for process to complete
+        process.wait()
+        
+        # Final verification - check if ultrafeeder is actually running
+        import time
+        time.sleep(2)
+        result = subprocess.run(
+            ['docker', 'ps', '--filter', 'name=ultrafeeder', '--filter', 'status=running', '--format', '{{.Names}}'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if 'ultrafeeder' in result.stdout:
+            update_progress(service_name, 100, 100, 'Setup complete!', 'All containers running ✓')
         else:
-            # Monitor journalctl for systemd services (ultrafeeder)
-            process = subprocess.Popen(
-                ['journalctl', '-u', service_name, '-f', '--since', 'now'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1
-            )
-            
-            start_time = time.time()
-            max_wait = 180  # 3 minutes max
-            
-            while time.time() - start_time < max_wait:
-                line = process.stdout.readline()
-                if not line:
-                    time.sleep(0.5)
-                    continue
-                
-                # Parse Docker pull progress
-                # Example: "Pulling fs layer" / "Downloading" / "Extracting"
-                if 'Pulling fs layer' in line or 'Waiting' in line:
-                    update_progress(service_name, 20, 100, 'Pulling layers...', 'Initializing')
-                elif 'Downloading' in line:
-                    # Try to extract download progress if available
-                    # Format: "Downloading [==>  ] 25.5MB/100MB"
-                    try:
-                        if 'MB' in line:
-                            parts = line.split('/')
-                            if len(parts) >= 2:
-                                # Extract downloaded and total
-                                downloaded_str = parts[0].split()[-1].replace('MB', '')
-                                total_str = parts[1].split()[0].replace('MB', '')
-                                downloaded = float(downloaded_str)
-                                total = float(total_str)
-                                percent = int((downloaded / total) * 100) if total > 0 else 30
-                                percent = min(80, max(20, percent))  # Clamp between 20-80%
-                                update_progress(service_name, percent, 100, 'Downloading...', f'{downloaded:.1f}MB / {total:.1f}MB')
-                            else:
-                                update_progress(service_name, 40, 100, 'Downloading...', 'In progress')
-                        else:
-                            update_progress(service_name, 40, 100, 'Downloading...', 'In progress')
-                    except:
-                        update_progress(service_name, 40, 100, 'Downloading...', 'In progress')
-                elif 'Extracting' in line or 'Pull complete' in line:
-                    update_progress(service_name, 85, 100, 'Extracting...', 'Almost done')
-                elif 'Started' in line or 'Running' in line:
-                    update_progress(service_name, 100, 100, 'Running', 'Complete')
-                    break
-                
-                # Fallback: gradual increase over time if no specific messages
-                elapsed = time.time() - start_time
-                if elapsed > 5:
-                    fallback_percent = min(80, 15 + int((elapsed / max_wait) * 65))
-                    if service_progress['progress'] < fallback_percent:
-                        update_progress(service_name, fallback_percent, 100, 'Downloading...', f'{int(elapsed)}s elapsed')
-            
-            process.terminate()
+            # Containers created but may still be initializing
+            update_progress(service_name, 95, 100, 'Finalizing startup...', 'Please wait')
         
     except Exception as e:
-        print(f"Progress monitoring error for {service_name}: {e}")
-        # Fallback to time-based estimation
-        for i in range(10, 90, 10):
-            update_progress(service_name, i, 100, 'Starting...', f'{i}%')
-            time.sleep(3)
+        print(f"Docker compose monitoring error: {e}")
+        import traceback
+        traceback.print_exc()
+        update_progress(service_name, 85, 100, 'Starting...', 'Please check dashboard')
 
 def restart_service():
-    """Restart ultrafeeder service - non-blocking, returns immediately"""
+    """Restart ultrafeeder service - with real-time Docker progress monitoring (v2.40.6)"""
     import time
     try:
         # Brief delay to prevent rapid-fire restarts
-        time.sleep(2)
+        time.sleep(1)
         
         # Reset progress before starting
         reset_progress()
         
         # Start progress monitoring in background thread
+        # v2.40.6: This thread now runs docker-compose directly and monitors its output
+        # No more systemctl - we stream docker-compose output for real progress
         monitor_thread = threading.Thread(target=monitor_docker_progress, args=('ultrafeeder',), daemon=True)
         monitor_thread.start()
         
-        # Start restart in background (non-blocking)
-        # The systemctl command will continue running, but we return immediately
-        # The loading page will poll /api/service/ready to check when it's actually up
-        subprocess.Popen(
-            ['systemctl', 'restart', 'ultrafeeder'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        print("✓ Ultrafeeder restart initiated (non-blocking)")
+        print("✓ Docker Compose starting with real-time progress monitoring (v2.40.6)")
         return True
         
     except Exception as e:

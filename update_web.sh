@@ -1,103 +1,112 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.39.2
-# Updates only the web interface without touching Docker containers
+
+# TAKNET-PS v2.40.6 Web Update Script
+# Updates web interface to v2.40.6 with real-time Docker progress monitoring
 
 set -e
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.39.2"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+INSTALL_DIR="/opt/adsb"
+BACKUP_DIR="${INSTALL_DIR}/web.backup.$(date +%Y%m%d-%H%M%S)"
+
+echo "======================================"
+echo "TAKNET-PS v2.40.6 Web Update"
+echo "======================================"
 echo ""
 
 # Check if running as root
-if [ "$EUID" -ne 0 ]; then 
-    echo "ERROR: Please run as root: sudo bash update_web.sh"
+if [ "$EUID" -ne 0 ]; then
+    echo "❌ Error: This script must be run as root"
+    echo "   Please run: sudo bash update_web.sh"
     exit 1
 fi
 
-# Backup current web directory
-echo "Backing up current web app..."
-if [ -d /opt/adsb/web ]; then
-    cp -r /opt/adsb/web /opt/adsb/web.backup.$(date +%Y%m%d-%H%M%S)
-    echo "Backup created"
-else
-    echo "WARNING: Web directory not found, creating fresh install"
+# Check if installation exists
+if [ ! -d "$INSTALL_DIR/web" ]; then
+    echo "❌ Error: TAKNET-PS not found at $INSTALL_DIR"
+    echo "   Expected directory: $INSTALL_DIR/web"
+    exit 1
 fi
+
+# Backup current installation
+echo "📦 Creating backup..."
+cp -r "$INSTALL_DIR/web" "$BACKUP_DIR"
+echo "   Backup created: $BACKUP_DIR"
+echo ""
 
 # Stop web service
-echo ""
-echo "Stopping web service..."
+echo "⏸️  Stopping web service..."
 systemctl stop adsb-web.service
+echo ""
 
-# Update web app files
-echo "Updating web app files..."
-if [ -d ./web ]; then
-    # Update main app
-    echo "  - Copying app.py..."
-    cp ./web/app.py /opt/adsb/web/
-    
-    # Update templates individually
-    echo "  - Copying templates..."
-    cp ./web/templates/dashboard.html /opt/adsb/web/templates/
-    cp ./web/templates/feeds.html /opt/adsb/web/templates/
-    cp ./web/templates/feeds-account-required.html /opt/adsb/web/templates/
-    cp ./web/templates/settings.html /opt/adsb/web/templates/
-    cp ./web/templates/logs.html /opt/adsb/web/templates/
-    cp ./web/templates/setup.html /opt/adsb/web/templates/
-    cp ./web/templates/setup-sdr.html /opt/adsb/web/templates/
-    cp ./web/templates/loading.html /opt/adsb/web/templates/
-    
-    # Update static files
-    echo "  - Copying static files..."
-    cp -r ./web/static/* /opt/adsb/web/static/
-    
-    echo "Files updated successfully"
+# Install new files
+echo "📥 Installing v2.40.6..."
+cp -r web/* "$INSTALL_DIR/web/"
+echo "   Files copied to $INSTALL_DIR/web/"
+echo ""
+
+# Verify installation
+echo "🔍 Verifying installation..."
+if python3 -m py_compile "$INSTALL_DIR/web/app.py" 2>/dev/null; then
+    echo "   ✅ No syntax errors detected"
 else
-    echo "ERROR: web directory not found"
-    echo "Are you running this from the extracted package directory?"
+    echo "   ❌ Syntax error in app.py!"
+    echo "   Rolling back..."
+    rm -rf "$INSTALL_DIR/web"
+    cp -r "$BACKUP_DIR" "$INSTALL_DIR/web"
+    systemctl start adsb-web.service
+    echo "   Rollback complete"
     exit 1
 fi
 
-# Set permissions
-echo "Setting permissions..."
-chown -R adsb:adsb /opt/adsb/web
-chmod +x /opt/adsb/web/app.py
+# Check version
+VERSION=$(grep "^VERSION = " "$INSTALL_DIR/web/app.py" | cut -d'"' -f2)
+echo "   Version installed: $VERSION"
+echo ""
 
-# Restart the web service
-echo "Restarting web service..."
-systemctl restart adsb-web.service
-
-# Wait for service to start
+# Start web service
+echo "▶️  Starting web service..."
+systemctl start adsb-web.service
 sleep 2
+echo ""
 
-# Check status
+# Verify service started
 if systemctl is-active --quiet adsb-web.service; then
+    echo "======================================"
+    echo "✅ UPDATE SUCCESSFUL!"
+    echo "======================================"
     echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  Update Complete!"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Version: $VERSION"
+    echo "Backup: $BACKUP_DIR"
     echo ""
-    echo "Access your updated interface:"
-    echo "   http://taknet-ps.local:5000"
+    echo "🎉 New Features:"
+    echo "   • Real-time Docker progress monitoring"
+    echo "   • No more timeout errors during setup"
+    echo "   • Shows actual download progress (MB/GB)"
+    echo "   • Professional progress indicators"
     echo ""
-    echo "New in v2.39.2:"
-    echo "   • Smart FR24 setup: single field detects email or key"
-    echo "   • Enter email → auto-registers and populates key"
-    echo "   • Enter key → uses it directly"
-    echo "   • Proper coordinate formatting (4 decimal places)"
-    echo "   • Simpler UX like adsb.im"
+    echo "🧪 Test It:"
+    echo "   1. Open web interface"
+    echo "   2. Go to Settings page"
+    echo "   3. Click 'Save & Start'"
+    echo "   4. Watch the real-time progress!"
     echo ""
+    echo "📊 Service Status:"
+    systemctl status adsb-web.service --no-pager -l | head -10
 else
+    echo "======================================"
+    echo "❌ UPDATE FAILED"
+    echo "======================================"
     echo ""
-    echo "WARNING: Web service failed to start"
-    echo "Check logs: sudo journalctl -u adsb-web.service -n 50"
+    echo "Web service did not start properly."
     echo ""
-    echo "To restore backup:"
-    echo "   sudo systemctl stop adsb-web.service"
-    echo "   sudo rm -rf /opt/adsb/web"
-    echo "   sudo cp -r /opt/adsb/web.backup.* /opt/adsb/web"
-    echo "   sudo systemctl restart adsb-web.service"
+    echo "Checking logs:"
+    journalctl -u adsb-web.service -n 20 --no-pager
+    echo ""
+    echo "Rolling back to backup..."
+    systemctl stop adsb-web.service
+    rm -rf "$INSTALL_DIR/web"
+    cp -r "$BACKUP_DIR" "$INSTALL_DIR/web"
+    systemctl start adsb-web.service
+    echo "Rollback complete"
     exit 1
 fi
-
-echo "Done!"
