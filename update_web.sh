@@ -1,11 +1,11 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.38.2
+# Quick Web App Update Script for v2.38.3
 # Updates only the web interface without touching Docker containers
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.38.2"
+echo "  TAKNET-PS Web App Update to v2.38.3"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -80,7 +80,7 @@ if systemctl is-active --quiet adsb-web.service; then
     echo "Access your updated interface:"
     echo "   http://taknet-ps.local:5000"
     echo ""
-    echo "New in v2.38.2:"
+    echo "New in v2.38.3:"
     echo "   • Smart FR24 setup: single field detects email or key"
     echo "   • Enter email → auto-registers and populates key"
     echo "   • Enter key → uses it directly"

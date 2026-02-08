@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.38.2"
+VERSION = "2.38.3"
 
 # Global progress tracking
 service_progress = {
@@ -941,12 +941,12 @@ def api_fr24_setup():
         update_env_var('FR24_KEY', feeder_id)
         update_env_var('FR24_ENABLED', 'true')
         
-        # Start FR24 container using docker-compose
+        # Start FR24 container using docker compose
         compose_file = '/opt/taknet-ps/config/docker-compose.yml'
         env_file = '/opt/taknet-ps/config/.env'
         
         result = subprocess.run(
-            ['docker-compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'fr24'],
+            ['docker', 'compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'fr24'],
             capture_output=True, text=True, timeout=60
         )
         
@@ -1143,15 +1143,15 @@ def api_fr24_toggle():
         compose_file = '/opt/taknet-ps/config/docker-compose.yml'
         env_file = '/opt/taknet-ps/config/.env'
         
-        # Start or stop FR24 container using docker-compose
+        # Start or stop FR24 container using docker compose
         if enabled:
             result = subprocess.run(
-                ['docker-compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'fr24'],
+                ['docker', 'compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'fr24'],
                 capture_output=True, text=True, timeout=60
             )
         else:
             result = subprocess.run(
-                ['docker-compose', '-f', compose_file, 'stop', 'fr24'],
+                ['docker', 'compose', '-f', compose_file, 'stop', 'fr24'],
                 capture_output=True, text=True, timeout=30
             )
         
