@@ -275,7 +275,6 @@ def build_config(env_vars):
 def build_docker_compose(env_vars):
     """Build docker-compose.yml with conditional FR24 service"""
     compose = {
-        'version': '3.8',
         'networks': {
             'adsb_net': {'driver': 'bridge'}
         },
@@ -320,27 +319,23 @@ def build_docker_compose(env_vars):
         }
     }
     
-    # Add FR24 service only if enabled AND has sharing key
-    if env_vars.get('FR24_ENABLED', '').lower() == 'true' and env_vars.get('FR24_SHARING_KEY', '').strip():
-        compose['services']['fr24'] = {
-            'image': 'ghcr.io/sdr-enthusiasts/docker-flightradar24:latest',
-            'container_name': 'fr24',
-            'hostname': 'fr24',
-            'restart': 'unless-stopped',
-            'networks': ['adsb_net'],
-            'depends_on': ['ultrafeeder'],
-            'ports': ['8754:8754'],
-            'environment': [
-                'BEASTHOST=ultrafeeder',
-                'FR24KEY=${FR24_SHARING_KEY}',
-                'MLAT=yes',
-                'VERBOSE_LOGGING=true'
-            ],
-            'tmpfs': ['/var/log:size=32M']
-        }
-        print("✓ FlightRadar24 service will be included in docker-compose")
-    else:
-        print("ℹ FlightRadar24 service will NOT be included (disabled or no key)")
+    # Always include FR24 service (can be started/stopped via docker compose)
+    compose['services']['fr24'] = {
+        'image': 'ghcr.io/sdr-enthusiasts/docker-flightradar24:latest',
+        'container_name': 'fr24',
+        'hostname': 'fr24',
+        'restart': 'unless-stopped',
+        'networks': ['adsb_net'],
+        'depends_on': ['ultrafeeder'],
+        'ports': ['8754:8754'],
+        'environment': [
+            'BEASTHOST=ultrafeeder',
+            'BEASTPORT=30005',
+            'FR24KEY=${FR24_KEY}',
+            'MLAT=no'
+        ],
+        'tmpfs': ['/var/log']
+    }
     
     return compose
 

@@ -1,5 +1,3 @@
-version: '3.8'
-
 networks:
   adsb_net:
     driver: bridge
@@ -60,5 +58,3 @@ services:
       - /var/log
     depends_on:
       - ultrafeeder
-    profiles:
-      - fr24

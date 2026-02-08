@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.38.5
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.39.0
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.38.5"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.39.0"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
