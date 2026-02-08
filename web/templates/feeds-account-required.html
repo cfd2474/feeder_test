@@ -382,7 +382,7 @@
                             value="{{ piaware_feeder_id }}"
                         >
                         <p class="config-hint">
-                            Already have a Feeder ID? Paste it here. Need one? Leave empty and click below to generate.
+                            You need a FlightAware / Piaware feeder ID. If you already have one, please enter it below. Otherwise, leave the field empty and click on the button and we will try to get one for you. Once this process completes and the feeder ID has been filled in, open the local Piaware page (this should open in a new tab) and click on the "Claim this feeder on FlightAware" button.
                         </p>
                     </div>
                     
@@ -397,12 +397,13 @@
                 
                 <div style="padding: 20px; background: #eff6ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
                     <p style="margin: 0; color: #1e40af;">
-                        <strong>How It Works:</strong> FlightAware will generate a unique Feeder ID for you. You'll need to claim it on their website to link it to your account.
+                        <strong>Quick Start:</strong> New to FlightAware? Just click "Save & Enable FlightAware" with an empty field and we'll handle the setup!
                     </p>
                     <ul style="margin: 10px 0 0 20px; color: #1e40af;">
-                        <li>Leave Feeder ID blank → We generate one for you</li>
-                        <li>Click the claim link → Link to your FlightAware account</li>
-                        <li>Enter the ID above → Save and start feeding</li>
+                        <li>System generates a unique Feeder ID</li>
+                        <li>Opens local PiAware page in new tab</li>
+                        <li>Click "Claim this feeder" button on that page</li>
+                        <li>Done! Your feeder is now linked to your FlightAware account</li>
                     </ul>
                 </div>
             </div>
@@ -737,16 +738,23 @@
                         // New ID generated - show to user with claim instructions
                         document.getElementById('piaware-feeder-id').value = data.feeder_id;
                         
+                        // Open local PiAware page in new tab
+                        const localPiawareUrl = `http://${window.location.hostname}:8082`;
+                        window.open(localPiawareUrl, '_blank');
+                        
                         let message = `<div style="line-height: 1.6;">`;
                         message += `<div style="font-size: 1.1em; margin-bottom: 12px;">✅ <strong>New Feeder ID Generated!</strong></div>`;
                         message += `<div style="background: #1e293b; color: #e2e8f0; padding: 10px; border-radius: 4px; font-family: monospace; margin: 10px 0; word-break: break-all;">${data.feeder_id}</div>`;
                         message += `<div style="margin: 15px 0;"><strong>Next Steps:</strong></div>`;
                         message += `<ol style="margin: 8px 0; padding-left: 20px;">`;
-                        message += `<li style="margin: 6px 0;">The Feeder ID above has been filled in</li>`;
-                        message += `<li style="margin: 6px 0;">Click the link below to claim it at FlightAware</li>`;
-                        message += `<li style="margin: 6px 0;">After claiming, click "Save & Enable FlightAware"</li>`;
+                        message += `<li style="margin: 6px 0;">The Feeder ID has been filled in above</li>`;
+                        message += `<li style="margin: 6px 0;">A new tab with your local PiAware page has opened</li>`;
+                        message += `<li style="margin: 6px 0;">On that page, click the "Claim this feeder on FlightAware" button</li>`;
+                        message += `<li style="margin: 6px 0;">After claiming, return here and click "Save & Enable FlightAware"</li>`;
                         message += `</ol>`;
-                        message += `<a href="${data.claim_url}" target="_blank" style="display: inline-block; margin-top: 10px; color: #2563eb; text-decoration: underline; font-weight: 600;">→ Claim Feeder at FlightAware</a>`;
+                        message += `<div style="margin-top: 15px;">`;
+                        message += `<a href="${localPiawareUrl}" target="_blank" style="display: inline-block; color: #2563eb; text-decoration: underline; font-weight: 600;">→ Open Local PiAware Page Again</a>`;
+                        message += `</div>`;
                         message += `</div>`;
                         
                         showPiawareResult('info', message);

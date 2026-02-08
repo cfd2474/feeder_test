@@ -67,7 +67,7 @@ services:
     networks:
       - adsb_net
     ports:
-      - "8081:80"
+      - "8082:80"
     environment:
       - TZ=${FEEDER_TZ}
       - FEEDER_ID=${PIAWARE_FEEDER_ID}

@@ -345,7 +345,7 @@ def build_docker_compose(env_vars):
         'restart': 'unless-stopped',
         'networks': ['adsb_net'],
         'depends_on': ['ultrafeeder'],
-        'ports': ['8081:80'],
+        'ports': ['8082:80'],
         'environment': [
             'TZ=${FEEDER_TZ}',
             'FEEDER_ID=${PIAWARE_FEEDER_ID}',

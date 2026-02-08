@@ -102,7 +102,7 @@
                                 <td style="text-align: center;"><span class="feed-check" id="taknet-check" data-status="good">✓</span></td>
                                 <td style="text-align: center;" id="taknet-data">+</td>
                                 <td style="text-align: center;" id="taknet-mlat">{{ '+' if config.get('TAKNET_PS_MLAT_ENABLED') == 'true' else '-' }}</td>
-                                <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
+                                <td style="text-align: center;"><span style="opacity: 0.3;">🔗</span></td>
                             </tr>
                             {% endif %}
                             
@@ -112,7 +112,7 @@
                                 <td style="text-align: center;"><span class="feed-check" id="fr24-check" data-status="unknown">✓</span></td>
                                 <td style="text-align: center;" id="fr24-data">.</td>
                                 <td style="text-align: center;" id="fr24-mlat">.</td>
-                                <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
+                                <td style="text-align: center;"><a href="#" class="feed-link" onclick="openFeedLink('fr24'); return false;" title="Open FR24 Stats">🔗</a></td>
                             </tr>
                             {% endif %}
                             
@@ -122,7 +122,7 @@
                                 <td style="text-align: center;"><span class="feed-check" id="piaware-check" data-status="unknown">✓</span></td>
                                 <td style="text-align: center;" id="piaware-data">.</td>
                                 <td style="text-align: center;" id="piaware-mlat">.</td>
-                                <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
+                                <td style="text-align: center;"><a href="#" class="feed-link" onclick="openFeedLink('piaware'); return false;" title="Open PiAware Stats">🔗</a></td>
                             </tr>
                             {% endif %}
                             
@@ -132,7 +132,7 @@
                                 <td style="text-align: center;"><span class="feed-check" id="adsbfi-check" data-status="good">✓</span></td>
                                 <td style="text-align: center;">+</td>
                                 <td style="text-align: center;">+</td>
-                                <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
+                                <td style="text-align: center;"><a href="https://api.adsb.fi/v1/myip" class="feed-link" target="_blank" title="View adsb.fi Stats">🔗</a></td>
                             </tr>
                             {% endif %}
                             
@@ -142,7 +142,7 @@
                                 <td style="text-align: center;"><span class="feed-check" id="adsblol-check" data-status="good">✓</span></td>
                                 <td style="text-align: center;">+</td>
                                 <td style="text-align: center;">+</td>
-                                <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
+                                <td style="text-align: center;"><a href="https://api.adsb.lol/0/me" class="feed-link" target="_blank" title="View adsb.lol Stats">🔗</a></td>
                             </tr>
                             {% endif %}
                             
@@ -152,7 +152,7 @@
                                 <td style="text-align: center;"><span class="feed-check" id="adsbx-check" data-status="good">✓</span></td>
                                 <td style="text-align: center;">+</td>
                                 <td style="text-align: center;">+</td>
-                                <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
+                                <td style="text-align: center;"><a href="https://www.adsbexchange.com/myip/" class="feed-link" target="_blank" title="View ADSBexchange Stats">🔗</a></td>
                             </tr>
                             {% endif %}
                             
@@ -162,7 +162,7 @@
                                 <td style="text-align: center;"><span class="feed-check" id="airplaneslive-check" data-status="good">✓</span></td>
                                 <td style="text-align: center;">+</td>
                                 <td style="text-align: center;">+</td>
-                                <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
+                                <td style="text-align: center;"><a href="https://airplanes.live/myfeed/" class="feed-link" target="_blank" title="View Airplanes.Live Stats">🔗</a></td>
                             </tr>
                             {% endif %}
                             
@@ -368,6 +368,26 @@
             }
             
             document.getElementById('updateTime').textContent = timeText;
+        }
+        
+        // Open feed status/info link
+        function openFeedLink(feedType) {
+            const hostname = window.location.hostname;
+            let url;
+            
+            switch(feedType) {
+                case 'fr24':
+                    url = `http://${hostname}:8754/`;
+                    break;
+                case 'piaware':
+                    url = `http://${hostname}:8082/`;
+                    break;
+                default:
+                    console.error('Unknown feed type:', feedType);
+                    return;
+            }
+            
+            window.open(url, '_blank');
         }
         
         // Auto-refresh every 10 seconds
