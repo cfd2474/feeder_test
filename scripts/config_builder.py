@@ -337,6 +337,30 @@ def build_docker_compose(env_vars):
         'tmpfs': ['/var/log']
     }
     
+    # Always include PiAware service (can be started/stopped via docker compose)
+    compose['services']['piaware'] = {
+        'image': 'ghcr.io/sdr-enthusiasts/docker-piaware:latest',
+        'container_name': 'piaware',
+        'hostname': 'piaware',
+        'restart': 'unless-stopped',
+        'networks': ['adsb_net'],
+        'depends_on': ['ultrafeeder'],
+        'ports': ['8081:80'],
+        'environment': [
+            'TZ=${FEEDER_TZ}',
+            'FEEDER_ID=${PIAWARE_FEEDER_ID}',
+            'RECEIVER_TYPE=relay',
+            'BEASTHOST=ultrafeeder',
+            'BEASTPORT=30005',
+            'ALLOW_MLAT=yes',
+            'MLAT_RESULTS=yes'
+        ],
+        'tmpfs': [
+            '/run:exec,size=64M',
+            '/var/log'
+        ]
+    }
+    
     return compose
 
 def write_docker_compose(compose_dict, compose_file):

@@ -337,6 +337,76 @@
                 </div>
             </div>
             
+            <!-- FlightAware / PiAware Configuration -->
+            <div class="section" id="piaware-section">
+                <h2>FlightAware (PiAware)</h2>
+                
+                <div class="feed-config-card">
+                    <div class="feed-config-header">
+                        <div class="feed-title">
+                            <h3>FlightAware</h3>
+                            <p>Share your ADS-B data with the world's largest flight tracking network</p>
+                        </div>
+                        <span class="feed-status-badge {{ 'status-active' if piaware_status else 'status-inactive' }}" id="piaware-status">
+                            {{ 'Active' if piaware_status else 'Inactive' }}
+                        </span>
+                    </div>
+                    
+                    <!-- Enable/Disable Toggle -->
+                    <div class="config-section" style="padding: 15px; background: #f3f4f6; border-radius: 6px; margin-bottom: 20px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input 
+                                type="checkbox" 
+                                id="piaware-enabled" 
+                                {% if piaware_enabled %}checked{% endif %}
+                                onchange="togglePiawareEnabled(this.checked)"
+                                style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;"
+                            >
+                            <span style="font-weight: 600; color: #374151;">Enable FlightAware Feed</span>
+                        </label>
+                        <p class="config-hint" style="margin: 8px 0 0 30px;">
+                            Toggle to start/stop feeding data to FlightAware
+                        </p>
+                    </div>
+                    
+                    <!-- Smart Single Field -->
+                    <div class="config-section">
+                        <label class="config-label" for="piaware-feeder-id">
+                            Feeder ID (UUID format)
+                        </label>
+                        <input 
+                            type="text" 
+                            id="piaware-feeder-id" 
+                            class="config-input" 
+                            placeholder="c478b1c9-23d3-4376-1f82-47352a28cg37 or leave empty to generate"
+                            value="{{ piaware_feeder_id }}"
+                        >
+                        <p class="config-hint">
+                            Already have a Feeder ID? Paste it here. Need one? Leave empty and click below to generate.
+                        </p>
+                    </div>
+                    
+                    <div class="config-actions">
+                        <button class="btn-primary" onclick="setupPiaware()" id="setup-piaware-btn">
+                            <span id="setup-piaware-text">Save & Enable FlightAware</span>
+                        </button>
+                    </div>
+                    
+                    <div id="piaware-result" style="margin-top: 15px; display: none;"></div>
+                </div>
+                
+                <div style="padding: 20px; background: #eff6ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <p style="margin: 0; color: #1e40af;">
+                        <strong>How It Works:</strong> FlightAware will generate a unique Feeder ID for you. You'll need to claim it on their website to link it to your account.
+                    </p>
+                    <ul style="margin: 10px 0 0 20px; color: #1e40af;">
+                        <li>Leave Feeder ID blank → We generate one for you</li>
+                        <li>Click the claim link → Link to your FlightAware account</li>
+                        <li>Enter the ID above → Save and start feeding</li>
+                    </ul>
+                </div>
+            </div>
+            
             <div class="actions">
                 <button class="btn" onclick="window.location.href='/feeds'">Back to Feed Selection</button>
             </div>
@@ -600,6 +670,155 @@
             }
             
             // Use innerHTML to support clickable links, but escape user input
+            resultDiv.innerHTML = message;
+        }
+        
+        // ========================================
+        // PiAware / FlightAware Functions
+        // ========================================
+        
+        // Toggle PiAware enabled/disabled
+        async function togglePiawareEnabled(enabled) {
+            const statusBadge = document.getElementById('piaware-status');
+            const checkbox = document.getElementById('piaware-enabled');
+            
+            const statusText = enabled ? 'enabling' : 'disabling';
+            const statusTextPast = enabled ? 'enabled' : 'disabled';
+            
+            showStatusModal(`${statusText.charAt(0).toUpperCase() + statusText.slice(1)} FlightAware feed...`);
+            
+            try {
+                const response = await fetch('/api/feeds/piaware/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatusModal(`FlightAware feed ${statusTextPast} successfully`, 'success');
+                    statusBadge.textContent = enabled ? 'Active' : 'Inactive';
+                    statusBadge.className = `feed-status-badge ${enabled ? 'status-active' : 'status-inactive'}`;
+                } else {
+                    updateStatusModal(`Failed to ${statusText} FlightAware feed: ${data.message}`, 'error');
+                    // Revert checkbox
+                    checkbox.checked = !enabled;
+                }
+            } catch (error) {
+                updateStatusModal(`Error ${statusText} FlightAware feed: ${error.message}`, 'error');
+                // Revert checkbox
+                checkbox.checked = !enabled;
+            }
+        }
+        
+        // Setup PiAware with smart detection
+        async function setupPiaware() {
+            const setupBtn = document.getElementById('setup-piaware-btn');
+            const setupText = document.getElementById('setup-piaware-text');
+            const input = document.getElementById('piaware-feeder-id').value.trim();
+            
+            setupBtn.disabled = true;
+            
+            try {
+                if (input === '') {
+                    // No ID provided - GENERATE new one
+                    setupText.textContent = 'Generating Feeder ID...';
+                    
+                    const response = await fetch('/api/feeds/piaware/setup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ feeder_id: '' })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && data.mode === 'generated') {
+                        // New ID generated - show to user with claim instructions
+                        document.getElementById('piaware-feeder-id').value = data.feeder_id;
+                        
+                        let message = `<div style="line-height: 1.6;">`;
+                        message += `<div style="font-size: 1.1em; margin-bottom: 12px;">✅ <strong>New Feeder ID Generated!</strong></div>`;
+                        message += `<div style="background: #1e293b; color: #e2e8f0; padding: 10px; border-radius: 4px; font-family: monospace; margin: 10px 0; word-break: break-all;">${data.feeder_id}</div>`;
+                        message += `<div style="margin: 15px 0;"><strong>Next Steps:</strong></div>`;
+                        message += `<ol style="margin: 8px 0; padding-left: 20px;">`;
+                        message += `<li style="margin: 6px 0;">The Feeder ID above has been filled in</li>`;
+                        message += `<li style="margin: 6px 0;">Click the link below to claim it at FlightAware</li>`;
+                        message += `<li style="margin: 6px 0;">After claiming, click "Save & Enable FlightAware"</li>`;
+                        message += `</ol>`;
+                        message += `<a href="${data.claim_url}" target="_blank" style="display: inline-block; margin-top: 10px; color: #2563eb; text-decoration: underline; font-weight: 600;">→ Claim Feeder at FlightAware</a>`;
+                        message += `</div>`;
+                        
+                        showPiawareResult('info', message);
+                    } else {
+                        // Failed to generate
+                        let errorMessage = data.message || 'Failed to generate Feeder ID';
+                        
+                        if (data.url) {
+                            errorMessage += `\n\n<a href="${data.url}" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 600;">→ Get Feeder ID from FlightAware</a>`;
+                        }
+                        
+                        showPiawareResult('error', errorMessage);
+                    }
+                    
+                    setupBtn.disabled = false;
+                    setupText.textContent = 'Save & Enable FlightAware';
+                    
+                } else {
+                    // Feeder ID provided - USE it directly
+                    setupText.textContent = 'Setting up FlightAware...';
+                    
+                    const response = await fetch('/api/feeds/piaware/setup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ feeder_id: input })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showPiawareResult('success', 'FlightAware feed enabled successfully! Container is starting...');
+                        document.getElementById('piaware-status').textContent = 'Active';
+                        document.getElementById('piaware-status').className = 'feed-status-badge status-active';
+                        document.getElementById('piaware-enabled').checked = true;
+                    } else {
+                        showPiawareResult('error', `Setup failed: ${data.message}`);
+                    }
+                    
+                    setupBtn.disabled = false;
+                    setupText.textContent = 'Save & Enable FlightAware';
+                }
+            } catch (error) {
+                showPiawareResult('error', `Error: ${error.message}`);
+                setupBtn.disabled = false;
+                setupText.textContent = 'Save & Enable FlightAware';
+            }
+        }
+        
+        function showPiawareResult(type, message) {
+            const resultDiv = document.getElementById('piaware-result');
+            resultDiv.style.display = 'block';
+            resultDiv.style.padding = '12px';
+            resultDiv.style.borderRadius = '6px';
+            resultDiv.style.fontWeight = '500';
+            resultDiv.style.whiteSpace = 'pre-wrap';
+            resultDiv.style.fontFamily = 'inherit';
+            
+            if (type === 'success') {
+                resultDiv.style.background = '#d1fae5';
+                resultDiv.style.color = '#065f46';
+                resultDiv.style.border = '2px solid #10b981';
+            } else if (type === 'info') {
+                resultDiv.style.background = '#dbeafe';
+                resultDiv.style.color = '#1e40af';
+                resultDiv.style.border = '2px solid #3b82f6';
+            } else {
+                // Error
+                resultDiv.style.background = '#fee2e2';
+                resultDiv.style.color = '#991b1b';
+                resultDiv.style.border = '2px solid #ef4444';
+            }
+            
             resultDiv.innerHTML = message;
         }
     </script>

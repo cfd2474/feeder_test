@@ -1193,6 +1193,191 @@ def api_fr24_toggle():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+@app.route('/api/feeds/piaware/setup', methods=['POST'])
+def api_piaware_setup():
+    """Setup PiAware feeder - smart detection: generate new ID or use existing"""
+    try:
+        data = request.json
+        feeder_id_input = data.get('feeder_id', '').strip()
+        
+        # SMART DETECTION: Check if user provided a feeder ID
+        if feeder_id_input:
+            # User provided an existing feeder ID - use it directly
+            # Validate UUID format (loose validation)
+            import re
+            if not re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', feeder_id_input, re.IGNORECASE):
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid FlightAware Feeder ID format. Should be UUID format like: c478b1c9-23d3-4376-1f82-47352a28cg37'
+                })
+            
+            # Save feeder ID and enable
+            update_env_var('PIAWARE_FEEDER_ID', feeder_id_input)
+            update_env_var('PIAWARE_ENABLED', 'true')
+            
+            # Start PiAware container
+            compose_file = '/opt/adsb/config/docker-compose.yml'
+            env_file = str(ENV_FILE)
+            
+            # Verify files exist
+            if not Path(compose_file).exists():
+                return jsonify({
+                    'success': False,
+                    'message': f'docker-compose.yml not found at: {compose_file}\n\nPlease run the installer to create the docker-compose.yml file.'
+                })
+            
+            if not ENV_FILE.exists():
+                return jsonify({
+                    'success': False,
+                    'message': f'.env file not found at: {env_file}\n\nPlease run the installer to create the .env file.'
+                })
+            
+            result = subprocess.run(
+                ['docker', 'compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'piaware'],
+                capture_output=True, text=True, timeout=60
+            )
+            
+            if result.returncode == 0:
+                return jsonify({
+                    'success': True,
+                    'message': 'FlightAware feed configured successfully! Container is starting...',
+                    'feeder_id': feeder_id_input,
+                    'mode': 'existing'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': f'Failed to start PiAware: {result.stderr}'
+                })
+        
+        else:
+            # No feeder ID provided - GENERATE NEW ONE
+            # Run PiAware container temporarily to get a new feeder ID
+            
+            # Read location from env
+            env = read_env()
+            lat = env.get('FEEDER_LAT', '0')
+            lon = env.get('FEEDER_LONG', '0')
+            
+            try:
+                # Run piaware container for 60 seconds to get feeder ID
+                docker_cmd = [
+                    'docker', 'run', '--rm',
+                    '-e', f'LAT={lat}',
+                    '-e', f'LONG={lon}',
+                    '-e', 'RECEIVER_TYPE=none',  # Don't need actual receiver for ID generation
+                    'ghcr.io/sdr-enthusiasts/docker-piaware:latest'
+                ]
+                
+                result = subprocess.run(
+                    docker_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+                
+                output = result.stdout + result.stderr
+                
+                # Extract feeder ID from output
+                # Looking for: "my feeder ID is xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                import re
+                id_match = re.search(r'my feeder ID is ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', output, re.IGNORECASE)
+                
+                if id_match:
+                    new_feeder_id = id_match.group(1)
+                    
+                    # Return the new ID to user - DON'T save it yet
+                    # User needs to claim it first, then provide it back
+                    return jsonify({
+                        'success': True,
+                        'feeder_id': new_feeder_id,
+                        'mode': 'generated',
+                        'message': f'New FlightAware Feeder ID generated: {new_feeder_id}',
+                        'next_steps': [
+                            f'Your new Feeder ID: {new_feeder_id}',
+                            'Claim this feeder at FlightAware (link below)',
+                            'Come back and enter the Feeder ID above',
+                            'Click "Save & Enable FlightAware"'
+                        ],
+                        'claim_url': f'https://flightaware.com/adsb/piaware/claim/{new_feeder_id}'
+                    })
+                else:
+                    # Failed to extract ID
+                    return jsonify({
+                        'success': False,
+                        'error_type': 'id_extraction_failed',
+                        'message': 'Could not generate Feeder ID. Please try again or get one manually from FlightAware.',
+                        'url': 'https://flightaware.com/adsb/piaware/claim',
+                        'debug_output': output[:1000]
+                    })
+                    
+            except subprocess.TimeoutExpired:
+                return jsonify({
+                    'success': False,
+                    'error_type': 'timeout',
+                    'message': 'Timeout while generating Feeder ID. Please try again.',
+                    'url': 'https://flightaware.com/adsb/piaware/claim'
+                })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error_type': 'exception',
+                    'message': f'Error generating Feeder ID: {str(e)}',
+                    'url': 'https://flightaware.com/adsb/piaware/claim'
+                })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/feeds/piaware/toggle', methods=['POST'])
+def api_piaware_toggle():
+    """Toggle PiAware feed enabled/disabled"""
+    try:
+        data = request.json
+        enabled = data.get('enabled', False)
+        
+        # Update .env
+        update_env_var('PIAWARE_ENABLED', 'true' if enabled else 'false')
+        
+        # Use the correct paths
+        compose_file = '/opt/adsb/config/docker-compose.yml'
+        env_file = str(ENV_FILE)
+        
+        # Verify files exist
+        if not Path(compose_file).exists():
+            return jsonify({
+                'success': False,
+                'message': f'docker-compose.yml not found at: {compose_file}\n\nPlease run the installer to create the docker-compose.yml file.'
+            })
+        
+        if not ENV_FILE.exists():
+            return jsonify({
+                'success': False,
+                'message': f'.env file not found at: {env_file}\n\nPlease run the installer to create the .env file.'
+            })
+        
+        # Start or stop PiAware container using docker compose
+        if enabled:
+            result = subprocess.run(
+                ['docker', 'compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'piaware'],
+                capture_output=True, text=True, timeout=60
+            )
+        else:
+            result = subprocess.run(
+                ['docker', 'compose', '-f', compose_file, 'stop', 'piaware'],
+                capture_output=True, text=True, timeout=30
+            )
+        
+        if result.returncode == 0:
+            return jsonify({'success': True, 'message': f'FlightAware feed {"enabled" if enabled else "disabled"}'})
+        else:
+            return jsonify({'success': False, 'message': f'Failed: {result.stderr}'})
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'message': 'Operation timed out'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 @app.route('/settings')
 def settings():
     """Settings page"""
@@ -1224,10 +1409,26 @@ def feeds_account_required():
         except:
             fr24_status = False
     
+    # Check PiAware status
+    piaware_feeder_id = env.get('PIAWARE_FEEDER_ID', '')
+    piaware_enabled = env.get('PIAWARE_ENABLED', 'false') == 'true'
+    piaware_status = False
+    if piaware_feeder_id and piaware_enabled:
+        # Check if PiAware container is running
+        try:
+            result = subprocess.run(['docker', 'ps', '--filter', 'name=piaware', '--format', '{{.Names}}'],
+                                  capture_output=True, text=True, timeout=5)
+            piaware_status = 'piaware' in result.stdout
+        except:
+            piaware_status = False
+    
     return render_template('feeds-account-required.html', 
                          fr24_key=fr24_key,
                          fr24_enabled=fr24_enabled,
-                         fr24_status=fr24_status)
+                         fr24_status=fr24_status,
+                         piaware_feeder_id=piaware_feeder_id,
+                         piaware_enabled=piaware_enabled,
+                         piaware_status=piaware_status)
 
 # API Endpoints
 
@@ -1524,6 +1725,7 @@ def api_status():
     service_states = {
         'ultrafeeder': get_service_state('ultrafeeder'),
         'fr24': get_service_state('fr24') if env.get('FR24_ENABLED') == 'true' else None,
+        'piaware': get_service_state('piaware') if env.get('PIAWARE_ENABLED') == 'true' else None,
         'adsbx': get_service_state('adsbx') if env.get('ADSBX_ENABLED') == 'true' else None,
         'adsblol': get_service_state('adsblol') if env.get('ADSBLOL_ENABLED') == 'true' else None
     }

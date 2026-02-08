@@ -116,6 +116,16 @@
                             </tr>
                             {% endif %}
                             
+                            {% if config.get('PIAWARE_ENABLED') == 'true' %}
+                            <tr>
+                                <td>FlightAware</td>
+                                <td style="text-align: center;"><span class="feed-check" id="piaware-check" data-status="unknown">✓</span></td>
+                                <td style="text-align: center;" id="piaware-data">.</td>
+                                <td style="text-align: center;" id="piaware-mlat">.</td>
+                                <td style="text-align: center;"><a href="#" class="feed-link">🔗</a></td>
+                            </tr>
+                            {% endif %}
+                            
                             {% if config.get('ADSBFI_ENABLED') == 'true' %}
                             <tr>
                                 <td>adsb.fi</td>
@@ -156,7 +166,7 @@
                             </tr>
                             {% endif %}
                             
-                            {% if not config.get('TAKNET_PS_ENABLED') and not config.get('FR24_ENABLED') and not config.get('ADSBFI_ENABLED') and not config.get('ADSBLOL_ENABLED') and not config.get('ADSBX_ENABLED') and not config.get('AIRPLANESLIVE_ENABLED') %}
+                            {% if not config.get('TAKNET_PS_ENABLED') and not config.get('FR24_ENABLED') and not config.get('PIAWARE_ENABLED') and not config.get('ADSBFI_ENABLED') and not config.get('ADSBLOL_ENABLED') and not config.get('ADSBX_ENABLED') and not config.get('AIRPLANESLIVE_ENABLED') %}
                             <tr>
                                 <td colspan="5" style="text-align: center; color: #9ca3af; padding: 20px;">
                                     No feeds configured
@@ -258,6 +268,38 @@
                             case 'stopped':
                             case 'not_installed':
                                 taknetCheck.setAttribute('data-status', 'down');
+                                break;
+                        }
+                    }
+                }
+                
+                // Update PiAware feed table status if enabled
+                if (data.service_states && data.service_states.piaware) {
+                    const piawareState = data.service_states.piaware;
+                    const piawareCheck = document.getElementById('piaware-check');
+                    
+                    if (piawareCheck) {
+                        switch(piawareState) {
+                            case 'running':
+                                piawareCheck.setAttribute('data-status', 'good');
+                                // Update data and MLAT columns when running
+                                const piawareData = document.getElementById('piaware-data');
+                                const piawareMlat = document.getElementById('piaware-mlat');
+                                if (piawareData) piawareData.textContent = '+';
+                                if (piawareMlat) piawareMlat.textContent = '+';
+                                break;
+                            case 'downloading':
+                            case 'starting':
+                                piawareCheck.setAttribute('data-status', 'unknown');
+                                break;
+                            case 'stopped':
+                            case 'not_installed':
+                                piawareCheck.setAttribute('data-status', 'down');
+                                // Reset data and MLAT columns when stopped
+                                const piawareDataStopped = document.getElementById('piaware-data');
+                                const piawareMlatStopped = document.getElementById('piaware-mlat');
+                                if (piawareDataStopped) piawareDataStopped.textContent = '.';
+                                if (piawareMlatStopped) piawareMlatStopped.textContent = '.';
                                 break;
                         }
                     }
