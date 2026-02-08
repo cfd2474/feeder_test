@@ -1284,11 +1284,12 @@ def api_piaware_setup():
             try:
                 # Run piaware container for 120 seconds to get feeder ID
                 # Increased timeout to account for image pull + startup + FlightAware server response
+                # Use official sdr-enthusiasts method: no RECEIVER_TYPE parameter
+                # Container defaults properly for ID generation without it
                 docker_cmd = [
                     'docker', 'run', '--rm',
                     '-e', f'LAT={lat}',
                     '-e', f'LONG={lon}',
-                    '-e', 'RECEIVER_TYPE=none',  # Don't need actual receiver for ID generation
                     'ghcr.io/sdr-enthusiasts/docker-piaware:latest'
                 ]
                 
