@@ -272,6 +272,11 @@
                         switch(fr24State) {
                             case 'running':
                                 fr24Check.setAttribute('data-status', 'good');
+                                // Update data and MLAT columns when running
+                                const fr24Data = document.getElementById('fr24-data');
+                                const fr24Mlat = document.getElementById('fr24-mlat');
+                                if (fr24Data) fr24Data.textContent = '+';
+                                if (fr24Mlat) fr24Mlat.textContent = '+';
                                 break;
                             case 'downloading':
                             case 'starting':
@@ -280,6 +285,11 @@
                             case 'stopped':
                             case 'not_installed':
                                 fr24Check.setAttribute('data-status', 'down');
+                                // Reset data and MLAT columns when stopped
+                                const fr24DataStopped = document.getElementById('fr24-data');
+                                const fr24MlatStopped = document.getElementById('fr24-mlat');
+                                if (fr24DataStopped) fr24DataStopped.textContent = '.';
+                                if (fr24MlatStopped) fr24MlatStopped.textContent = '.';
                                 break;
                         }
                     }

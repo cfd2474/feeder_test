@@ -53,7 +53,7 @@ services:
       - BEASTHOST=ultrafeeder
       - BEASTPORT=30005
       - FR24KEY=${FR24_KEY}
-      - MLAT=no
+      - MLAT=yes
     tmpfs:
       - /var/log
     depends_on:

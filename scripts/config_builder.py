@@ -332,7 +332,7 @@ def build_docker_compose(env_vars):
             'BEASTHOST=ultrafeeder',
             'BEASTPORT=30005',
             'FR24KEY=${FR24_KEY}',
-            'MLAT=no'
+            'MLAT=yes'
         ],
         'tmpfs': ['/var/log']
     }
