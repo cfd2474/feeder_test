@@ -916,9 +916,31 @@ def api_feeds_toggle():
         # Update .env file
         update_env_var(env_var, value)
         
-        # Restart ultrafeeder to apply changes
+        # For feeds that need UUID (adsb.lol, ADSBexchange), ensure UUID exists
+        if feed_name in ['adsblol', 'adsbexchange'] and enabled:
+            get_or_create_feeder_uuid()
+        
+        # Regenerate docker-compose.yml with updated feed configuration
         try:
-            subprocess.run(['docker', 'restart', 'ultrafeeder'], timeout=30, check=True)
+            subprocess.run(
+                ['python3', '/opt/adsb/scripts/config_builder.py'],
+                cwd='/opt/adsb/config',
+                timeout=30,
+                check=True,
+                capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            return jsonify({
+                'success': False, 
+                'message': f'Failed to regenerate config: {e.stderr.decode()}'
+            })
+        
+        # Restart ultrafeeder with updated configuration
+        try:
+            subprocess.run(['docker', 'compose', 'up', '-d', 'ultrafeeder'], 
+                         cwd='/opt/adsb/config',
+                         timeout=30, 
+                         check=True)
         except:
             pass  # Continue even if restart fails
         

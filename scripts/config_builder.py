@@ -263,12 +263,11 @@ def build_config(env_vars):
         else:
             print("⚠ ADSBexchange enabled but no UUID found - skipping")
     
-    # Airplanes.Live
+    # Airplanes.Live (no UUID required - they identify by IP address)
     if env_vars.get('AIRPLANESLIVE_ENABLED', '').lower() == 'true':
-        if env_vars.get('AIRPLANESLIVE_UUID', '').strip():
-            config_parts.append("adsb,feed.airplanes.live,30004,beast_reduce_plus_out")
-            config_parts.append("mlat,mlat.airplanes.live,31090,39002")
-            print("✓ Airplanes.Live")
+        config_parts.append("adsb,feed.airplanes.live,30004,beast_reduce_plus_out")
+        config_parts.append("mlat,feed.airplanes.live,31090,39002")
+        print("✓ Airplanes.Live")
     
     return ';'.join(config_parts)
 
