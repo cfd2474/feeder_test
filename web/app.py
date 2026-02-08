@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.36.0"
+VERSION = "2.38.0"
 
 # Global progress tracking
 service_progress = {
@@ -979,6 +979,157 @@ def api_fr24_test():
         
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/feeds/fr24/register', methods=['POST'])
+def api_fr24_register():
+    """Register new FR24 account - smart registration with coordinate formatting"""
+    try:
+        data = request.json
+        email = data.get('email', '').strip()
+        
+        if not email:
+            return jsonify({'success': False, 'message': 'Email is required'})
+        
+        # Validate email format
+        import re
+        if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+            return jsonify({'success': False, 'message': 'Invalid email format'})
+        
+        # Read current env for location data
+        env = read_env()
+        lat_str = env.get('FEEDER_LAT', '0')
+        lon_str = env.get('FEEDER_LONG', '0')
+        alt_ft_str = env.get('FEEDER_ALT_FT', '0')
+        
+        # Validate we have location data
+        try:
+            lat = float(lat_str)
+            lon = float(lon_str)
+            alt_ft = float(alt_ft_str)
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid feeder location data. Please configure location in Settings first.'
+            })
+        
+        if lat == 0 or lon == 0:
+            return jsonify({
+                'success': False,
+                'message': 'Feeder location not configured. Please set up your location in Settings first.'
+            })
+        
+        # Format coordinates to EXACTLY 4 decimal places (FR24 requirement)
+        lat_formatted = f"{lat:.4f}"
+        lon_formatted = f"{lon:.4f}"
+        alt_formatted = str(int(alt_ft))  # Altitude in feet, no decimals
+        
+        # Prepare answers for fr24feed --signup
+        signup_inputs = f'''{email}
+
+yes
+{lat_formatted}
+{lon_formatted}
+{alt_formatted}
+yes
+5
+ultrafeeder
+30005
+no
+no
+'''
+        
+        # Run fr24feed --signup in Docker container
+        docker_cmd = [
+            'docker', 'run', '-i', '--rm',
+            'ghcr.io/sdr-enthusiasts/docker-flightradar24:latest',
+            'fr24feed', '--signup'
+        ]
+        
+        try:
+            result = subprocess.run(
+                docker_cmd,
+                input=signup_inputs,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            output = result.stdout + result.stderr
+            
+            # Check for specific error conditions FIRST
+            
+            # ERROR 1: Three-key limit reached
+            if 'limit' in output.lower() or 'maximum' in output.lower() or 'three' in output.lower():
+                return jsonify({
+                    'success': False,
+                    'error_type': 'key_limit',
+                    'message': f'Your FlightRadar24 account has reached the 3-feeder limit.\n\nTo add this feeder:\n1. Visit: https://www.flightradar24.com/account/data-sharing\n2. Log in with: {email}\n3. Remove an old feeder or request additional keys\n4. Copy your sharing key and paste it here',
+                    'url': 'https://www.flightradar24.com/account/data-sharing',
+                    'email': email
+                })
+            
+            # Check for registration failure indicators
+            if 'error' in output.lower() and 'congratulations' not in output.lower():
+                return jsonify({
+                    'success': False,
+                    'error_type': 'registration_failed',
+                    'message': f'Registration encountered an error.\n\nPlease try:\n1. Visit: https://www.flightradar24.com/share-your-data\n2. Register manually with: {email}\n3. Copy your sharing key and paste it here',
+                    'url': 'https://www.flightradar24.com/share-your-data',
+                    'email': email,
+                    'debug_output': output[:500]
+                })
+            
+            # Extract sharing key from output
+            # Look for pattern like "Your sharing key (fxxxxxxxxxxx4)"
+            import re
+            key_match = re.search(r'sharing key \(([a-zA-Z0-9]+)\)', output)
+            
+            if key_match:
+                # SUCCESS: Key found
+                sharing_key = key_match.group(1)
+                return jsonify({
+                    'success': True,
+                    'sharing_key': sharing_key,
+                    'message': f'Registration successful! Your sharing key: {sharing_key}'
+                })
+            
+            # ERROR 2: Registration succeeded but key extraction failed
+            # Check for success indicators even without key
+            if 'congratulations' in output.lower() or 'registered and ready' in output.lower():
+                return jsonify({
+                    'success': False,
+                    'error_type': 'key_extraction_failed',
+                    'message': f'Registration completed successfully!\n\nHowever, we couldn\'t automatically retrieve your sharing key.\n\nNext steps:\n1. Visit: https://www.flightradar24.com/account/data-sharing\n2. Log in with: {email}\n3. Copy your sharing key\n4. Paste it in the field above and click "Save & Enable FR24"',
+                    'url': 'https://www.flightradar24.com/account/data-sharing',
+                    'email': email,
+                    'registration_successful': True
+                })
+            
+            # ERROR 3: Unknown failure
+            return jsonify({
+                'success': False,
+                'error_type': 'unknown',
+                'message': f'Registration status unclear.\n\nPlease verify your registration:\n1. Visit: https://www.flightradar24.com/account/data-sharing\n2. Log in with: {email}\n3. If registered, copy your sharing key and paste it here\n4. If not registered, try manual registration at: https://www.flightradar24.com/share-your-data',
+                'url': 'https://www.flightradar24.com/account/data-sharing',
+                'email': email,
+                'debug_output': output[:500]
+            })
+                
+        except subprocess.TimeoutExpired:
+            return jsonify({
+                'success': False,
+                'error_type': 'timeout',
+                'message': f'Registration process timed out (took over 2 minutes).\n\nThe registration may have completed successfully.\n\nNext steps:\n1. Visit: https://www.flightradar24.com/account/data-sharing\n2. Log in with: {email}\n3. Check if your feeder was registered\n4. If yes, copy your sharing key and paste it here',
+                'url': 'https://www.flightradar24.com/account/data-sharing',
+                'email': email
+            })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error_type': 'exception',
+            'message': f'Unexpected error during registration: {str(e)}\n\nPlease try manual registration:\n1. Visit: https://www.flightradar24.com/share-your-data\n2. Register with your email\n3. Copy your sharing key and paste it here'
+        })
 
 @app.route('/api/feeds/fr24/toggle', methods=['POST'])
 def api_fr24_toggle():

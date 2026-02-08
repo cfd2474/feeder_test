@@ -298,53 +298,26 @@
                         </p>
                     </div>
                     
-                    <!-- Get Your Key Instructions -->
-                    <div class="config-section" style="padding: 20px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b; margin-bottom: 20px;">
-                        <h4 style="margin: 0 0 15px 0; color: #92400e; font-size: 1.1em;">Don't have a FlightRadar24 sharing key?</h4>
-                        <p style="margin: 0 0 15px 0; color: #92400e;">
-                            Run this command on your system to get a sharing key:
-                        </p>
-                        <div style="background: #ffffff; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.9em; color: #1f2937; overflow-x: auto; margin-bottom: 15px;">
-                            docker run -it --rm ghcr.io/sdr-enthusiasts/docker-baseimage:qemu bash -c "$(curl -sSL https://raw.githubusercontent.com/sdr-enthusiasts/docker-flightradar24/main/get_adsb_key.sh)"
-                        </div>
-                        <p style="margin: 0 0 10px 0; color: #92400e; font-weight: 600;">Quick answers for the signup process:</p>
-                        <ul style="margin: 0; padding-left: 20px; color: #92400e;">
-                            <li><strong>Email:</strong> Your FlightRadar24 account email</li>
-                            <li><strong>Sharing key:</strong> Leave blank (you'll get a new one)</li>
-                            <li><strong>MLAT:</strong> Answer "no"</li>
-                            <li><strong>Receiver type:</strong> Answer "4" (Network)</li>
-                            <li><strong>Connection type:</strong> Answer "1"</li>
-                            <li><strong>Host:</strong> 127.0.0.1</li>
-                            <li><strong>Port:</strong> 30005</li>
-                        </ul>
-                        <p style="margin: 15px 0 0 0; color: #92400e; font-size: 0.9em;">
-                            After signup, you'll receive a sharing key. Copy it and paste below.
-                        </p>
-                    </div>
-                    
-                    <!-- Enter Key Section -->
+                    <!-- Smart Single Field -->
                     <div class="config-section">
-                        <label class="config-label" for="fr24-feeder-id">
-                            FlightRadar24 Sharing Key
+                        <label class="config-label" for="fr24-key-or-email">
+                            Sharing Key or Email
                         </label>
                         <input 
                             type="text" 
-                            id="fr24-feeder-id" 
+                            id="fr24-key-or-email" 
                             class="config-input" 
-                            placeholder="Enter your FR24 sharing key (e.g., fxxxxxxxxxxx4)"
+                            placeholder="Enter sharing key or email if no key"
                             value="{{ fr24_key }}"
                         >
                         <p class="config-hint">
-                            Enter the sharing key you received from FlightRadar24
+                            Already have a key? Paste it here. Need a key? Enter your email and we'll register you.
                         </p>
                     </div>
                     
                     <div class="config-actions">
-                        <button class="btn-primary" onclick="setupFR24WithKey()" id="setup-fr24-btn">
+                        <button class="btn-primary" onclick="setupFR24()" id="setup-fr24-btn">
                             <span id="setup-fr24-text">Save & Enable FR24</span>
-                        </button>
-                        <button class="btn-secondary" onclick="testFR24()" id="test-fr24-btn">
-                            Test Key
                         </button>
                     </div>
                     
@@ -475,36 +448,101 @@
         }
         
         // Setup FR24 with existing key
-        async function setupFR24WithKey() {
-            const feederId = document.getElementById('fr24-feeder-id').value.trim();
+        // Smart setup - detects email or key automatically
+        async function setupFR24() {
+            const input = document.getElementById('fr24-key-or-email').value.trim();
             const setupBtn = document.getElementById('setup-fr24-btn');
             const setupText = document.getElementById('setup-fr24-text');
             const resultDiv = document.getElementById('fr24-result');
             
-            if (!feederId) {
-                showResult('error', 'Please enter a feeder ID');
+            if (!input) {
+                showResult('error', 'Please enter a sharing key or email address');
                 return;
             }
             
+            // Smart detection: contains @ = email, otherwise = key
+            const isEmail = input.includes('@');
+            
             // Disable button and show loading
             setupBtn.disabled = true;
-            setupText.textContent = 'Installing FR24...';
             resultDiv.style.display = 'none';
+            
+            try {
+                if (isEmail) {
+                    // Email entered - trigger registration
+                    setupText.textContent = 'Registering with FR24...';
+                    
+                    const response = await fetch('/api/feeds/fr24/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: input })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && data.sharing_key) {
+                        // Registration succeeded - populate key back into field
+                        document.getElementById('fr24-key-or-email').value = data.sharing_key;
+                        showResult('success', `Registration successful! Your sharing key is: ${data.sharing_key}\n\nStarting FR24 feed...`);
+                        
+                        // Now setup with the key
+                        setTimeout(() => setupWithKey(data.sharing_key), 1500);
+                    } else {
+                        // Registration failed - show detailed error with link
+                        let errorMessage = data.message || 'Registration failed';
+                        
+                        // Add clickable link if URL provided
+                        if (data.url) {
+                            errorMessage += `\n\n<a href="${data.url}" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 600;">Click here to open FR24 Data Sharing page</a>`;
+                        }
+                        
+                        // Special handling for key extraction failure (registration succeeded)
+                        if (data.error_type === 'key_extraction_failed' || data.registration_successful) {
+                            errorMessage = `✓ Registration completed!\n\n${data.message}`;
+                            if (data.url) {
+                                errorMessage += `\n\n<a href="${data.url}" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 600;">→ Open FR24 Data Sharing Page</a>`;
+                            }
+                            showResult('warning', errorMessage);
+                        } else {
+                            showResult('error', errorMessage);
+                        }
+                        
+                        // Keep field editable for manual key entry
+                        document.getElementById('fr24-key-or-email').disabled = false;
+                        document.getElementById('fr24-key-or-email').focus();
+                    }
+                } else {
+                    // Key entered - use it directly
+                    setupText.textContent = 'Setting up FR24...';
+                    await setupWithKey(input);
+                }
+            } catch (error) {
+                showResult('error', `Error: ${error.message}`);
+            } finally {
+                setupBtn.disabled = false;
+                setupText.textContent = 'Save & Enable FR24';
+            }
+        }
+        
+        // Helper function to setup with a key
+        async function setupWithKey(sharingKey) {
+            const setupBtn = document.getElementById('setup-fr24-btn');
+            const setupText = document.getElementById('setup-fr24-text');
+            
+            setupBtn.disabled = true;
+            setupText.textContent = 'Starting FR24 feed...';
             
             try {
                 const response = await fetch('/api/feeds/fr24/setup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        feeder_id: feederId,
-                        method: 'existing_key'
-                    })
+                    body: JSON.stringify({ feeder_id: sharingKey })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    showResult('success', 'FR24 installed and configured successfully!');
+                    showResult('success', 'FR24 feed enabled successfully!');
                     document.getElementById('fr24-status').textContent = 'Active';
                     document.getElementById('fr24-status').className = 'feed-status-badge status-active';
                     document.getElementById('fr24-enabled').checked = true;
@@ -515,46 +553,7 @@
                 showResult('error', `Error: ${error.message}`);
             } finally {
                 setupBtn.disabled = false;
-                setupText.textContent = 'Install & Setup FR24';
-            }
-        }
-        
-        // Register new FR24 account and setup
-        
-        // Test FR24 connection
-        async function testFR24() {
-            const feederId = document.getElementById('fr24-feeder-id').value.trim();
-            const testBtn = document.getElementById('test-fr24-btn');
-            
-            if (!feederId) {
-                showResult('error', 'Please enter a feeder ID');
-                return;
-            }
-            
-            testBtn.disabled = true;
-            testBtn.textContent = 'Testing...';
-            
-            try {
-                const response = await fetch('/api/feeds/fr24/test', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        feeder_id: feederId
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showResult('success', 'Connection test successful!');
-                } else {
-                    showResult('error', `Test failed: ${data.message}`);
-                }
-            } catch (error) {
-                showResult('error', `Error: ${error.message}`);
-            } finally {
-                testBtn.disabled = false;
-                testBtn.textContent = 'Test Connection';
+                setupText.textContent = 'Save & Enable FR24';
             }
         }
         
@@ -571,17 +570,24 @@
                 resultDiv.style.background = '#d1fae5';
                 resultDiv.style.color = '#065f46';
                 resultDiv.style.border = '2px solid #10b981';
+            } else if (type === 'warning') {
+                // Partial success - registration worked but key extraction failed
+                resultDiv.style.background = '#fef3c7';
+                resultDiv.style.color = '#92400e';
+                resultDiv.style.border = '2px solid #f59e0b';
             } else if (type === 'info') {
                 resultDiv.style.background = '#dbeafe';
                 resultDiv.style.color = '#1e40af';
                 resultDiv.style.border = '2px solid #3b82f6';
             } else {
+                // Error
                 resultDiv.style.background = '#fee2e2';
                 resultDiv.style.color = '#991b1b';
                 resultDiv.style.border = '2px solid #ef4444';
             }
             
-            resultDiv.textContent = message;
+            // Use innerHTML to support clickable links, but escape user input
+            resultDiv.innerHTML = message;
         }
     </script>
 </body>
