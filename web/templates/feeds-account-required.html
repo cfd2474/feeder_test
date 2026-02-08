@@ -491,19 +491,32 @@
                         // Registration failed - show detailed error with link
                         let errorMessage = data.message || 'Registration failed';
                         
-                        // Add clickable link if URL provided
-                        if (data.url) {
-                            errorMessage += `\n\n<a href="${data.url}" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 600;">Click here to open FR24 Data Sharing page</a>`;
-                        }
-                        
                         // Special handling for key extraction failure (registration succeeded)
                         if (data.error_type === 'key_extraction_failed' || data.registration_successful) {
+                            // Add success header for partial success
                             errorMessage = `✓ Registration completed!\n\n${data.message}`;
+                            
+                            // Add clickable link
                             if (data.url) {
                                 errorMessage += `\n\n<a href="${data.url}" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 600;">→ Open FR24 Data Sharing Page</a>`;
                             }
+                            
                             showResult('warning', errorMessage);
                         } else {
+                            // Complete failure - add clickable link with context-appropriate text
+                            if (data.url) {
+                                let linkText;
+                                if (data.url.includes('account/data-sharing')) {
+                                    linkText = '→ Open FR24 Data Sharing Page';
+                                } else if (data.url.includes('share-your-data')) {
+                                    linkText = '→ Open FR24 Registration Page';
+                                } else {
+                                    linkText = '→ Open FlightRadar24 Page';
+                                }
+                                
+                                errorMessage += `\n\n<a href="${data.url}" target="_blank" style="color: #2563eb; text-decoration: underline; font-weight: 600;">${linkText}</a>`;
+                            }
+                            
                             showResult('error', errorMessage);
                         }
                         

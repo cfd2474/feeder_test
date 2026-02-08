@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.38.0"
+VERSION = "2.38.1"
 
 # Global progress tracking
 service_progress = {
@@ -1063,7 +1063,7 @@ no
                 return jsonify({
                     'success': False,
                     'error_type': 'key_limit',
-                    'message': f'Your FlightRadar24 account has reached the 3-feeder limit.\n\nTo add this feeder:\n1. Visit: https://www.flightradar24.com/account/data-sharing\n2. Log in with: {email}\n3. Remove an old feeder or request additional keys\n4. Copy your sharing key and paste it here',
+                    'message': f'Your FlightRadar24 account has reached the 3-feeder limit.\n\nTo add this feeder, you need to:\n1. Log in to your FR24 account with: {email}\n2. Remove an old feeder or request additional keys from FR24 support\n3. Copy your sharing key and paste it in the field above',
                     'url': 'https://www.flightradar24.com/account/data-sharing',
                     'email': email
                 })
@@ -1073,7 +1073,7 @@ no
                 return jsonify({
                     'success': False,
                     'error_type': 'registration_failed',
-                    'message': f'Registration encountered an error.\n\nPlease try:\n1. Visit: https://www.flightradar24.com/share-your-data\n2. Register manually with: {email}\n3. Copy your sharing key and paste it here',
+                    'message': f'Registration encountered an error.\n\nYou can register manually:\n1. Log in or create account with: {email}\n2. Complete the FR24 feeder registration\n3. Copy your sharing key and paste it in the field above',
                     'url': 'https://www.flightradar24.com/share-your-data',
                     'email': email,
                     'debug_output': output[:500]
@@ -1099,7 +1099,7 @@ no
                 return jsonify({
                     'success': False,
                     'error_type': 'key_extraction_failed',
-                    'message': f'Registration completed successfully!\n\nHowever, we couldn\'t automatically retrieve your sharing key.\n\nNext steps:\n1. Visit: https://www.flightradar24.com/account/data-sharing\n2. Log in with: {email}\n3. Copy your sharing key\n4. Paste it in the field above and click "Save & Enable FR24"',
+                    'message': f'However, we couldn\'t automatically retrieve your sharing key.\n\nNext steps:\n1. Log in to your FR24 account with: {email}\n2. Find and copy your sharing key\n3. Paste it in the field above and click "Save & Enable FR24"',
                     'url': 'https://www.flightradar24.com/account/data-sharing',
                     'email': email,
                     'registration_successful': True
@@ -1109,7 +1109,7 @@ no
             return jsonify({
                 'success': False,
                 'error_type': 'unknown',
-                'message': f'Registration status unclear.\n\nPlease verify your registration:\n1. Visit: https://www.flightradar24.com/account/data-sharing\n2. Log in with: {email}\n3. If registered, copy your sharing key and paste it here\n4. If not registered, try manual registration at: https://www.flightradar24.com/share-your-data',
+                'message': f'Registration status is unclear.\n\nPlease verify:\n1. Log in to your FR24 account with: {email}\n2. Check if your feeder was registered\n3. If yes, copy your sharing key and paste it above\n4. If no, you may need to register manually',
                 'url': 'https://www.flightradar24.com/account/data-sharing',
                 'email': email,
                 'debug_output': output[:500]
@@ -1119,7 +1119,7 @@ no
             return jsonify({
                 'success': False,
                 'error_type': 'timeout',
-                'message': f'Registration process timed out (took over 2 minutes).\n\nThe registration may have completed successfully.\n\nNext steps:\n1. Visit: https://www.flightradar24.com/account/data-sharing\n2. Log in with: {email}\n3. Check if your feeder was registered\n4. If yes, copy your sharing key and paste it here',
+                'message': f'Registration process timed out (took over 2 minutes).\n\nThe registration may have completed successfully.\n\nNext steps:\n1. Log in to your FR24 account with: {email}\n2. Check if your feeder was registered\n3. If yes, copy your sharing key and paste it above',
                 'url': 'https://www.flightradar24.com/account/data-sharing',
                 'email': email
             })
@@ -1128,7 +1128,8 @@ no
         return jsonify({
             'success': False,
             'error_type': 'exception',
-            'message': f'Unexpected error during registration: {str(e)}\n\nPlease try manual registration:\n1. Visit: https://www.flightradar24.com/share-your-data\n2. Register with your email\n3. Copy your sharing key and paste it here'
+            'message': f'Unexpected error during registration: {str(e)}\n\nYou can register manually:\n1. Visit the FR24 registration page (link below)\n2. Complete registration with your email\n3. Copy your sharing key and paste it above',
+            'url': 'https://www.flightradar24.com/share-your-data'
         })
 
 @app.route('/api/feeds/fr24/toggle', methods=['POST'])
