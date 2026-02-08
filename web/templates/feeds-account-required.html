@@ -493,8 +493,8 @@
                         
                         // Special handling for key extraction failure (registration succeeded)
                         if (data.error_type === 'key_extraction_failed' || data.registration_successful) {
-                            // Add success header for partial success
-                            errorMessage = `✓ Registration completed!\n\n${data.message}`;
+                            // Add warning header for partial success
+                            errorMessage = `⚠️  Registration Error\n\n${data.message}`;
                             
                             // Add clickable link
                             if (data.url) {

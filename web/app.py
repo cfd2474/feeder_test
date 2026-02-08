@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.38.1"
+VERSION = "2.38.2"
 
 # Global progress tracking
 service_progress = {
@@ -1056,36 +1056,12 @@ no
             
             output = result.stdout + result.stderr
             
-            # Check for specific error conditions FIRST
-            
-            # ERROR 1: Three-key limit reached
-            if 'limit' in output.lower() or 'maximum' in output.lower() or 'three' in output.lower():
-                return jsonify({
-                    'success': False,
-                    'error_type': 'key_limit',
-                    'message': f'Your FlightRadar24 account has reached the 3-feeder limit.\n\nTo add this feeder, you need to:\n1. Log in to your FR24 account with: {email}\n2. Remove an old feeder or request additional keys from FR24 support\n3. Copy your sharing key and paste it in the field above',
-                    'url': 'https://www.flightradar24.com/account/data-sharing',
-                    'email': email
-                })
-            
-            # Check for registration failure indicators
-            if 'error' in output.lower() and 'congratulations' not in output.lower():
-                return jsonify({
-                    'success': False,
-                    'error_type': 'registration_failed',
-                    'message': f'Registration encountered an error.\n\nYou can register manually:\n1. Log in or create account with: {email}\n2. Complete the FR24 feeder registration\n3. Copy your sharing key and paste it in the field above',
-                    'url': 'https://www.flightradar24.com/share-your-data',
-                    'email': email,
-                    'debug_output': output[:500]
-                })
-            
-            # Extract sharing key from output
-            # Look for pattern like "Your sharing key (fxxxxxxxxxxx4)"
+            # Try to extract sharing key FIRST (success case)
             import re
             key_match = re.search(r'sharing key \(([a-zA-Z0-9]+)\)', output)
             
             if key_match:
-                # SUCCESS: Key found
+                # SUCCESS: Key found and extracted
                 sharing_key = key_match.group(1)
                 return jsonify({
                     'success': True,
@@ -1093,26 +1069,48 @@ no
                     'message': f'Registration successful! Your sharing key: {sharing_key}'
                 })
             
-            # ERROR 2: Registration succeeded but key extraction failed
-            # Check for success indicators even without key
-            if 'congratulations' in output.lower() or 'registered and ready' in output.lower():
+            # If we get here, no key was extracted
+            # Check for CLEAR FAILURE indicators
+            
+            # ERROR 1: Three-key limit reached
+            if 'limit' in output.lower() or 'maximum' in output.lower() or ('three' in output.lower() and 'feeder' in output.lower()):
                 return jsonify({
                     'success': False,
-                    'error_type': 'key_extraction_failed',
-                    'message': f'However, we couldn\'t automatically retrieve your sharing key.\n\nNext steps:\n1. Log in to your FR24 account with: {email}\n2. Find and copy your sharing key\n3. Paste it in the field above and click "Save & Enable FR24"',
+                    'error_type': 'key_limit',
+                    'message': f'Your FlightRadar24 account has reached the 3-feeder limit.\n\nTo add this feeder, you need to:\n1. Log in to your FR24 account with: {email}\n2. Remove an old feeder or request additional keys from FR24 support\n3. Copy your sharing key and paste it in the field above',
                     'url': 'https://www.flightradar24.com/account/data-sharing',
                     'email': email,
-                    'registration_successful': True
+                    'debug_output': output[:1000]
                 })
             
-            # ERROR 3: Unknown failure
+            # ERROR 2: Clear failure messages
+            clear_failures = [
+                'connection refused' in output.lower(),
+                'network unreachable' in output.lower(),
+                'could not connect' in output.lower(),
+                'timeout' in output.lower() and 'error' in output.lower()
+            ]
+            
+            if any(clear_failures):
+                return jsonify({
+                    'success': False,
+                    'error_type': 'network_error',
+                    'message': f'Network error during registration.\n\nYou can register manually:\n1. Log in or create account with: {email}\n2. Complete the FR24 feeder registration\n3. Copy your sharing key and paste it in the field above',
+                    'url': 'https://www.flightradar24.com/share-your-data',
+                    'email': email,
+                    'debug_output': output[:1000]
+                })
+            
+            # DEFAULT: Assume registration succeeded but we couldn't extract the key
+            # This is the "fail-open" approach - better to assume success and let user verify
             return jsonify({
                 'success': False,
-                'error_type': 'unknown',
-                'message': f'Registration status is unclear.\n\nPlease verify:\n1. Log in to your FR24 account with: {email}\n2. Check if your feeder was registered\n3. If yes, copy your sharing key and paste it above\n4. If no, you may need to register manually',
+                'error_type': 'key_extraction_failed',
+                'message': f'We couldn\'t automatically retrieve your sharing key.\n\nNext steps:\n1. Log in with: {email}\n2. Copy your sharing key\n3. Paste it in the field above and click "Save & Enable FR24"',
                 'url': 'https://www.flightradar24.com/account/data-sharing',
                 'email': email,
-                'debug_output': output[:500]
+                'registration_successful': True,
+                'debug_output': output[:1000]
             })
                 
         except subprocess.TimeoutExpired:
