@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.38.3"
+VERSION = "2.38.5"
 
 # Global progress tracking
 service_progress = {
@@ -942,8 +942,22 @@ def api_fr24_setup():
         update_env_var('FR24_ENABLED', 'true')
         
         # Start FR24 container using docker compose
-        compose_file = '/opt/taknet-ps/config/docker-compose.yml'
-        env_file = '/opt/taknet-ps/config/.env'
+        # Use the correct paths - config is at /opt/adsb not /opt/taknet-ps
+        compose_file = '/opt/adsb/config/docker-compose.yml'
+        env_file = str(ENV_FILE)  # This is /opt/adsb/config/.env
+        
+        # Verify files exist before attempting docker compose
+        if not Path(compose_file).exists():
+            return jsonify({
+                'success': False,
+                'message': f'docker-compose.yml not found at: {compose_file}\n\nPlease run the installer to create the docker-compose.yml file.'
+            })
+        
+        if not ENV_FILE.exists():
+            return jsonify({
+                'success': False,
+                'message': f'.env file not found at: {env_file}\n\nPlease run the installer to create the .env file.'
+            })
         
         result = subprocess.run(
             ['docker', 'compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'fr24'],
@@ -1140,8 +1154,22 @@ def api_fr24_toggle():
         # Update .env
         update_env_var('FR24_ENABLED', 'true' if enabled else 'false')
         
-        compose_file = '/opt/taknet-ps/config/docker-compose.yml'
-        env_file = '/opt/taknet-ps/config/.env'
+        # Use the correct paths - config is at /opt/adsb not /opt/taknet-ps
+        compose_file = '/opt/adsb/config/docker-compose.yml'
+        env_file = str(ENV_FILE)  # This is /opt/adsb/config/.env
+        
+        # Verify files exist before attempting docker compose
+        if not Path(compose_file).exists():
+            return jsonify({
+                'success': False,
+                'message': f'docker-compose.yml not found at: {compose_file}\n\nPlease run the installer to create the docker-compose.yml file.'
+            })
+        
+        if not ENV_FILE.exists():
+            return jsonify({
+                'success': False,
+                'message': f'.env file not found at: {env_file}\n\nPlease run the installer to create the .env file.'
+            })
         
         # Start or stop FR24 container using docker compose
         if enabled:
