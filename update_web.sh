@@ -1,11 +1,11 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.34.0
+# Quick Web App Update Script for v2.35.0
 # Updates only the web interface without touching Docker containers
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.34.0"
+echo "  TAKNET-PS Web App Update to v2.35.0"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -80,12 +80,11 @@ if systemctl is-active --quiet adsb-web.service; then
     echo "Access your updated interface:"
     echo "   http://taknet-ps.local:5000"
     echo ""
-    echo "New in v2.34.0:"
-    echo "   • Added ADSBexchange to accountless feeds"
-    echo "   • ADSBexchange feed configuration: feed1.adsbexchange.com:30004"
-    echo "   • ADSBexchange MLAT configuration: feed.adsbexchange.com:31090"
-    echo "   • Uses feeder UUID for identification (no account required)"
-    echo "   • Integrated into ultrafeeder's built-in configuration"
+    echo "New in v2.35.0:"
+    echo "   • Fixed: ADSBexchange now appears in dashboard feeder table"
+    echo "   • Fixed: SDR setup wizard step 1 now says 'Click here to configure'"
+    echo "   • Improved UX with clearer call-to-action text"
+    echo "   • Dashboard now shows all 5 accountless feeds when enabled"
     echo ""
 else
     echo ""
