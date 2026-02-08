@@ -1282,7 +1282,8 @@ def api_piaware_setup():
             lon = env.get('FEEDER_LONG', '0')
             
             try:
-                # Run piaware container for 60 seconds to get feeder ID
+                # Run piaware container for 120 seconds to get feeder ID
+                # Increased timeout to account for image pull + startup + FlightAware server response
                 docker_cmd = [
                     'docker', 'run', '--rm',
                     '-e', f'LAT={lat}',
@@ -1295,7 +1296,7 @@ def api_piaware_setup():
                     docker_cmd,
                     capture_output=True,
                     text=True,
-                    timeout=60
+                    timeout=120
                 )
                 
                 output = result.stdout + result.stderr
@@ -1337,8 +1338,13 @@ def api_piaware_setup():
                 return jsonify({
                     'success': False,
                     'error_type': 'timeout',
-                    'message': 'Timeout while generating Feeder ID. Please try again.',
-                    'url': 'https://flightaware.com/adsb/piaware/claim'
+                    'message': 'Timeout while generating Feeder ID (took longer than 120 seconds). This can happen with slow network or FlightAware server delays. Please try the manual method or wait and retry.',
+                    'url': 'https://flightaware.com/adsb/piaware/claim',
+                    'manual_method': [
+                        'Run this on your Pi:',
+                        'cd /tmp && bash generate-piaware-feederid.sh',
+                        'Or get ID from FlightAware website (link above)'
+                    ]
                 })
             except Exception as e:
                 return jsonify({
