@@ -1282,10 +1282,12 @@ def api_piaware_setup():
             lon = env.get('FEEDER_LONG', '0')
             
             try:
-                # Run piaware container for 120 seconds to get feeder ID
-                # Increased timeout to account for image pull + startup + FlightAware server response
-                # Use official sdr-enthusiasts method: no RECEIVER_TYPE parameter
-                # Container defaults properly for ID generation without it
+                # v2.40.5: Real-time streaming implementation (like adsb.im method)
+                # Use Popen to stream output line-by-line and exit early when ID found
+                # This matches the official method: timeout 60 docker run ... | grep "my feeder ID"
+                import re
+                import time
+                
                 docker_cmd = [
                     'docker', 'run', '--rm',
                     '-e', f'LAT={lat}',
@@ -1293,57 +1295,90 @@ def api_piaware_setup():
                     'ghcr.io/sdr-enthusiasts/docker-piaware:latest'
                 ]
                 
-                result = subprocess.run(
+                # Start process with line-buffered output
+                process = subprocess.Popen(
                     docker_cmd,
-                    capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
                     text=True,
-                    timeout=120
+                    bufsize=1,  # Line buffered
+                    universal_newlines=True
                 )
                 
-                output = result.stdout + result.stderr
+                start_time = time.time()
+                timeout = 90  # Reduced from 120 to 90 seconds (adsb.im uses 60)
+                feeder_id = None
+                full_output = []
                 
-                # Extract feeder ID from output
-                # Looking for: "my feeder ID is xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                import re
-                id_match = re.search(r'my feeder ID is ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', output, re.IGNORECASE)
+                # Pattern to match feeder ID
+                id_pattern = re.compile(r'my feeder[- ]?id is ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})', re.IGNORECASE)
                 
-                if id_match:
-                    new_feeder_id = id_match.group(1)
+                # Read output line by line in real-time
+                while True:
+                    # Check timeout
+                    if time.time() - start_time > timeout:
+                        process.kill()
+                        process.wait()
+                        raise subprocess.TimeoutExpired(docker_cmd, timeout)
                     
-                    # Return the new ID to user - DON'T save it yet
-                    # User needs to claim it first, then provide it back
+                    # Read next line (with timeout)
+                    line = process.stdout.readline()
+                    
+                    if not line:
+                        # Process ended
+                        break
+                    
+                    full_output.append(line)
+                    
+                    # Check for feeder ID in this line
+                    match = id_pattern.search(line)
+                    if match:
+                        feeder_id = match.group(1)
+                        # Found it! Kill the container immediately (like grep does)
+                        process.kill()
+                        process.wait()
+                        break
+                
+                # Wait for process to complete (if it hasn't been killed already)
+                if process.poll() is None:
+                    process.wait(timeout=5)
+                
+                if feeder_id:
+                    # Success! Got the ID
+                    elapsed = time.time() - start_time
                     return jsonify({
                         'success': True,
-                        'feeder_id': new_feeder_id,
+                        'feeder_id': feeder_id,
                         'mode': 'generated',
-                        'message': f'New FlightAware Feeder ID generated: {new_feeder_id}',
+                        'message': f'New FlightAware Feeder ID generated in {int(elapsed)} seconds: {feeder_id}',
                         'next_steps': [
-                            f'Your new Feeder ID: {new_feeder_id}',
+                            f'Your new Feeder ID: {feeder_id}',
                             'Claim this feeder at FlightAware (link below)',
                             'Come back and enter the Feeder ID above',
                             'Click "Save & Enable FlightAware"'
                         ],
-                        'claim_url': f'https://flightaware.com/adsb/piaware/claim/{new_feeder_id}'
+                        'claim_url': f'https://flightaware.com/adsb/piaware/claim/{feeder_id}'
                     })
                 else:
                     # Failed to extract ID
+                    output_str = ''.join(full_output)
                     return jsonify({
                         'success': False,
                         'error_type': 'id_extraction_failed',
                         'message': 'Could not generate Feeder ID. Please try again or get one manually from FlightAware.',
                         'url': 'https://flightaware.com/adsb/piaware/claim',
-                        'debug_output': output[:1000]
+                        'debug_output': output_str[:1000] if output_str else 'No output captured'
                     })
                     
             except subprocess.TimeoutExpired:
                 return jsonify({
                     'success': False,
                     'error_type': 'timeout',
-                    'message': 'Timeout while generating Feeder ID (took longer than 120 seconds). This can happen with slow network or FlightAware server delays. Please try the manual method or wait and retry.',
+                    'message': 'Timeout while generating Feeder ID (took longer than 90 seconds). This can happen if Docker image is downloading (~500MB, 5-10 min) or network is slow. Please wait for download to complete and try again.',
                     'url': 'https://flightaware.com/adsb/piaware/claim',
                     'manual_method': [
-                        'Run this on your Pi:',
-                        'cd /tmp && bash generate-piaware-feederid.sh',
+                        'Check if image is downloading: docker images | grep piaware',
+                        'Or run manually: cd /tmp && bash generate-piaware-feederid.sh',
                         'Or get ID from FlightAware website (link above)'
                     ]
                 })
