@@ -1,11 +1,11 @@
 #!/bin/bash
-# Quick Web App Update Script for v2.35.0
+# Quick Web App Update Script for v2.36.0
 # Updates only the web interface without touching Docker containers
 
 set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS Web App Update to v2.35.0"
+echo "  TAKNET-PS Web App Update to v2.36.0"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -80,11 +80,12 @@ if systemctl is-active --quiet adsb-web.service; then
     echo "Access your updated interface:"
     echo "   http://taknet-ps.local:5000"
     echo ""
-    echo "New in v2.35.0:"
-    echo "   • Fixed: ADSBexchange now appears in dashboard feeder table"
-    echo "   • Fixed: SDR setup wizard step 1 now says 'Click here to configure'"
-    echo "   • Improved UX with clearer call-to-action text"
-    echo "   • Dashboard now shows all 5 accountless feeds when enabled"
+    echo "New in v2.36.0:"
+    echo "   • BREAKING: Simplified FR24 integration using docker-compose"
+    echo "   • Removed complex automated registration - use sdr-enthusiasts script"
+    echo "   • FR24 now managed via docker-compose for better reliability"
+    echo "   • Cleaner UI with command to get sharing key"
+    echo "   • More stable container management"
     echo ""
 else
     echo ""

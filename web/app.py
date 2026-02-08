@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.35.0"
+VERSION = "2.36.0"
 
 # Global progress tracking
 service_progress = {
@@ -937,50 +937,32 @@ def api_fr24_setup():
         if not feeder_id:
             return jsonify({'success': False, 'message': 'Feeder ID is required'})
         
-        # Read current env
-        env = read_env()
-        
-        # Update .env with FR24 key and enable it
+        # Update .env with FR24 key
         update_env_var('FR24_KEY', feeder_id)
         update_env_var('FR24_ENABLED', 'true')
         
-        # Check if FR24 container exists
-        check_result = subprocess.run(['docker', 'ps', '-a', '--filter', 'name=fr24feed', '--format', '{{.Names}}'],
-                                     capture_output=True, text=True, timeout=5)
+        # Start FR24 container using docker-compose
+        compose_file = '/opt/taknet-ps/config/docker-compose.yml'
+        env_file = '/opt/taknet-ps/config/.env'
         
-        if 'fr24feed' in check_result.stdout:
-            # Container exists, remove it first
-            subprocess.run(['docker', 'rm', '-f', 'fr24feed'], timeout=30, check=True)
-        
-        # Create new FR24 container
-        # CRITICAL: Must specify BEASTHOST to tell FR24 where to get ADSB data
-        docker_cmd = [
-            'docker', 'run', '-d',
-            '--name', 'fr24feed',
-            '--restart', 'unless-stopped',
-            '-e', 'BEASTHOST=ultrafeeder',  # CRITICAL: Points to ultrafeeder for data
-            '-e', f'FR24KEY={feeder_id}',
-            '-e', 'MLAT=yes',
-            '-p', '8754:8754',
-            '--tmpfs', '/var/log',  # Reduce SD card wear
-            'ghcr.io/sdr-enthusiasts/docker-flightradar24:latest'
-        ]
-        
-        result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=60, check=True)
+        result = subprocess.run(
+            ['docker-compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'fr24'],
+            capture_output=True, text=True, timeout=60
+        )
         
         if result.returncode == 0:
-            return jsonify({'success': True, 'message': 'FR24 container created and started successfully'})
+            return jsonify({'success': True, 'message': 'FR24 feed enabled successfully'})
         else:
-            return jsonify({'success': False, 'message': f'Failed to create container: {result.stderr}'})
+            return jsonify({'success': False, 'message': f'Failed to start FR24: {result.stderr}'})
         
-    except subprocess.CalledProcessError as e:
-        return jsonify({'success': False, 'message': f'Docker error: {e.stderr if e.stderr else str(e)}'})
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'message': 'Operation timed out'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/feeds/fr24/test', methods=['POST'])
 def api_fr24_test():
-    """Test FR24 connection"""
+    """Test FR24 key validity"""
     try:
         data = request.json
         feeder_id = data.get('feeder_id', '').strip()
@@ -992,110 +974,11 @@ def api_fr24_test():
         if len(feeder_id) < 10:
             return jsonify({'success': False, 'message': 'Feeder ID appears invalid (too short)'})
         
-        # Check if FR24 container is running
-        check_result = subprocess.run(['docker', 'ps', '--filter', 'name=fr24feed', '--format', '{{.Names}}'],
-                                     capture_output=True, text=True, timeout=5)
-        
-        if 'fr24feed' not in check_result.stdout:
-            return jsonify({'success': False, 'message': 'FR24 container not running'})
-        
-        return jsonify({'success': True, 'message': 'FR24 connection test passed'})
+        # Key looks valid
+        return jsonify({'success': True, 'message': 'FR24 key format appears valid'})
         
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
-
-@app.route('/api/feeds/fr24/register', methods=['POST'])
-def api_fr24_register():
-    """Register new FR24 account using official signup process"""
-    try:
-        data = request.json
-        email = data.get('email', '').strip()
-        
-        if not email:
-            return jsonify({'success': False, 'message': 'Email is required'})
-        
-        # Read current env for location data
-        env = read_env()
-        lat = env.get('FEEDER_LAT', '0')
-        lon = env.get('FEEDER_LONG', '0')
-        alt = env.get('FEEDER_ALT_FT', '0')
-        
-        # Validate we have location data
-        if lat == '0' or lon == '0':
-            return jsonify({
-                'success': False, 
-                'message': 'Feeder location not configured. Please set up your location in Settings first.'
-            })
-        
-        # Prepare answers for fr24feed --signup interactive prompts
-        # Based on the signup log, here's the sequence:
-        signup_inputs = f'''{email}
-
-yes
-{lat}
-{lon}
-{alt}
-yes
-5
-ultrafeeder
-30005
-no
-no
-'''
-        
-        # Run fr24feed --signup in Docker container with stdin
-        docker_cmd = [
-            'docker', 'run', '-i', '--rm',
-            'ghcr.io/sdr-enthusiasts/docker-flightradar24:latest',
-            'fr24feed', '--signup'
-        ]
-        
-        try:
-            # Run the signup process
-            result = subprocess.run(
-                docker_cmd,
-                input=signup_inputs,
-                capture_output=True,
-                text=True,
-                timeout=120
-            )
-            
-            # Check output - even if there's an "ERROR" at the end, registration usually succeeds
-            output = result.stdout + result.stderr
-            
-            # Look for success indicators
-            if 'Submitting form data' in output or 'Please check your inbox' in output:
-                # Registration was likely successful
-                return jsonify({
-                    'success': True,
-                    'message': 'Registration submitted successfully!',
-                    'instructions': 'Check your email and visit the FR24 website to get your sharing key.',
-                    'email': email,
-                    'fr24_url': 'https://www.flightradar24.com/account/data-sharing'
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': 'Registration may have failed. Please try manual registration.',
-                    'instructions': f'Visit https://www.flightradar24.com/share-your-data to register manually with email: {email}'
-                })
-                
-        except subprocess.TimeoutExpired:
-            # Timeout might still mean success - FR24 registration can complete even with final error
-            return jsonify({
-                'success': True,
-                'message': 'Registration submitted (process timed out, but likely successful).',
-                'instructions': 'Check your email and visit the FR24 website to get your sharing key.',
-                'email': email,
-                'fr24_url': 'https://www.flightradar24.com/account/data-sharing'
-            })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False, 
-            'message': f'Registration error: {str(e)}',
-            'instructions': f'Please register manually at https://www.flightradar24.com/share-your-data'
-        })
 
 @app.route('/api/feeds/fr24/toggle', methods=['POST'])
 def api_fr24_toggle():
@@ -1107,23 +990,28 @@ def api_fr24_toggle():
         # Update .env
         update_env_var('FR24_ENABLED', 'true' if enabled else 'false')
         
-        # Start or stop FR24 container
-        if enabled:
-            # Start container if it exists
-            check_result = subprocess.run(['docker', 'ps', '-a', '--filter', 'name=fr24feed', '--format', '{{.Names}}'],
-                                         capture_output=True, text=True, timeout=5)
-            if 'fr24feed' in check_result.stdout:
-                subprocess.run(['docker', 'start', 'fr24feed'], timeout=30, check=True)
-                return jsonify({'success': True, 'message': 'FR24 feed enabled'})
-            else:
-                return jsonify({'success': False, 'message': 'FR24 container not found. Please set up FR24 first.'})
-        else:
-            # Stop container
-            subprocess.run(['docker', 'stop', 'fr24feed'], timeout=30, check=True)
-            return jsonify({'success': True, 'message': 'FR24 feed disabled'})
+        compose_file = '/opt/taknet-ps/config/docker-compose.yml'
+        env_file = '/opt/taknet-ps/config/.env'
         
-    except subprocess.CalledProcessError as e:
-        return jsonify({'success': False, 'message': f'Docker error: {e.stderr if e.stderr else str(e)}'})
+        # Start or stop FR24 container using docker-compose
+        if enabled:
+            result = subprocess.run(
+                ['docker-compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'fr24'],
+                capture_output=True, text=True, timeout=60
+            )
+        else:
+            result = subprocess.run(
+                ['docker-compose', '-f', compose_file, 'stop', 'fr24'],
+                capture_output=True, text=True, timeout=30
+            )
+        
+        if result.returncode == 0:
+            return jsonify({'success': True, 'message': f'FR24 feed {"enabled" if enabled else "disabled"}'})
+        else:
+            return jsonify({'success': False, 'message': f'Failed: {result.stderr}'})
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'message': 'Operation timed out'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 

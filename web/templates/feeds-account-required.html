@@ -298,99 +298,54 @@
                         </p>
                     </div>
                     
-                    <!-- Setup Method Selector -->
+                    <!-- Get Your Key Instructions -->
+                    <div class="config-section" style="padding: 20px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b; margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 15px 0; color: #92400e; font-size: 1.1em;">Don't have a FlightRadar24 sharing key?</h4>
+                        <p style="margin: 0 0 15px 0; color: #92400e;">
+                            Run this command on your system to get a sharing key:
+                        </p>
+                        <div style="background: #ffffff; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.9em; color: #1f2937; overflow-x: auto; margin-bottom: 15px;">
+                            docker run -it --rm ghcr.io/sdr-enthusiasts/docker-baseimage:qemu bash -c "$(curl -sSL https://raw.githubusercontent.com/sdr-enthusiasts/docker-flightradar24/main/get_adsb_key.sh)"
+                        </div>
+                        <p style="margin: 0 0 10px 0; color: #92400e; font-weight: 600;">Quick answers for the signup process:</p>
+                        <ul style="margin: 0; padding-left: 20px; color: #92400e;">
+                            <li><strong>Email:</strong> Your FlightRadar24 account email</li>
+                            <li><strong>Sharing key:</strong> Leave blank (you'll get a new one)</li>
+                            <li><strong>MLAT:</strong> Answer "no"</li>
+                            <li><strong>Receiver type:</strong> Answer "4" (Network)</li>
+                            <li><strong>Connection type:</strong> Answer "1"</li>
+                            <li><strong>Host:</strong> 127.0.0.1</li>
+                            <li><strong>Port:</strong> 30005</li>
+                        </ul>
+                        <p style="margin: 15px 0 0 0; color: #92400e; font-size: 0.9em;">
+                            After signup, you'll receive a sharing key. Copy it and paste below.
+                        </p>
+                    </div>
+                    
+                    <!-- Enter Key Section -->
                     <div class="config-section">
-                        <label class="config-label">Setup Method</label>
-                        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                            <button 
-                                class="setup-method-btn active" 
-                                id="method-have-key"
-                                onclick="switchSetupMethod('have-key')"
-                            >
-                                I Have a Key
-                            </button>
-                            <button 
-                                class="setup-method-btn" 
-                                id="method-need-key"
-                                onclick="switchSetupMethod('need-key')"
-                            >
-                                I Need a Key
-                            </button>
-                        </div>
+                        <label class="config-label" for="fr24-feeder-id">
+                            FlightRadar24 Sharing Key
+                        </label>
+                        <input 
+                            type="text" 
+                            id="fr24-feeder-id" 
+                            class="config-input" 
+                            placeholder="Enter your FR24 sharing key (e.g., fxxxxxxxxxxx4)"
+                            value="{{ fr24_key }}"
+                        >
+                        <p class="config-hint">
+                            Enter the sharing key you received from FlightRadar24
+                        </p>
                     </div>
                     
-                    <!-- Have Key Section -->
-                    <div id="have-key-section" class="setup-section">
-                        <div class="config-section">
-                            <label class="config-label" for="fr24-feeder-id">
-                                Feeder ID (Sharing Key)
-                            </label>
-                            <input 
-                                type="text" 
-                                id="fr24-feeder-id" 
-                                class="config-input" 
-                                placeholder="Enter your FR24 feeder ID (e.g., EXAMPLEKEY123456)"
-                                value="{{ fr24_key }}"
-                            >
-                            <p class="config-hint">
-                                Enter your existing FlightRadar24 sharing key
-                            </p>
-                        </div>
-                        
-                        <div class="config-actions">
-                            <button class="btn-primary" onclick="setupFR24WithKey()" id="setup-fr24-btn">
-                                <span id="setup-fr24-text">Install & Setup FR24</span>
-                            </button>
-                            <button class="btn-secondary" onclick="testFR24()" id="test-fr24-btn">
-                                Test Connection
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Need Key Section -->
-                    <div id="need-key-section" class="setup-section" style="display: none;">
-                        <div class="config-section">
-                            <label class="config-label" for="fr24-email">
-                                Email Address
-                            </label>
-                            <input 
-                                type="email" 
-                                id="fr24-email" 
-                                class="config-input" 
-                                placeholder="your.email@example.com"
-                            >
-                            <p class="config-hint">
-                                Enter the email you'll use for your FlightRadar24 account
-                            </p>
-                        </div>
-                        
-                        <div class="config-section">
-                            <label class="config-label">
-                                Automated Registration Process
-                            </label>
-                            <div style="padding: 15px; background: #eff6ff; border-radius: 6px; border-left: 4px solid #3b82f6;">
-                                <p style="margin: 0 0 10px 0; color: #1e40af; font-weight: 600;">
-                                    How it works:
-                                </p>
-                                <ol style="margin: 0; padding-left: 20px; color: #1e40af;">
-                                    <li>Enter your email address above</li>
-                                    <li>Click "Register with FR24" button</li>
-                                    <li>System automatically submits registration using your feeder location</li>
-                                    <li>You'll receive confirmation and instructions</li>
-                                    <li>Visit FR24 website to get your sharing key</li>
-                                    <li>Return here and use "I Have a Key" to complete setup</li>
-                                </ol>
-                                <p style="margin: 10px 0 0 0; color: #1e40af; font-size: 0.9em; font-style: italic;">
-                                    Note: Your feeder location (lat/lon/altitude) will be automatically used from your system settings.
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div class="config-actions">
-                            <button class="btn-primary" onclick="registerFR24()" id="register-fr24-btn">
-                                <span id="register-fr24-text">Register with FR24</span>
-                            </button>
-                        </div>
+                    <div class="config-actions">
+                        <button class="btn-primary" onclick="setupFR24WithKey()" id="setup-fr24-btn">
+                            <span id="setup-fr24-text">Save & Enable FR24</span>
+                        </button>
+                        <button class="btn-secondary" onclick="testFR24()" id="test-fr24-btn">
+                            Test Key
+                        </button>
                     </div>
                     
                     <div id="fr24-result" style="margin-top: 15px; display: none;"></div>
@@ -462,24 +417,6 @@
         }
         
         // Switch between setup methods
-        function switchSetupMethod(method) {
-            const haveKeyBtn = document.getElementById('method-have-key');
-            const needKeyBtn = document.getElementById('method-need-key');
-            const haveKeySection = document.getElementById('have-key-section');
-            const needKeySection = document.getElementById('need-key-section');
-            
-            if (method === 'have-key') {
-                haveKeyBtn.classList.add('active');
-                needKeyBtn.classList.remove('active');
-                haveKeySection.style.display = 'block';
-                needKeySection.style.display = 'none';
-            } else {
-                needKeyBtn.classList.add('active');
-                haveKeyBtn.classList.remove('active');
-                needKeySection.style.display = 'block';
-                haveKeySection.style.display = 'none';
-            }
-        }
         
         // Toggle FR24 enabled/disabled
         async function toggleFR24Enabled(enabled) {
@@ -583,68 +520,6 @@
         }
         
         // Register new FR24 account and setup
-        async function registerFR24() {
-            const email = document.getElementById('fr24-email').value.trim();
-            const registerBtn = document.getElementById('register-fr24-btn');
-            const registerText = document.getElementById('register-fr24-text');
-            const resultDiv = document.getElementById('fr24-result');
-            
-            if (!email) {
-                showResult('error', 'Please enter an email address');
-                return;
-            }
-            
-            // Basic email validation
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-                showResult('error', 'Please enter a valid email address');
-                return;
-            }
-            
-            // Disable button and show loading
-            registerBtn.disabled = true;
-            registerText.textContent = 'Submitting registration to FR24...';
-            resultDiv.style.display = 'none';
-            
-            try {
-                const response = await fetch('/api/feeds/fr24/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: email
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Registration submitted successfully
-                    const message = `${data.message}\n\n` +
-                                  `Next steps:\n` +
-                                  `1. Check your email (${data.email})\n` +
-                                  `2. Visit: ${data.fr24_url}\n` +
-                                  `3. Copy your sharing key\n` +
-                                  `4. Click "I Have a Key" and enter it`;
-                    showResult('success', message);
-                    
-                    // Switch to "I Have a Key" tab after 3 seconds
-                    setTimeout(() => {
-                        switchSetupMethod('have-key');
-                    }, 3000);
-                } else {
-                    if (data.instructions) {
-                        showResult('error', data.message + '\n\n' + data.instructions);
-                    } else {
-                        showResult('error', data.message);
-                    }
-                }
-            } catch (error) {
-                showResult('error', `Error: ${error.message}`);
-            } finally {
-                registerBtn.disabled = false;
-                registerText.textContent = 'Register with FR24';
-            }
-        }
         
         // Test FR24 connection
         async function testFR24() {
