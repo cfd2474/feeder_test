@@ -355,6 +355,14 @@
                             </span>
                         </div>
                     </div>
+                    
+                    <!-- Enable All Button -->
+                    <div style="margin-top: 20px;">
+                        <button class="btn-primary" onclick="enableAllAccountless()" 
+                                style="width: 100%; padding: 15px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.05em; font-weight: 600; transition: transform 0.2s;">
+                            <span style="font-size: 1.2em;">✓</span> Enable All Accountless Feeds
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Account-Required Feeds -->
@@ -525,6 +533,70 @@
                     hideStatusModal();
                 }, 2000);
             }
+        }
+        
+        // Enable all accountless feeds at once
+        async function enableAllAccountless() {
+            const feeds = ['taknet', 'airplaneslive', 'adsbfi', 'adsblol', 'adsbexchange'];
+            let enabledCount = 0;
+            let totalFeeds = 0;
+            
+            // Count how many need enabling
+            for (const feed of feeds) {
+                const checkbox = document.getElementById(`feed-${feed}`);
+                if (!checkbox.checked) {
+                    totalFeeds++;
+                }
+            }
+            
+            if (totalFeeds === 0) {
+                showStatusModal('All feeds already enabled');
+                updateStatusModal('All accountless feeds are already enabled', 'success');
+                setTimeout(() => hideStatusModal(), 1500);
+                return;
+            }
+            
+            // Show initial modal
+            showStatusModal(`Enabling ${totalFeeds} accountless feeds...`);
+            
+            // Enable each feed sequentially
+            for (const feed of feeds) {
+                const checkbox = document.getElementById(`feed-${feed}`);
+                
+                // Skip if already enabled
+                if (checkbox.checked) continue;
+                
+                try {
+                    const response = await fetch('/api/feeds/toggle', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            feed: feed,
+                            enabled: true
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        enabledCount++;
+                        // Update checkbox and status
+                        checkbox.checked = true;
+                        const statusElement = document.getElementById(`status-${feed}`);
+                        statusElement.textContent = 'Enabled';
+                        statusElement.className = 'feed-status enabled';
+                        
+                        // Update progress in modal
+                        showStatusModal(`Enabling feeds: ${enabledCount}/${totalFeeds} complete...`);
+                    }
+                } catch (error) {
+                    console.error(`Failed to enable ${feed}:`, error);
+                }
+            }
+            
+            // Show final success
+            updateStatusModal(`Successfully enabled ${enabledCount} of ${totalFeeds} feeds`, 'success');
+            setTimeout(() => hideStatusModal(), 2000);
         }
         
         function showNotification(message, type) {

@@ -1,6 +1,6 @@
 # TAKNET-PS ADS-B Feeder
 
-**Version:** 2.41.0  
+**Version:** 2.41.1  
 **Status:** Production Ready ✅
 
 Complete ADS-B aircraft tracking system with web-based configuration, multiple feed support, and professional dashboard. Built for Raspberry Pi and compatible single-board computers.
