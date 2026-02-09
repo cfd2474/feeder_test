@@ -166,7 +166,17 @@
                             </tr>
                             {% endif %}
                             
-                            {% if not config.get('TAKNET_PS_ENABLED') and not config.get('FR24_ENABLED') and not config.get('PIAWARE_ENABLED') and not config.get('ADSBFI_ENABLED') and not config.get('ADSBLOL_ENABLED') and not config.get('ADSBX_ENABLED') and not config.get('AIRPLANESLIVE_ENABLED') %}
+                            {% if config.get('ADSBHUB_ENABLED') == 'true' %}
+                            <tr>
+                                <td>ADSBHub</td>
+                                <td style="text-align: center;"><span class="feed-check" id="adsbhub-check" data-status="good">✓</span></td>
+                                <td style="text-align: center;">+</td>
+                                <td style="text-align: center;">-</td>
+                                <td style="text-align: center;"><a href="https://www.adsbhub.org/" class="feed-link" target="_blank" title="View ADSBHub">🔗</a></td>
+                            </tr>
+                            {% endif %}
+                            
+                            {% if not config.get('TAKNET_PS_ENABLED') and not config.get('FR24_ENABLED') and not config.get('PIAWARE_ENABLED') and not config.get('ADSBFI_ENABLED') and not config.get('ADSBLOL_ENABLED') and not config.get('ADSBX_ENABLED') and not config.get('AIRPLANESLIVE_ENABLED') and not config.get('ADSBHUB_ENABLED') %}
                             <tr>
                                 <td colspan="5" style="text-align: center; color: #9ca3af; padding: 20px;">
                                     No feeds configured

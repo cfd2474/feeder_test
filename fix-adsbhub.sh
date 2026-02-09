@@ -80,9 +80,8 @@ cat >> /opt/adsb/config/docker-compose.yml << 'EOF'
     environment:
       - BEASTHOST=ultrafeeder
       - BEASTPORT=30005
-      - ADSBHUB_STATION_KEY=${ADSBHUB_STATION_KEY}
-      - ADSBHUB_SERVER=data.adsbhub.org
-      - MLAT=no
+      - ADSBHUB=true
+      - ADSBX_SITENAME=${ADSBHUB_STATION_KEY}
     tmpfs:
       - /run:exec,size=64M
       - /var/log
