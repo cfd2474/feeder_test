@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.41.1"
+VERSION = "2.41.2"
 
 # Global progress tracking
 service_progress = {
@@ -1869,6 +1869,313 @@ def api_network_status():
         'ip_address': ip_address,
         'hostname': hostname
     })
+
+# ========================================
+# WiFi Management API Endpoints
+# ========================================
+
+@app.route('/api/wifi/scan', methods=['GET'])
+def wifi_scan():
+    """Scan for available WiFi networks"""
+    try:
+        # Use nmcli for scanning (newer Raspberry Pi OS)
+        result = subprocess.run(
+            ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY', 'dev', 'wifi', 'list', '--rescan', 'yes'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode != 0:
+            # Fallback to iwlist if nmcli not available
+            result = subprocess.run(
+                ['sudo', 'iwlist', 'wlan0', 'scan'],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if result.returncode != 0:
+                return jsonify({'success': False, 'message': 'Failed to scan WiFi networks', 'networks': []})
+            
+            # Parse iwlist output
+            networks = []
+            current_network = {}
+            
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                
+                if 'ESSID:' in line:
+                    ssid = line.split('ESSID:')[1].strip('"')
+                    if ssid:
+                        current_network['ssid'] = ssid
+                
+                if 'Quality=' in line:
+                    quality = line.split('Quality=')[1].split()[0]
+                    num, den = quality.split('/')
+                    signal = int((int(num) / int(den)) * 100)
+                    current_network['signal'] = signal
+                
+                if 'Encryption key:' in line:
+                    has_encryption = 'on' in line.lower()
+                    current_network['security'] = 'WPA2' if has_encryption else 'Open'
+                
+                if current_network and 'ssid' in current_network and 'signal' in current_network:
+                    if current_network not in networks:
+                        networks.append(current_network.copy())
+                    current_network = {}
+            
+            # Sort by signal strength
+            networks.sort(key=lambda x: x.get('signal', 0), reverse=True)
+            
+            return jsonify({'success': True, 'networks': networks[:20]})  # Top 20
+        
+        # Parse nmcli output
+        networks = []
+        seen_ssids = set()
+        
+        for line in result.stdout.splitlines():
+            if not line.strip():
+                continue
+            
+            parts = line.split(':')
+            if len(parts) >= 3:
+                ssid = parts[0].strip()
+                signal = int(parts[1]) if parts[1].isdigit() else 0
+                security = parts[2].strip() if parts[2] else 'Open'
+                
+                # Skip hidden networks and duplicates
+                if ssid and ssid != '--' and ssid not in seen_ssids:
+                    seen_ssids.add(ssid)
+                    networks.append({
+                        'ssid': ssid,
+                        'signal': signal,
+                        'security': security if security else 'Open'
+                    })
+        
+        # Sort by signal strength
+        networks.sort(key=lambda x: x['signal'], reverse=True)
+        
+        return jsonify({'success': True, 'networks': networks[:20]})  # Top 20
+    
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'message': 'WiFi scan timed out', 'networks': []})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e), 'networks': []})
+
+@app.route('/api/wifi/saved', methods=['GET'])
+def wifi_saved():
+    """Get list of saved WiFi networks"""
+    try:
+        # Use nmcli to list saved connections
+        result = subprocess.run(
+            ['nmcli', '-t', '-f', 'NAME,TYPE,DEVICE', 'connection', 'show'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode != 0:
+            # Fallback: parse wpa_supplicant.conf
+            wpa_conf = Path('/etc/wpa_supplicant/wpa_supplicant.conf')
+            if not wpa_conf.exists():
+                return jsonify({'success': True, 'networks': []})
+            
+            networks = []
+            with open(wpa_conf) as f:
+                content = f.read()
+                current_network = {}
+                
+                for line in content.splitlines():
+                    line = line.strip()
+                    
+                    if line.startswith('network={'):
+                        current_network = {}
+                    elif 'ssid=' in line and '=' in line:
+                        ssid = line.split('=', 1)[1].strip('"')
+                        current_network['ssid'] = ssid
+                    elif 'key_mgmt=' in line:
+                        key_mgmt = line.split('=', 1)[1].strip()
+                        current_network['security'] = 'WPA2' if key_mgmt != 'NONE' else 'Open'
+                    elif line == '}' and current_network:
+                        current_network['connected'] = False  # Can't determine from file
+                        networks.append(current_network)
+                        current_network = {}
+            
+            return jsonify({'success': True, 'networks': networks})
+        
+        # Parse nmcli output
+        networks = []
+        active_device = None
+        
+        for line in result.stdout.splitlines():
+            if not line.strip():
+                continue
+            
+            parts = line.split(':')
+            if len(parts) >= 3:
+                name = parts[0].strip()
+                conn_type = parts[1].strip()
+                device = parts[2].strip()
+                
+                # Only include WiFi connections
+                if conn_type == '802-11-wireless' or conn_type == 'wifi':
+                    networks.append({
+                        'ssid': name,
+                        'connected': bool(device and device != '--'),
+                        'security': 'WPA2'  # Assume WPA2 for saved networks
+                    })
+        
+        return jsonify({'success': True, 'networks': networks})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e), 'networks': []})
+
+@app.route('/api/wifi/add', methods=['POST'])
+def wifi_add():
+    """Add a new WiFi network configuration"""
+    try:
+        data = request.json
+        ssid = data.get('ssid', '').strip()
+        password = data.get('password', '')
+        security = data.get('security', 'WPA2')
+        
+        if not ssid:
+            return jsonify({'success': False, 'message': 'SSID is required'})
+        
+        # Try nmcli first
+        try:
+            if security == 'OPEN':
+                # Open network (no password)
+                result = subprocess.run(
+                    ['sudo', 'nmcli', 'dev', 'wifi', 'connect', ssid],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+            else:
+                # Secured network
+                result = subprocess.run(
+                    ['sudo', 'nmcli', 'dev', 'wifi', 'connect', ssid, 'password', password],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+            
+            if result.returncode == 0:
+                return jsonify({'success': True, 'message': 'WiFi network added successfully'})
+            else:
+                error_msg = result.stderr.strip() if result.stderr else 'Failed to add network'
+                return jsonify({'success': False, 'message': error_msg})
+        
+        except subprocess.TimeoutExpired:
+            return jsonify({'success': False, 'message': 'Connection attempt timed out'})
+        except FileNotFoundError:
+            # nmcli not available, use wpa_supplicant
+            wpa_conf = Path('/etc/wpa_supplicant/wpa_supplicant.conf')
+            
+            # Create network block
+            if security == 'OPEN':
+                network_block = f'''
+network={{
+    ssid="{ssid}"
+    key_mgmt=NONE
+    priority=1
+}}
+'''
+            else:
+                network_block = f'''
+network={{
+    ssid="{ssid}"
+    psk="{password}"
+    key_mgmt=WPA-PSK
+    priority=1
+}}
+'''
+            
+            # Append to wpa_supplicant.conf
+            subprocess.run(
+                ['sudo', 'bash', '-c', f'echo "{network_block}" >> {wpa_conf}'],
+                check=True
+            )
+            
+            # Restart wpa_supplicant
+            subprocess.run(['sudo', 'wpa_cli', '-i', 'wlan0', 'reconfigure'], check=True)
+            
+            return jsonify({'success': True, 'message': 'WiFi network added successfully'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/wifi/remove', methods=['POST'])
+def wifi_remove():
+    """Remove a WiFi network configuration"""
+    try:
+        data = request.json
+        ssid = data.get('ssid', '').strip()
+        
+        if not ssid:
+            return jsonify({'success': False, 'message': 'SSID is required'})
+        
+        # Try nmcli first
+        try:
+            result = subprocess.run(
+                ['sudo', 'nmcli', 'connection', 'delete', ssid],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                return jsonify({'success': True, 'message': 'WiFi network removed successfully'})
+            else:
+                return jsonify({'success': False, 'message': 'Network not found or could not be removed'})
+        
+        except FileNotFoundError:
+            # nmcli not available, manually edit wpa_supplicant.conf
+            wpa_conf = Path('/etc/wpa_supplicant/wpa_supplicant.conf')
+            
+            if not wpa_conf.exists():
+                return jsonify({'success': False, 'message': 'WiFi configuration file not found'})
+            
+            # Read file
+            with open(wpa_conf) as f:
+                lines = f.readlines()
+            
+            # Remove network block for this SSID
+            new_lines = []
+            in_network_block = False
+            skip_block = False
+            
+            for line in lines:
+                if line.strip().startswith('network={'):
+                    in_network_block = True
+                    skip_block = False
+                    temp_block = [line]
+                elif in_network_block:
+                    temp_block.append(line)
+                    
+                    if f'ssid="{ssid}"' in line:
+                        skip_block = True
+                    
+                    if line.strip() == '}':
+                        in_network_block = False
+                        if not skip_block:
+                            new_lines.extend(temp_block)
+                else:
+                    new_lines.append(line)
+            
+            # Write back
+            with open(wpa_conf, 'w') as f:
+                f.writelines(new_lines)
+            
+            # Restart wpa_supplicant
+            subprocess.run(['sudo', 'wpa_cli', '-i', 'wlan0', 'reconfigure'])
+            
+            return jsonify({'success': True, 'message': 'WiFi network removed successfully'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 if __name__ == '__main__':
     # Run on all interfaces, port 5000

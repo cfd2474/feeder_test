@@ -1,4 +1,4 @@
-# TAKNET-PS v2.41.1 File Structure
+# TAKNET-PS v2.41.2 File Structure
 
 ## Core Configuration
 config/
@@ -7,7 +7,7 @@ config/
 
 ## Web Interface
 web/
-  app.py                   - Flask web server (v2.41.1)
+  app.py                   - Flask web server (v2.41.2)
   templates/               - HTML pages
     setup.html             - Initial setup wizard
     dashboard.html         - Main dashboard
@@ -29,7 +29,7 @@ scripts/
 
 ## Installation
 install/
-  install.sh               - One-line installer (v2.41.0)
+  install.sh               - One-line installer (v2.41.2)
                             Includes Docker image pre-download!
 
 ## Utilities
@@ -39,8 +39,8 @@ generate-piaware-feederid.sh - PiAware ID generator
 
 ## Documentation
 README.md                  - Main documentation
-CHANGELOG-v2.41.1.md       - Version 2.41.1 changes (UI improvements)
-CHANGELOG-v2.41.0.md       - Version 2.41.0 changes (image pre-download)
+CHANGELOG-v2.41.2.md       - Version 2.41.1 changes (UI improvements)
+CHANGELOG-v2.41.2.md       - Version 2.41.0 changes (image pre-download)
 CHANGELOG.md               - Complete version history
 VERSION                    - Current version number (2.41.1)
 FILE-LIST.txt              - This file
@@ -52,12 +52,12 @@ docs/                      - Additional documentation
 ## Special Files
 .gitignore                 - Git ignore patterns
 
-## New in v2.41.1
+## New in v2.41.2
 - web/templates/feeds.html: "Enable All" button for accountless feeds
 - web/templates/feeds-account-required.html: Popup feedback for FR24 & FlightAware
-- web/app.py: Updated to v2.41.1
+- web/app.py: Updated to v2.41.2
 
-## New in v2.41.0
+## New in v2.41.2
 - install/install.sh: Pre-downloads Docker images during install
 - web/templates/feeds-account-required.html: MLAT timing + location docs
-- web/app.py: Updated to v2.41.0
+- web/app.py: Updated to v2.41.2

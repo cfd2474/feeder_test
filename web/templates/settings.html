@@ -265,6 +265,84 @@
                 </div>
             </div>
 
+            <!-- WiFi Configuration Section -->
+            <div class="card">
+                <h3>📶 WiFi Configuration</h3>
+                <p>Manage WiFi network connections</p>
+                
+                <!-- Saved Networks -->
+                <div style="margin-top: 20px;">
+                    <h4 style="margin-bottom: 15px; color: #374151;">Configured Networks</h4>
+                    <div id="saved-wifi-list" style="margin-bottom: 20px;">
+                        <div style="text-align: center; padding: 20px; color: #9ca3af;">
+                            Loading saved networks...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Add New Network -->
+                <div style="margin-top: 30px;">
+                    <h4 style="margin-bottom: 15px; color: #374151;">Add New Network</h4>
+                    
+                    <!-- Scan or Manual Toggle -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: inline-flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="wifi-input-mode" value="scan" checked onchange="toggleWifiInputMode()">
+                            <span style="margin-left: 8px;">Scan for networks</span>
+                        </label>
+                        <label style="display: inline-flex; align-items: center; margin-left: 25px; cursor: pointer;">
+                            <input type="radio" name="wifi-input-mode" value="manual" onchange="toggleWifiInputMode()">
+                            <span style="margin-left: 8px;">Manual entry (for remote sites)</span>
+                        </label>
+                    </div>
+                    
+                    <!-- Scan Section -->
+                    <div id="wifi-scan-section">
+                        <button class="btn btn-secondary" onclick="scanWifiNetworks()" id="scan-wifi-btn">
+                            🔍 Scan WiFi Networks
+                        </button>
+                        
+                        <div id="available-wifi-list" style="margin-top: 20px; display: none;">
+                            <!-- Scanned networks will appear here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Manual Entry Section -->
+                    <div id="wifi-manual-section" style="display: none;">
+                        <div class="form-group">
+                            <label>Network Name (SSID)</label>
+                            <input type="text" id="manual-ssid" placeholder="Enter SSID">
+                            <small style="color: #666; display: block; margin-top: 5px;">
+                                For pre-configuring networks not currently in range
+                            </small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="manual-password" placeholder="Enter password">
+                            <button type="button" onclick="togglePasswordVisibility('manual-password')" 
+                                    style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; padding: 8px;">
+                                👁️
+                            </button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Security Type</label>
+                            <select id="manual-security">
+                                <option value="WPA2">WPA2/WPA3 (Recommended)</option>
+                                <option value="WPA">WPA</option>
+                                <option value="WEP">WEP (Not Recommended)</option>
+                                <option value="OPEN">Open (No Password)</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn btn-primary" onclick="addManualWifiNetwork()">
+                            ➕ Add Network
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="info-box" style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; margin-top: 20px;">
                 <p style="margin: 0; color: #1e40af;">
                     📡 <strong>Configure All Feeds:</strong> To configure TAKNET-PS Server, FlightRadar24, Airplanes.Live, adsb.fi, and adsb.lol, visit the <a href="/feeds" style="color: #2563eb; font-weight: 600;">Feed Selection</a> page.
@@ -1439,6 +1517,224 @@
                 progressPollInterval = null;
             }
         }
+        
+        // ========================================
+        // WiFi Management Functions
+        // ========================================
+        
+        // Toggle between scan and manual entry
+        function toggleWifiInputMode() {
+            const mode = document.querySelector('input[name="wifi-input-mode"]:checked').value;
+            const scanSection = document.getElementById('wifi-scan-section');
+            const manualSection = document.getElementById('wifi-manual-section');
+            
+            if (mode === 'scan') {
+                scanSection.style.display = 'block';
+                manualSection.style.display = 'none';
+            } else {
+                scanSection.style.display = 'none';
+                manualSection.style.display = 'block';
+            }
+        }
+        
+        // Load saved WiFi networks
+        async function loadSavedWifiNetworks() {
+            const listDiv = document.getElementById('saved-wifi-list');
+            
+            try {
+                const response = await fetch('/api/wifi/saved');
+                const data = await response.json();
+                
+                if (data.success && data.networks && data.networks.length > 0) {
+                    listDiv.innerHTML = data.networks.map(network => `
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; margin-bottom: 10px;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; font-size: 1.05em; color: #111827; margin-bottom: 4px;">
+                                    ${network.ssid}
+                                </div>
+                                <div style="font-size: 0.9em; color: #6b7280;">
+                                    ${network.connected ? '✓ Connected' : 'Configured'} • ${network.security || 'WPA2'}
+                                </div>
+                            </div>
+                            <button class="btn btn-danger" onclick="removeWifiNetwork('${network.ssid}')" style="padding: 8px 16px;">
+                                🗑️ Remove
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    listDiv.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #9ca3af;">
+                            No WiFi networks configured
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                listDiv.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #ef4444;">
+                        Error loading saved networks: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Scan for WiFi networks
+        async function scanWifiNetworks() {
+            const btn = document.getElementById('scan-wifi-btn');
+            const listDiv = document.getElementById('available-wifi-list');
+            
+            btn.disabled = true;
+            btn.textContent = '🔍 Scanning...';
+            listDiv.style.display = 'block';
+            listDiv.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #6b7280;">
+                    <div style="margin-bottom: 10px;">Scanning for WiFi networks...</div>
+                    <div style="font-size: 0.9em; color: #9ca3af;">This may take 10-15 seconds</div>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/wifi/scan');
+                const data = await response.json();
+                
+                if (data.success && data.networks && data.networks.length > 0) {
+                    listDiv.innerHTML = `
+                        <h5 style="margin-bottom: 15px; color: #374151;">Available Networks (${data.networks.length})</h5>
+                        ${data.networks.map(network => `
+                            <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s;" 
+                                 onclick="selectWifiNetwork('${network.ssid.replace(/'/g, "\\'")}', '${network.security}', ${network.signal})">
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; font-size: 1.05em; color: #111827; margin-bottom: 4px;">
+                                        ${network.ssid}
+                                    </div>
+                                    <div style="font-size: 0.9em; color: #6b7280;">
+                                        Signal: ${network.signal}% • ${network.security || 'Open'}
+                                    </div>
+                                </div>
+                                <div style="font-size: 1.5em;">
+                                    ${network.signal >= 75 ? '📶' : network.signal >= 50 ? '📶' : network.signal >= 25 ? '📱' : '📉'}
+                                </div>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    listDiv.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #9ca3af;">
+                            No WiFi networks found. Make sure WiFi is enabled.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                listDiv.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #ef4444;">
+                        Error scanning WiFi: ${error.message}
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Scan WiFi Networks';
+            }
+        }
+        
+        // Select a WiFi network from scan results
+        function selectWifiNetwork(ssid, security, signal) {
+            // Show password dialog
+            const password = prompt(`Enter password for "${ssid}"\n\nSecurity: ${security}\nSignal: ${signal}%`);
+            
+            if (password !== null) {
+                addWifiNetwork(ssid, password, security);
+            }
+        }
+        
+        // Add WiFi network (from scan selection)
+        async function addWifiNetwork(ssid, password, security) {
+            try {
+                const response = await fetch('/api/wifi/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ssid, password, security })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✓ WiFi network "${ssid}" added successfully!`);
+                    loadSavedWifiNetworks();
+                    
+                    // Clear available networks list
+                    document.getElementById('available-wifi-list').style.display = 'none';
+                } else {
+                    alert(`✗ Failed to add network: ${data.message}`);
+                }
+            } catch (error) {
+                alert(`✗ Error: ${error.message}`);
+            }
+        }
+        
+        // Add manual WiFi network
+        async function addManualWifiNetwork() {
+            const ssid = document.getElementById('manual-ssid').value.trim();
+            const password = document.getElementById('manual-password').value;
+            const security = document.getElementById('manual-security').value;
+            
+            if (!ssid) {
+                alert('Please enter an SSID');
+                return;
+            }
+            
+            if (security !== 'OPEN' && !password) {
+                alert('Please enter a password for this secure network');
+                return;
+            }
+            
+            await addWifiNetwork(ssid, password, security);
+            
+            // Clear form
+            document.getElementById('manual-ssid').value = '';
+            document.getElementById('manual-password').value = '';
+            document.getElementById('manual-security').value = 'WPA2';
+        }
+        
+        // Remove WiFi network
+        async function removeWifiNetwork(ssid) {
+            if (!confirm(`Remove WiFi network "${ssid}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/wifi/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ssid })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✓ WiFi network "${ssid}" removed successfully!`);
+                    loadSavedWifiNetworks();
+                } else {
+                    alert(`✗ Failed to remove network: ${data.message}`);
+                }
+            } catch (error) {
+                alert(`✗ Error: ${error.message}`);
+            }
+        }
+        
+        // Toggle password visibility
+        function togglePasswordVisibility(fieldId) {
+            const field = document.getElementById(fieldId);
+            field.type = field.type === 'password' ? 'text' : 'password';
+        }
+        
+        // Load saved networks on page load
+        document.addEventListener('DOMContentLoaded', (function() {
+            const originalHandler = arguments.callee;
+            return function() {
+                if (originalHandler.called) return;
+                originalHandler.called = true;
+                loadSavedWifiNetworks();
+            };
+        })());
     </script>
 </body>
 </html>
