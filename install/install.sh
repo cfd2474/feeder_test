@@ -1,15 +1,6 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.41.7
-# 
-# IMPORTANT: Update GITHUB_USER and GITHUB_REPO before use!
-# curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/taknet-ps/main/install/install.sh | sudo bash
-
-# ============================================
-# CONFIGURATION - Update these for your fork
-# ============================================
-GITHUB_USER="${GITHUB_USER:-cfd2474}"
-GITHUB_REPO="${GITHUB_REPO:-taknet-ps}"
-GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.41.0
+# curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
 
@@ -27,11 +18,7 @@ if [ "$EUID" -ne 0 ]; then
     echo ""
     echo "Please run with sudo:"
     echo ""
-    echo "  curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/taknet-ps/main/install/install.sh | sudo bash"
-    echo ""
-    echo "Or if you downloaded the script:"
-    echo ""
-    echo "  sudo bash install.sh"
+    echo "  curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash"
     echo ""
     echo "Or if you downloaded the script:"
     echo ""
@@ -251,40 +238,18 @@ echo "Creating directories..."
 mkdir -p /opt/adsb/{config,scripts,ultrafeeder,web/{templates,static/{css,js}}}
 
 # Download files
-# Build repository URL from configuration variables set at top of script
-REPO="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
+echo "Downloading configuration files..."
 
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Repository: $REPO"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-# Verify configuration before proceeding
-if [ "$GITHUB_USER" = "YOUR_USERNAME" ]; then
-    echo "⚠️  WARNING: GitHub repository not configured!"
-    echo ""
-    echo "The installer needs to know which GitHub repository to download from."
-    echo ""
-    echo "Option 1: Edit the installer script (recommended)"
-    echo "  Line 7-9: Update GITHUB_USER and GITHUB_REPO"
-    echo ""
-    echo "Option 2: Set environment variables"
-    echo "  export GITHUB_USER=\"your-github-username\""
-    echo "  export GITHUB_REPO=\"taknet-ps\""
-    echo "  curl -fsSL https://raw.githubusercontent.com/your-username/taknet-ps/main/install/install.sh | sudo -E bash"
-    echo ""
-    read -p "Continue anyway with placeholder values? (files will fail to download) [y/N]: " -n 1 -r
-    echo ""
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Installation cancelled."
-        echo ""
-        echo "Please update the installer script with your GitHub details and try again."
-        exit 1
-    fi
-fi
-
-echo "Downloading configuration files from: $REPO"
+# ============================================================================
+# IMPORTANT: Edit the line below with YOUR GitHub username and repo name
+# before pushing to GitHub!
+# 
+# Replace: cfd2474/feeder_test/main
+# With:    YOUR_USERNAME/YOUR_REPO/main
+# 
+# Example: https://raw.githubusercontent.com/mike-aviation/taknet-ps/main
+# ============================================================================
+REPO="https://raw.githubusercontent.com/cfd2474/feeder_test/main"
 
 # Config files
 wget -q $REPO/config/docker-compose.yml -O /opt/adsb/config/docker-compose.yml
