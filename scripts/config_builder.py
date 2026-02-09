@@ -371,9 +371,8 @@ def build_docker_compose(env_vars):
         'environment': [
             'BEASTHOST=ultrafeeder',
             'BEASTPORT=30005',
-            'ADSBHUB_STATION_KEY=${ADSBHUB_STATION_KEY}',
-            'ADSBHUB_SERVER=data.adsbhub.org',
-            'MLAT=no'
+            'ADSBHUB=true',
+            'ADSBX_SITENAME=${ADSBHUB_STATION_KEY}'
         ],
         'tmpfs': [
             '/run:exec,size=64M',
