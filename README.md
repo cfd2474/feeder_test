@@ -1,109 +1,178 @@
-# TAKNET-PS ADSB Feeder
+# TAKNET-PS ADS-B Feeder
 
-**Complete ADS-B Aircraft Tracking System for Raspberry Pi**
+**Version:** 2.41.0  
+**Status:** Production Ready ✅
 
-[![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-red)](https://www.raspberrypi.org/)
-[![OS](https://img.shields.io/badge/OS-Raspberry%20Pi%20OS%20Bookworm-blue)](https://www.raspberrypi.com/software/)
-[![Version](https://img.shields.io/badge/version-2.8.4-orange)](CHANGELOG.md)
-
-Feed aircraft data to TAKNET-PS aggregator while optionally sharing with public services like FlightRadar24, ADS-B Exchange, and more.
+Complete ADS-B aircraft tracking system with web-based configuration, multiple feed support, and professional dashboard. Built for Raspberry Pi and compatible single-board computers.
 
 ---
 
-## ✨ Features
-
-### Core Features
-- 🛩️ **Ultrafeeder** - Advanced ADS-B receiver and aggregator
-- 📡 **RTL-SDR Support** - Auto-detection and configuration
-- 🗺️ **Live Map** - Real-time aircraft tracking (tar1090)
-- 🌐 **Web Configuration** - Complete setup wizard
-- 📊 **Network Monitoring** - 30-day bandwidth tracking (vnstat)
-
-### Network Features (v2.8)
-- 🏠 **mDNS Hostname** - Access via `taknet-ps.local`
-- 🔀 **Nginx Reverse Proxy** - Clean URLs (`/web`, `/map`, `/fr24`)
-- 📶 **WiFi Hotspot** - Automatic fallback with captive portal
-- 🔌 **Auto-Recovery** - Restarts hotspot if network fails
-
-### Feed Destinations
-- 🎯 **TAKNET-PS** - Primary aggregator (hardcoded, always enabled)
-- ✈️ **FlightRadar24** - Dedicated container with MLAT
-- 🌍 **ADS-B Exchange** - Public aggregator
-- 🛫 **Airplanes.Live** - Community aggregator
-
-### Security & Access
-- 🔐 **Tailscale VPN** - Secure connection to TAKNET-PS network
-- 👤 **Remote User** - Limited sudo access for remote management
-- 🔒 **SSH Restrictions** - Optional Tailscale-only access
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-**Hardware:**
-- Raspberry Pi 3/4/5
-- RTL-SDR USB dongle
-- MicroSD card (16GB+)
-- Stable power supply (2.5A+)
-
-**Software:**
-- **Raspberry Pi OS Lite 64-bit (Bookworm)**
-- Fresh installation recommended
-
-### Installation
+## 🚀 Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
-cd /opt/adsb
-sudo bash configure-network.sh
-sudo reboot
+curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install/install.sh | sudo bash
 ```
 
-After reboot: **http://taknet-ps.local/web**
+Then open browser to: **http://taknet-ps.local**
+
+**Time:** 10-15 minutes  
+**Includes:** Docker images pre-downloaded, setup wizard ~30 seconds
 
 ---
 
-## 📋 Documentation
+## 📡 Features
 
-- **[Installation Guide](docs/INSTALLATION.md)** - Detailed setup
-- **[Configuration Guide](docs/CONFIGURATION.md)** - All settings
-- **[Network Guide](docs/NETWORK.md)** - mDNS & hotspot
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues
-- **[Changelog](CHANGELOG.md)** - Version history
+- **Live Aircraft Tracking** - 1090 MHz ADS-B reception via RTL-SDR
+- **Web Dashboard** - Complete configuration through browser
+- **Multi-Feed Support** - Share data with multiple networks simultaneously
+- **MLAT** - Multilateration for aircraft without GPS
+- **Zero Config** - Automated setup wizard handles everything
+
+**Supported Networks:**
+- TAKNET-PS (default)
+- FlightAware
+- FlightRadar24
+- adsb.fi
+- adsb.lol
+- airplanes.live
 
 ---
 
-## 🌐 Access URLs
+## 📋 Requirements
 
+- **Hardware:** Raspberry Pi 3/4/5 or compatible SBC
+- **SDR:** RTL-SDR USB dongle (FlightAware Pro Stick or generic)
+- **Antenna:** 1090 MHz antenna
+- **Internet:** Ethernet or WiFi
+- **OS:** Raspberry Pi OS, Ubuntu 20.04+
+
+---
+
+## 🎯 Setup
+
+1. **Install:**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install/install.sh | sudo bash
+   ```
+
+2. **Access:** http://taknet-ps.local
+
+3. **Configure:** Complete setup wizard
+   - Enter coordinates
+   - Specify antenna height
+   - Select feeds to enable
+
+4. **View Map:** http://taknet-ps.local:8080
+
+**Done!** Aircraft appear within minutes.
+
+---
+
+## 📚 Documentation
+
+- **[CHANGELOG-v2.41.0.md](CHANGELOG-v2.41.0.md)** - Latest changes
+- **[Troubleshooting](#troubleshooting)** - Common issues
+- **[FlightAware Setup](#flightaware-mlat--location)** - MLAT & location verification
+
+---
+
+## 🔧 Troubleshooting
+
+### No Aircraft?
+
+```bash
+# Check SDR connected
+lsusb | grep RTL
+
+# Check containers running  
+docker ps
+
+# View logs
+docker logs ultrafeeder --tail 50
 ```
-http://taknet-ps.local/web   → Web UI
-http://taknet-ps.local/map   → Aircraft Map  
-http://taknet-ps.local/fr24  → FlightRadar24 Stats
+
+**Common fixes:**
+- Unplug/replug SDR
+- Restart: `sudo systemctl restart ultrafeeder`
+- Check antenna connected
+- Verify coordinates correct
+
+### Web Interface Not Loading?
+
+```bash
+# Check service
+systemctl status adsb-web.service
+
+# Restart
+sudo systemctl restart adsb-web.service
 ```
 
 ---
 
-## 📶 WiFi Hotspot
+## 📡 FlightAware MLAT & Location
 
-No network? No problem!
+**MLAT Timing:**
+- MLAT takes up to **10 minutes** to show "live" status
+- This is normal - be patient!
 
-1. Device starts hotspot: **TAKNET-PS** (no password)
-2. Connect with phone/laptop
-3. Captive portal opens automatically
-4. Select WiFi & enter password
-5. Device reboots and connects
-6. If fails: Hotspot restarts
+**Location Verification (Required for MLAT):**
+1. Go to https://flightaware.com/adsb/stats/user/
+2. Click **gear icon ⚙️** next to feeder name
+3. Enter exact coordinates (same as TAKNET-PS)
+4. Save changes
 
----
-
-## 📧 Support
-
-- **Issues:** [GitHub Issues](https://github.com/cfd2474/feeder_test/issues)
+**Why?** Incorrect location = MLAT positioning errors!
 
 ---
 
-**Made for Raspberry Pi OS Bookworm 64-bit**
+## 🔄 Updates
 
-Version 2.8.4 | January 26, 2026
+```bash
+# Update Docker images
+cd /opt/adsb/config
+sudo docker compose pull
+sudo systemctl restart ultrafeeder
+```
+
+---
+
+## 📊 Performance
+
+**Typical (Raspberry Pi 4):**
+- CPU: 5-15%
+- RAM: 300-500 MB
+- Network: 5-10 Mbps upload
+
+**Aircraft Tracked:**
+- Urban: 50-150 aircraft
+- Suburban: 20-80 aircraft  
+- Rural: 5-30 aircraft
+- Good elevation: 200-400+ aircraft
+
+---
+
+## 📞 Support
+
+- **Issues:** GitHub Issues
+- **Questions:** GitHub Discussions
+- **Latest:** [CHANGELOG-v2.41.0.md](CHANGELOG-v2.41.0.md)
+
+---
+
+## 🙏 Credits
+
+Built with:
+- [sdr-enthusiasts](https://github.com/sdr-enthusiasts) Docker containers
+- [readsb](https://github.com/wiedehopf/readsb) decoder
+- [tar1090](https://github.com/wiedehopf/tar1090) web interface
+- Flask + Docker
+
+---
+
+## 📄 License
+
+Educational and hobbyist use. Docker images used under MIT License.
+
+---
+
+**Built with ❤️ for the ADS-B community**

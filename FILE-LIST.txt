@@ -1,27 +1,57 @@
-./CHANGELOG.md
-./FILE-LIST.txt
-./INSTALL-INSTRUCTIONS.md
-./README.md
-./RELEASE-NOTES-v2.8.3.md
-./RELEASE-NOTES-v2.8.4.md
-./config/docker-compose.yml
-./config/env-template
-./configure-network.sh
-./configure-ssh-tailscale.sh
-./docs/PLATFORM.md
-./docs/v2.9.0-SPECIFICATION.md
-./install/install.sh
-./scripts/config_builder.py
-./update_web.sh
-./web/app.py
-./web/static/css/style.css
-./web/static/js/dashboard.js
-./web/static/js/setup.js
-./web/static/js/setup.js.backup
-./web/templates/dashboard.html
-./web/templates/feeds.html
-./web/templates/loading.html
-./web/templates/logs.html
-./web/templates/settings.html
-./web/templates/setup-sdr.html
-./web/templates/setup.html
+# TAKNET-PS v2.41.0 File Structure
+
+## Core Configuration
+config/
+  docker-compose.yml       - Docker container definitions
+  env-template             - Configuration template (copy to .env)
+
+## Web Interface
+web/
+  app.py                   - Flask web server (v2.41.0)
+  templates/               - HTML pages
+    setup.html             - Initial setup wizard
+    dashboard.html         - Main dashboard
+    feeds.html             - Feed selection
+    feeds-account-required.html  - Account feeds (FlightAware, FR24)
+    settings.html          - Configuration editor
+    logs.html              - Log viewer
+    loading.html           - Progress page
+  static/
+    css/style.css          - Stylesheet
+    js/
+      setup.js             - Setup wizard logic
+      dashboard.js         - Dashboard updates
+
+## Scripts
+scripts/
+  config_builder.py        - Dynamic configuration generator
+  fr24-diagnostic.sh       - FlightRadar24 troubleshooting
+
+## Installation
+install/
+  install.sh               - One-line installer (v2.41.0)
+                            Includes Docker image pre-download!
+
+## Utilities
+configure-ssh-tailscale.sh - Tailscale VPN setup
+configure-network.sh       - Network configuration
+generate-piaware-feederid.sh - PiAware ID generator
+
+## Documentation
+README.md                  - Main documentation
+CHANGELOG-v2.41.0.md       - Version 2.41.0 changes
+CHANGELOG.md               - Complete version history
+VERSION                    - Current version number
+FILE-LIST.txt              - This file
+
+docs/                      - Additional documentation
+  PLATFORM.md              - Platform-specific notes
+  FR24-ERROR-HANDLING.md   - FlightRadar24 troubleshooting
+
+## Special Files
+.gitignore                 - Git ignore patterns
+
+## New in v2.41.0
+- install/install.sh: Pre-downloads Docker images during install
+- web/templates/feeds-account-required.html: MLAT timing + location docs
+- web/app.py: Updated to v2.41.0

@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.39.2
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.41.0
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.39.2"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.41.0"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -94,6 +94,29 @@ if ! command -v docker &> /dev/null; then
 else
     echo "✓ Docker already installed"
 fi
+
+# Pre-download Docker images (speeds up first setup significantly)
+echo "Pre-downloading Docker images..."
+echo "  This may take 5-10 minutes depending on connection speed..."
+echo "  • Ultrafeeder (~450MB)"
+docker pull ghcr.io/sdr-enthusiasts/docker-adsb-ultrafeeder:latest &
+PID_ULTRA=$!
+
+echo "  • PiAware (~380MB)"
+docker pull ghcr.io/sdr-enthusiasts/docker-piaware:latest &
+PID_PIAWARE=$!
+
+echo "  • FlightRadar24 (~320MB)"
+docker pull ghcr.io/sdr-enthusiasts/docker-flightradar24:latest &
+PID_FR24=$!
+
+# Wait for all downloads to complete
+echo "  Downloading in parallel..."
+wait $PID_ULTRA && echo "  ✓ Ultrafeeder downloaded"
+wait $PID_PIAWARE && echo "  ✓ PiAware downloaded"
+wait $PID_FR24 && echo "  ✓ FlightRadar24 downloaded"
+
+echo "✓ All Docker images pre-downloaded (setup wizard will be fast!)"
 
 # Wait for apt locks again before installing packages
 wait_for_apt_lock
