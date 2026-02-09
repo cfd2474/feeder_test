@@ -7,7 +7,7 @@
 # ============================================
 # CONFIGURATION - Update these for your fork
 # ============================================
-GITHUB_USER="${GITHUB_USER:-YOUR_USERNAME}"
+GITHUB_USER="${GITHUB_USER:-cfd2474}"
 GITHUB_REPO="${GITHUB_REPO:-taknet-ps}"
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 
