@@ -71,20 +71,16 @@ echo "[2/5] Adding ADSBHub service to docker-compose.yml..."
 cat >> /opt/adsb/config/docker-compose.yml << 'EOF'
 
   adsbhub:
-    image: ghcr.io/sdr-enthusiasts/docker-adsbexchange:latest
+    image: ghcr.io/sdr-enthusiasts/docker-adsbhub:latest
     container_name: adsbhub
     hostname: adsbhub
     restart: unless-stopped
     networks:
       - adsb_net
     environment:
-      - BEASTHOST=ultrafeeder
-      - BEASTPORT=30005
-      - ADSBHUB=true
-      - ADSBX_SITENAME=${ADSBHUB_STATION_KEY}
-    tmpfs:
-      - /run:exec,size=64M
-      - /var/log
+      - TZ=${FEEDER_TZ}
+      - SBSHOST=ultrafeeder
+      - CLIENTKEY=${ADSBHUB_STATION_KEY}
     depends_on:
       - ultrafeeder
 EOF

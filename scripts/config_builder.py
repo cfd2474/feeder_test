@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TAKNET-PS-ADSB-Feeder Config Builder v2.2
+TAKNET-PS-ADSB-Feeder Config Builder v2.3
 Tactical Awareness Kit Network for Enhanced Tracking – Public Safety
 Builds ULTRAFEEDER_CONFIG with TAKNET-PS Server as hardcoded priority
 Supports primary/fallback connection modes with automatic configuration repair
@@ -362,21 +362,16 @@ def build_docker_compose(env_vars):
     
     # Always include ADSBHub service (can be started/stopped via docker compose)
     compose['services']['adsbhub'] = {
-        'image': 'ghcr.io/sdr-enthusiasts/docker-adsbexchange:latest',
+        'image': 'ghcr.io/sdr-enthusiasts/docker-adsbhub:latest',
         'container_name': 'adsbhub',
         'hostname': 'adsbhub',
         'restart': 'unless-stopped',
         'networks': ['adsb_net'],
         'depends_on': ['ultrafeeder'],
         'environment': [
-            'BEASTHOST=ultrafeeder',
-            'BEASTPORT=30005',
-            'ADSBHUB=true',
-            'ADSBX_SITENAME=${ADSBHUB_STATION_KEY}'
-        ],
-        'tmpfs': [
-            '/run:exec,size=64M',
-            '/var/log'
+            'TZ=${FEEDER_TZ}',
+            'SBSHOST=ultrafeeder',
+            'CLIENTKEY=${ADSBHUB_STATION_KEY}'
         ]
     }
     
