@@ -1,178 +1,65 @@
-# TAKNET-PS ADS-B Feeder
+# TAKNET-PS v2.43.0 - Complete Installation Package
 
-**Version:** 2.41.1  
-**Status:** Production Ready ✅
+## 🎯 What's in This Package
 
-Complete ADS-B aircraft tracking system with web-based configuration, multiple feed support, and professional dashboard. Built for Raspberry Pi and compatible single-board computers.
+**Complete TAKNET-PS system with ADSBHub support**
+
+✅ docker-compose.yml with 4 containers (ultrafeeder, fr24, piaware, adsbhub)  
+✅ env-template with all feed variables (FR24, PIAWARE, ADSBHUB)  
+✅ Web interface with 8 feeder support  
+✅ Installer configured for: cfd2474/feeder_test  
+✅ Manual fix script included (fix-adsbhub.sh)  
 
 ---
 
-## 🚀 Quick Install
+## 🚀 Two Installation Options
+
+### Option 1: Push to GitHub + Fresh Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install/install.sh | sudo bash
+# Extract and push
+tar -xzf taknet-ps-complete-v2.43.0-github.tar.gz
+cd taknet-ps-complete-v2.43.0-github
+git init && git add . && git commit -m "v2.43.0"
+git remote add origin https://github.com/cfd2474/feeder_test.git
+git push -f origin main
+
+# Wait 2-3 minutes, then fresh install
+ssh pi@YOUR_PI
+curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 ```
 
-Then open browser to: **http://taknet-ps.local**
-
-**Time:** 10-15 minutes  
-**Includes:** Docker images pre-downloaded, setup wizard ~30 seconds
-
----
-
-## 📡 Features
-
-- **Live Aircraft Tracking** - 1090 MHz ADS-B reception via RTL-SDR
-- **Web Dashboard** - Complete configuration through browser
-- **Multi-Feed Support** - Share data with multiple networks simultaneously
-- **MLAT** - Multilateration for aircraft without GPS
-- **Zero Config** - Automated setup wizard handles everything
-
-**Supported Networks:**
-- TAKNET-PS (default)
-- FlightAware
-- FlightRadar24
-- adsb.fi
-- adsb.lol
-- airplanes.live
-
----
-
-## 📋 Requirements
-
-- **Hardware:** Raspberry Pi 3/4/5 or compatible SBC
-- **SDR:** RTL-SDR USB dongle (FlightAware Pro Stick or generic)
-- **Antenna:** 1090 MHz antenna
-- **Internet:** Ethernet or WiFi
-- **OS:** Raspberry Pi OS, Ubuntu 20.04+
-
----
-
-## 🎯 Setup
-
-1. **Install:**
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install/install.sh | sudo bash
-   ```
-
-2. **Access:** http://taknet-ps.local
-
-3. **Configure:** Complete setup wizard
-   - Enter coordinates
-   - Specify antenna height
-   - Select feeds to enable
-
-4. **View Map:** http://taknet-ps.local:8080
-
-**Done!** Aircraft appear within minutes.
-
----
-
-## 📚 Documentation
-
-- **[CHANGELOG-v2.41.0.md](CHANGELOG-v2.41.0.md)** - Latest changes
-- **[Troubleshooting](#troubleshooting)** - Common issues
-- **[FlightAware Setup](#flightaware-mlat--location)** - MLAT & location verification
-
----
-
-## 🔧 Troubleshooting
-
-### No Aircraft?
+### Option 2: Manual Fix (FASTEST)
 
 ```bash
-# Check SDR connected
-lsusb | grep RTL
-
-# Check containers running  
-docker ps
-
-# View logs
-docker logs ultrafeeder --tail 50
-```
-
-**Common fixes:**
-- Unplug/replug SDR
-- Restart: `sudo systemctl restart ultrafeeder`
-- Check antenna connected
-- Verify coordinates correct
-
-### Web Interface Not Loading?
-
-```bash
-# Check service
-systemctl status adsb-web.service
-
-# Restart
-sudo systemctl restart adsb-web.service
+# Copy fix-adsbhub.sh to your Pi, then run:
+sudo bash fix-adsbhub.sh
 ```
 
 ---
 
-## 📡 FlightAware MLAT & Location
+## 📦 Included: fix-adsbhub.sh
 
-**MLAT Timing:**
-- MLAT takes up to **10 minutes** to show "live" status
-- This is normal - be patient!
+**This script adds ADSBHub to existing installations in 2 minutes.**
 
-**Location Verification (Required for MLAT):**
-1. Go to https://flightaware.com/adsb/stats/user/
-2. Click **gear icon ⚙️** next to feeder name
-3. Enter exact coordinates (same as TAKNET-PS)
-4. Save changes
-
-**Why?** Incorrect location = MLAT positioning errors!
+Run it ON your Raspberry Pi to add the adsbhub service directly.
 
 ---
 
-## 🔄 Updates
+## 🔍 Why "no such service: adsbhub" Error?
 
-```bash
-# Update Docker images
-cd /opt/adsb/config
-sudo docker compose pull
-sudo systemctl restart ultrafeeder
-```
+**Your Pi's docker-compose.yml doesn't have the adsbhub service.**
 
----
+The installer downloads docker-compose.yml from GitHub. If your GitHub repo still has the old version (without adsbhub), that's what gets installed.
 
-## 📊 Performance
-
-**Typical (Raspberry Pi 4):**
-- CPU: 5-15%
-- RAM: 300-500 MB
-- Network: 5-10 Mbps upload
-
-**Aircraft Tracked:**
-- Urban: 50-150 aircraft
-- Suburban: 20-80 aircraft  
-- Rural: 5-30 aircraft
-- Good elevation: 200-400+ aircraft
+**Solutions:**
+1. Push v2.43.0 to GitHub first, then fresh install
+2. OR run fix-adsbhub.sh to add it manually
 
 ---
 
-## 📞 Support
+## ✅ Complete Package - Version 2.43.0
 
-- **Issues:** GitHub Issues
-- **Questions:** GitHub Discussions
-- **Latest:** [CHANGELOG-v2.41.0.md](CHANGELOG-v2.41.0.md)
+All version numbers updated throughout all files.
 
----
-
-## 🙏 Credits
-
-Built with:
-- [sdr-enthusiasts](https://github.com/sdr-enthusiasts) Docker containers
-- [readsb](https://github.com/wiedehopf/readsb) decoder
-- [tar1090](https://github.com/wiedehopf/tar1090) web interface
-- Flask + Docker
-
----
-
-## 📄 License
-
-Educational and hobbyist use. Docker images used under MIT License.
-
----
-
-**Built with ❤️ for the ADS-B community**
+No editing required - ready to deploy!

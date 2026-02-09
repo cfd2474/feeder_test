@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.41.0
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.43.0
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.41.0"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.43.0"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -239,16 +239,6 @@ mkdir -p /opt/adsb/{config,scripts,ultrafeeder,web/{templates,static/{css,js}}}
 
 # Download files
 echo "Downloading configuration files..."
-
-# ============================================================================
-# IMPORTANT: Edit the line below with YOUR GitHub username and repo name
-# before pushing to GitHub!
-# 
-# Replace: cfd2474/feeder_test/main
-# With:    YOUR_USERNAME/YOUR_REPO/main
-# 
-# Example: https://raw.githubusercontent.com/mike-aviation/taknet-ps/main
-# ============================================================================
 REPO="https://raw.githubusercontent.com/cfd2474/feeder_test/main"
 
 # Config files
