@@ -65,6 +65,42 @@
         .btn-danger:hover {
             background: #b71c1c;
         }
+        
+        /* WiFi Status Modal Styles */
+        .status-modal .modal-content {
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .status-modal-body {
+            padding: 40px 30px;
+        }
+        
+        .status-spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid #f3f4f6;
+            border-top: 6px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status-icon {
+            font-size: 60px;
+            margin: 0 auto 20px;
+        }
+        
+        .status-message {
+            font-size: 1.1em;
+            color: #374151;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -415,6 +451,50 @@
             </div>
             <div class="modal-buttons" id="progress-modal-buttons" style="display: none;">
                 <button class="btn btn-primary" onclick="closeProgressModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WiFi Password Modal -->
+    <div id="wifiPasswordModal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-header" style="color: #3b82f6;">Connect to WiFi Network</h2>
+            <div class="modal-body">
+                <div id="wifi-network-info" style="margin-bottom: 20px; padding: 15px; background: #f3f4f6; border-radius: 8px;">
+                    <div style="font-weight: 600; font-size: 1.1em; color: #111827; margin-bottom: 8px;" id="wifi-modal-ssid">
+                        Network Name
+                    </div>
+                    <div style="font-size: 0.9em; color: #6b7280;">
+                        <span id="wifi-modal-security">WPA2</span> • Signal: <span id="wifi-modal-signal">0</span>%
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>WiFi Password</label>
+                    <div style="position: relative;">
+                        <input type="password" id="wifi-modal-password" placeholder="Enter password" 
+                               style="width: 100%; padding: 12px; padding-right: 45px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1em;">
+                        <button type="button" onclick="toggleWifiModalPassword()" 
+                                style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.2em;">
+                            👁️
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeWifiPasswordModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmWifiPassword()">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WiFi Status Modal -->
+    <div id="wifiStatusModal" class="modal">
+        <div class="modal-content status-modal">
+            <div class="modal-body status-modal-body">
+                <div id="wifi-status-spinner" class="status-spinner"></div>
+                <div id="wifi-status-icon" class="status-icon" style="display: none;"></div>
+                <div id="wifi-status-message" class="status-message">Processing...</div>
             </div>
         </div>
     </div>
@@ -1636,37 +1716,140 @@
         }
         
         // Select a WiFi network from scan results
+        let currentWifiSelection = null;
+        
         function selectWifiNetwork(ssid, security, signal) {
-            // Show password dialog
-            const password = prompt(`Enter password for "${ssid}"\n\nSecurity: ${security}\nSignal: ${signal}%`);
+            // Store selection details
+            currentWifiSelection = { ssid, security, signal };
             
-            if (password !== null) {
-                addWifiNetwork(ssid, password, security);
-            }
+            // Show custom password modal
+            document.getElementById('wifi-modal-ssid').textContent = ssid;
+            document.getElementById('wifi-modal-security').textContent = security || 'Open';
+            document.getElementById('wifi-modal-signal').textContent = signal;
+            document.getElementById('wifi-modal-password').value = '';
+            document.getElementById('wifi-modal-password').type = 'password';
+            document.getElementById('wifiPasswordModal').style.display = 'block';
+            
+            // Focus password field
+            setTimeout(() => {
+                document.getElementById('wifi-modal-password').focus();
+            }, 100);
         }
         
-        // Add WiFi network (from scan selection)
-        async function addWifiNetwork(ssid, password, security) {
+        function closeWifiPasswordModal() {
+            document.getElementById('wifiPasswordModal').style.display = 'none';
+            currentWifiSelection = null;
+        }
+        
+        function toggleWifiModalPassword() {
+            const field = document.getElementById('wifi-modal-password');
+            field.type = field.type === 'password' ? 'text' : 'password';
+        }
+        
+        function confirmWifiPassword() {
+            const password = document.getElementById('wifi-modal-password').value;
+            
+            if (!currentWifiSelection) return;
+            
+            // Close password modal
+            closeWifiPasswordModal();
+            
+            // Add network with immediate connection
+            addWifiNetwork(currentWifiSelection.ssid, password, currentWifiSelection.security, false);
+        }
+        
+        // Show WiFi status modal
+        function showWifiStatus(message, showSpinner = true) {
+            const modal = document.getElementById('wifiStatusModal');
+            const spinner = document.getElementById('wifi-status-spinner');
+            const icon = document.getElementById('wifi-status-icon');
+            const messageDiv = document.getElementById('wifi-status-message');
+            
+            spinner.style.display = showSpinner ? 'block' : 'none';
+            icon.style.display = showSpinner ? 'none' : 'block';
+            messageDiv.textContent = message;
+            
+            modal.style.display = 'block';
+        }
+        
+        function hideWifiStatus() {
+            document.getElementById('wifiStatusModal').style.display = 'none';
+        }
+        
+        function showWifiSuccess(message) {
+            const icon = document.getElementById('wifi-status-icon');
+            const messageDiv = document.getElementById('wifi-status-message');
+            
+            icon.textContent = '✓';
+            icon.style.color = '#10b981';
+            messageDiv.textContent = message;
+            messageDiv.style.color = '#10b981';
+            
+            showWifiStatus(message, false);
+            
+            setTimeout(() => {
+                hideWifiStatus();
+            }, 2000);
+        }
+        
+        function showWifiError(message) {
+            const icon = document.getElementById('wifi-status-icon');
+            const messageDiv = document.getElementById('wifi-status-message');
+            
+            icon.textContent = '✗';
+            icon.style.color = '#ef4444';
+            messageDiv.textContent = message;
+            messageDiv.style.color = '#ef4444';
+            
+            showWifiStatus(message, false);
+            
+            setTimeout(() => {
+                hideWifiStatus();
+            }, 3000);
+        }
+        
+        // Add WiFi network (from scan selection or manual entry)
+        async function addWifiNetwork(ssid, password, security, saveOnly = false) {
             try {
+                // Show status modal
+                if (saveOnly) {
+                    showWifiStatus('Saving WiFi configuration...');
+                } else {
+                    showWifiStatus('Connecting to WiFi network...');
+                }
+                
                 const response = await fetch('/api/wifi/add', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ssid, password, security })
+                    body: JSON.stringify({ 
+                        ssid, 
+                        password, 
+                        security,
+                        saveOnly: saveOnly 
+                    })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(`✓ WiFi network "${ssid}" added successfully!`);
-                    loadSavedWifiNetworks();
+                    showWifiSuccess(data.message || 'WiFi network configured successfully!');
                     
-                    // Clear available networks list
-                    document.getElementById('available-wifi-list').style.display = 'none';
+                    // Reload saved networks after short delay
+                    setTimeout(() => {
+                        loadSavedWifiNetworks();
+                    }, 500);
+                    
+                    // Clear available networks list if from scan
+                    if (!saveOnly) {
+                        setTimeout(() => {
+                            document.getElementById('available-wifi-list').style.display = 'none';
+                        }, 2000);
+                    }
                 } else {
-                    alert(`✗ Failed to add network: ${data.message}`);
+                    showWifiError(data.message || 'Failed to configure WiFi network');
                 }
             } catch (error) {
-                alert(`✗ Error: ${error.message}`);
+                showWifiError('Error: ' + error.message);
             }
         }
         
@@ -1677,21 +1860,24 @@
             const security = document.getElementById('manual-security').value;
             
             if (!ssid) {
-                alert('Please enter an SSID');
+                showWifiError('Please enter an SSID');
                 return;
             }
             
             if (security !== 'OPEN' && !password) {
-                alert('Please enter a password for this secure network');
+                showWifiError('Please enter a password for this secure network');
                 return;
             }
             
-            await addWifiNetwork(ssid, password, security);
+            // Use saveOnly=true for manual entry (remote setup mode)
+            await addWifiNetwork(ssid, password, security, true);
             
-            // Clear form
-            document.getElementById('manual-ssid').value = '';
-            document.getElementById('manual-password').value = '';
-            document.getElementById('manual-security').value = 'WPA2';
+            // Clear form after successful save
+            setTimeout(() => {
+                document.getElementById('manual-ssid').value = '';
+                document.getElementById('manual-password').value = '';
+                document.getElementById('manual-security').value = 'WPA2';
+            }, 500);
         }
         
         // Remove WiFi network
@@ -1701,6 +1887,8 @@
             }
             
             try {
+                showWifiStatus('Removing WiFi network...');
+                
                 const response = await fetch('/api/wifi/remove', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1710,13 +1898,16 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert(`✓ WiFi network "${ssid}" removed successfully!`);
-                    loadSavedWifiNetworks();
+                    showWifiSuccess('WiFi network removed successfully!');
+                    
+                    setTimeout(() => {
+                        loadSavedWifiNetworks();
+                    }, 500);
                 } else {
-                    alert(`✗ Failed to remove network: ${data.message}`);
+                    showWifiError(data.message || 'Failed to remove network');
                 }
             } catch (error) {
-                alert(`✗ Error: ${error.message}`);
+                showWifiError('Error: ' + error.message);
             }
         }
         
@@ -1733,6 +1924,27 @@
                 if (originalHandler.called) return;
                 originalHandler.called = true;
                 loadSavedWifiNetworks();
+                
+                // Add Enter key listener for password modal
+                document.getElementById('wifi-modal-password').addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        confirmWifiPassword();
+                    }
+                });
+                
+                // Add Enter key listener for manual SSID
+                document.getElementById('manual-ssid').addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        document.getElementById('manual-password').focus();
+                    }
+                });
+                
+                // Add Enter key listener for manual password
+                document.getElementById('manual-password').addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        addManualWifiNetwork();
+                    }
+                });
             };
         })());
     </script>

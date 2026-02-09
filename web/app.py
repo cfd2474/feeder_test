@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.41.2"
+VERSION = "2.41.3"
 
 # Global progress tracking
 service_progress = {
@@ -2039,39 +2039,79 @@ def wifi_add():
         ssid = data.get('ssid', '').strip()
         password = data.get('password', '')
         security = data.get('security', 'WPA2')
+        save_only = data.get('saveOnly', False)  # For remote setup - don't try to connect
         
         if not ssid:
             return jsonify({'success': False, 'message': 'SSID is required'})
         
         # Try nmcli first
         try:
-            if security == 'OPEN':
-                # Open network (no password)
-                result = subprocess.run(
-                    ['sudo', 'nmcli', 'dev', 'wifi', 'connect', ssid],
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
+            if save_only:
+                # Just create the connection profile without connecting
+                if security == 'OPEN':
+                    # Open network (no password)
+                    result = subprocess.run(
+                        ['sudo', 'nmcli', 'connection', 'add', 
+                         'type', 'wifi',
+                         'con-name', ssid,
+                         'ifname', 'wlan0',
+                         'ssid', ssid,
+                         '--', 
+                         'wifi-sec.key-mgmt', 'none'],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                else:
+                    # Secured network
+                    result = subprocess.run(
+                        ['sudo', 'nmcli', 'connection', 'add',
+                         'type', 'wifi',
+                         'con-name', ssid,
+                         'ifname', 'wlan0',
+                         'ssid', ssid,
+                         '--',
+                         'wifi-sec.key-mgmt', 'wpa-psk',
+                         'wifi-sec.psk', password],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                
+                if result.returncode == 0:
+                    return jsonify({'success': True, 'message': 'WiFi configuration saved (will connect when in range)'})
+                else:
+                    # Fall through to wpa_supplicant method
+                    raise subprocess.CalledProcessError(result.returncode, result.args)
             else:
-                # Secured network
-                result = subprocess.run(
-                    ['sudo', 'nmcli', 'dev', 'wifi', 'connect', ssid, 'password', password],
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
-            
-            if result.returncode == 0:
-                return jsonify({'success': True, 'message': 'WiFi network added successfully'})
-            else:
-                error_msg = result.stderr.strip() if result.stderr else 'Failed to add network'
-                return jsonify({'success': False, 'message': error_msg})
+                # Try to connect immediately (scan result selection)
+                if security == 'OPEN':
+                    # Open network (no password)
+                    result = subprocess.run(
+                        ['sudo', 'nmcli', 'dev', 'wifi', 'connect', ssid],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                else:
+                    # Secured network
+                    result = subprocess.run(
+                        ['sudo', 'nmcli', 'dev', 'wifi', 'connect', ssid, 'password', password],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                
+                if result.returncode == 0:
+                    return jsonify({'success': True, 'message': 'Connected to WiFi network successfully'})
+                else:
+                    error_msg = result.stderr.strip() if result.stderr else 'Failed to connect to network'
+                    return jsonify({'success': False, 'message': error_msg})
         
         except subprocess.TimeoutExpired:
             return jsonify({'success': False, 'message': 'Connection attempt timed out'})
-        except FileNotFoundError:
-            # nmcli not available, use wpa_supplicant
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            # nmcli not available or failed, use wpa_supplicant
             wpa_conf = Path('/etc/wpa_supplicant/wpa_supplicant.conf')
             
             # Create network block
@@ -2102,7 +2142,10 @@ network={{
             # Restart wpa_supplicant
             subprocess.run(['sudo', 'wpa_cli', '-i', 'wlan0', 'reconfigure'], check=True)
             
-            return jsonify({'success': True, 'message': 'WiFi network added successfully'})
+            if save_only:
+                return jsonify({'success': True, 'message': 'WiFi configuration saved (will connect when in range)'})
+            else:
+                return jsonify({'success': True, 'message': 'WiFi network configured and attempting to connect'})
     
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
