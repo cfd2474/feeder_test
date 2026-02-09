@@ -779,15 +779,30 @@
                     updateStatusModal(`FlightAware feed ${statusTextPast} successfully`, 'success');
                     statusBadge.textContent = enabled ? 'Active' : 'Inactive';
                     statusBadge.className = `feed-status-badge ${enabled ? 'status-active' : 'status-inactive'}`;
+                    
+                    // Auto-dismiss after 1.5 seconds
+                    setTimeout(() => {
+                        hideStatusModal();
+                    }, 1500);
                 } else {
                     updateStatusModal(`Failed to ${statusText} FlightAware feed: ${data.message}`, 'error');
                     // Revert checkbox
                     checkbox.checked = !enabled;
+                    
+                    // Auto-dismiss after 2 seconds
+                    setTimeout(() => {
+                        hideStatusModal();
+                    }, 2000);
                 }
             } catch (error) {
                 updateStatusModal(`Error ${statusText} FlightAware feed: ${error.message}`, 'error');
                 // Revert checkbox
                 checkbox.checked = !enabled;
+                
+                // Auto-dismiss after 2 seconds
+                setTimeout(() => {
+                    hideStatusModal();
+                }, 2000);
             }
         }
         
