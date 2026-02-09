@@ -233,8 +233,10 @@
                     <input type="text" id="site_name" placeholder="" 
                         value="{% if config.get('MLAT_SITE_NAME', 'TAKNET-PS-ADSB-Feeder') != 'TAKNET-PS-ADSB-Feeder' and config.get('MLAT_SITE_NAME', 'TAK-Feeder') != 'TAK-Feeder' %}{{ config.get('MLAT_SITE_NAME', '').split('-', 1)[1] if '-' in config.get('MLAT_SITE_NAME', '') else config.get('MLAT_SITE_NAME', '') }}{% endif %}" required>
                     <small class="help-text">
-                        Unique name for your feeder (e.g., device type, location name).<br>
-                        Example format: <strong>90210-Raspberry_ADSB</strong> (zip prepended automatically)
+                        Unique name for your feeder (e.g., Raspberry_ADSB, Home_Feeder, Office_Pi).<br>
+                        <strong>Zip Code Prefix:</strong> If you enter a zip code above, it will be added as a prefix to this name (e.g., 90210-Raspberry_ADSB). 
+                        If you leave the zip code blank, the system will attempt to determine your zip code based on IP address. 
+                        Zip codes are used for general localization of feeder data sources.
                     </small>
                 </div>
                 

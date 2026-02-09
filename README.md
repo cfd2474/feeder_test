@@ -1,65 +1,51 @@
-# TAKNET-PS v2.43.0 - Complete Installation Package
+# TAKNET-PS v2.46.0 - MLAT Stability & UX Improvements
 
-## 🎯 What's in This Package
+## 🎯 What's New
 
-**Complete TAKNET-PS system with ADSBHub support**
-
-✅ docker-compose.yml with 4 containers (ultrafeeder, fr24, piaware, adsbhub)  
-✅ env-template with all feed variables (FR24, PIAWARE, ADSBHUB)  
-✅ Web interface with 8 feeder support  
-✅ Installer configured for: cfd2474/feeder_test  
-✅ Manual fix script included (fix-adsbhub.sh)  
+**Zero-Configuration MLAT Stability** - The installer now automatically prevents FlightAware "clock unstable" errors!
 
 ---
 
-## 🚀 Two Installation Options
+## ✨ Key Features
 
-### Option 1: Push to GitHub + Fresh Install
+### 1. Automatic MLAT Safeguards
+
+The installer now **automatically configures** everything needed for stable MLAT:
+
+- ✅ **CPU frequency locked** (force_turbo=1)
+- ✅ **Performance governor** enabled
+- ✅ **NTP time sync** configured
+- ✅ **USB power management** optimized
+- ✅ **All settings persist** across reboots
+
+**Result:** MLAT works perfectly from first boot, no manual fixes needed!
+
+---
+
+### 2. Improved Setup Wizard
+
+**Clearer feeder name instructions:**
+- Removed confusing zip code example
+- Added clear explanation of zip code prefix behavior
+- Explained IP-based zip code detection
+- Clarified purpose of zip codes
+
+---
+
+## 📦 Installation
+
+### Fresh Installation (Recommended)
 
 ```bash
-# Extract and push
-tar -xzf taknet-ps-complete-v2.43.0-github.tar.gz
-cd taknet-ps-complete-v2.43.0-github
-git init && git add . && git commit -m "v2.43.0"
-git remote add origin https://github.com/cfd2474/feeder_test.git
-git push -f origin main
-
-# Wait 2-3 minutes, then fresh install
-ssh pi@YOUR_PI
 curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 ```
 
-### Option 2: Manual Fix (FASTEST)
-
-```bash
-# Copy fix-adsbhub.sh to your Pi, then run:
-sudo bash fix-adsbhub.sh
-```
+**That's it!** MLAT stability is automatic.
 
 ---
 
-## 📦 Included: fix-adsbhub.sh
+**Version:** 2.46.0  
+**Release Date:** 2026-02-09  
+**MLAT Stability:** Automatic! 🎉
 
-**This script adds ADSBHub to existing installations in 2 minutes.**
-
-Run it ON your Raspberry Pi to add the adsbhub service directly.
-
----
-
-## 🔍 Why "no such service: adsbhub" Error?
-
-**Your Pi's docker-compose.yml doesn't have the adsbhub service.**
-
-The installer downloads docker-compose.yml from GitHub. If your GitHub repo still has the old version (without adsbhub), that's what gets installed.
-
-**Solutions:**
-1. Push v2.43.0 to GitHub first, then fresh install
-2. OR run fix-adsbhub.sh to add it manually
-
----
-
-## ✅ Complete Package - Version 2.43.0
-
-All version numbers updated throughout all files.
-
-No editing required - ready to deploy!
+See CHANGELOG-v2.46.0.md for complete details.

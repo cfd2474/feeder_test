@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.45.0
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.46.0
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.45.0"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.46.0"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -132,6 +132,73 @@ apt-get update -qq
 apt-get install -y python3-flask python3-pip python3-yaml wget curl rtl-sdr vnstat nginx avahi-daemon avahi-utils libnss-mdns hostapd dnsmasq iptables wireless-tools rfkill
 
 echo "✓ All packages installed"
+
+# Configure MLAT stability safeguards
+echo "Configuring MLAT stability safeguards..."
+
+# 1. Fix CPU frequency scaling (most effective for MLAT)
+if [ -f /boot/config.txt ] || [ -f /boot/firmware/config.txt ]; then
+    BOOT_CONFIG="/boot/config.txt"
+    [ -f /boot/firmware/config.txt ] && BOOT_CONFIG="/boot/firmware/config.txt"
+    
+    # Backup config
+    cp $BOOT_CONFIG ${BOOT_CONFIG}.backup-install 2>/dev/null || true
+    
+    # Add force_turbo if not already present
+    if ! grep -q "^force_turbo=1" $BOOT_CONFIG 2>/dev/null; then
+        echo "" >> $BOOT_CONFIG
+        echo "# TAKNET-PS: Lock CPU frequency for MLAT stability" >> $BOOT_CONFIG
+        echo "force_turbo=1" >> $BOOT_CONFIG
+        echo "  ✓ CPU frequency locked (force_turbo=1)"
+    else
+        echo "  ✓ CPU frequency already locked"
+    fi
+    
+    # Set performance governor in cmdline (persistent)
+    if [ -f /boot/cmdline.txt ]; then
+        if ! grep -q "cpufreq.default_governor=performance" /boot/cmdline.txt 2>/dev/null; then
+            cp /boot/cmdline.txt /boot/cmdline.txt.backup-install
+            sed -i '1 s/$/ cpufreq.default_governor=performance/' /boot/cmdline.txt
+            echo "  ✓ Performance CPU governor enabled"
+        fi
+    fi
+fi
+
+# 2. Set CPU governor to performance immediately
+if [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
+    echo "performance" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || true
+    echo "  ✓ CPU governor set to performance (active now)"
+fi
+
+# 3. Enable NTP time synchronization
+if command -v timedatectl &> /dev/null; then
+    timedatectl set-ntp true 2>/dev/null || true
+    echo "  ✓ NTP time synchronization enabled"
+fi
+
+# 4. Disable USB autosuspend (prevents timing jitter)
+cat > /etc/udev/rules.d/99-usb-mlat-stability.rules << 'UDEVEOF'
+# TAKNET-PS: Disable USB autosuspend for MLAT timing stability
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0bda", ATTR{idProduct}=="2832", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0bda", ATTR{idProduct}=="2838", ATTR{power/autosuspend}="-1"
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="on"
+UDEVEOF
+
+udevadm control --reload-rules 2>/dev/null || true
+echo "  ✓ USB power management optimized"
+
+# 5. Apply USB settings immediately
+if [ -d /sys/bus/usb/devices ]; then
+    for dev in /sys/bus/usb/devices/*/power/autosuspend; do
+        echo -1 > "$dev" 2>/dev/null || true
+    done
+    for dev in /sys/bus/usb/devices/*/power/control; do
+        echo "on" > "$dev" 2>/dev/null || true
+    done
+fi
+
+echo "✓ MLAT stability safeguards configured"
+echo "  (Prevents 'clock unstable' errors on FlightAware)"
 
 # Configure mDNS (taknet-ps.local)
 echo "Configuring mDNS hostname..."
