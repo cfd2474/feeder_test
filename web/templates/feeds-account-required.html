@@ -428,6 +428,80 @@
                 </div>
             </div>
             
+            <!-- ADSBHub Configuration -->
+            <div class="section" id="adsbhub-section">
+                <h2>ADSBHub</h2>
+                
+                <div class="feed-config-card">
+                    <div class="feed-config-header">
+                        <div class="feed-title">
+                            <h3>ADSBHub</h3>
+                            <p>Share your ADS-B data with the ADSBHub community network</p>
+                        </div>
+                        <span class="feed-status-badge {{ 'status-active' if adsbhub_status else 'status-inactive' }}" id="adsbhub-status">
+                            {{ 'Active' if adsbhub_status else 'Inactive' }}
+                        </span>
+                    </div>
+                    
+                    <!-- Enable/Disable Toggle -->
+                    <div class="config-section" style="padding: 15px; background: #f3f4f6; border-radius: 6px; margin-bottom: 20px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input 
+                                type="checkbox" 
+                                id="adsbhub-enabled" 
+                                {% if adsbhub_enabled %}checked{% endif %}
+                                onchange="toggleADSBHubEnabled(this.checked)"
+                                style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;"
+                            >
+                            <span style="font-weight: 600; color: #374151;">Enable ADSBHub Feed</span>
+                        </label>
+                        <p class="config-hint" style="margin: 8px 0 0 30px;">
+                            Toggle to start/stop feeding data to ADSBHub
+                        </p>
+                    </div>
+                    
+                    <!-- Station Key Field -->
+                    <div class="config-section">
+                        <label class="config-label" for="adsbhub-station-key">
+                            ADSBHub Station Key
+                        </label>
+                        <div style="padding: 12px; background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 6px; margin-bottom: 12px;">
+                            <p style="margin: 0 0 8px 0; color: #1e40af; font-size: 0.95em; font-weight: 600;">
+                                ADSBHub 🛡️
+                            </p>
+                            <p style="margin: 0; color: #1e40af; font-size: 0.9em; line-height: 1.6;">
+                                To sign up for an ADSBHub station key go to <a href="https://www.adsbhub.org/howtofeed.php" target="_blank" style="color: #2563eb; font-weight: 600;">ADSBHub how to feed</a>, setting your station up as feeder type "Linux" in "Client" mode, feeding via the "SBS" protocol. Enter your feeder hostname or IP (If unknown, enter 0.0.0.0 and update it after feeder connects). This will get you your station key (called by ADSBHub as "Station dynamic IP update ckey"). Existing users can find their station key on the Settings page of the ADSBHub site.
+                            </p>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="adsbhub-station-key" 
+                            class="config-input" 
+                            placeholder="Enter your ADSBHub station key"
+                            value="{{ adsbhub_key }}"
+                            oninput="validateADSBHubKey()"
+                        >
+                        <p class="config-hint">
+                            Your unique station key (Station dynamic IP update ckey) from ADSBHub.org
+                        </p>
+                    </div>
+                    
+                    <div class="config-actions">
+                        <button class="btn-primary" onclick="setupADSBHub()" id="setup-adsbhub-btn" disabled>
+                            <span id="setup-adsbhub-text">Save & Enable ADSBHub</span>
+                        </button>
+                    </div>
+                    
+                    <div id="adsbhub-result" style="margin-top: 15px; display: none;"></div>
+                </div>
+                
+                <div style="padding: 20px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
+                    <p style="margin: 0; color: #065f46;">
+                        <strong>About ADSBHub:</strong> ADSBHub is a community-driven ADS-B data aggregator that distributes real-time flight data to researchers, developers, and aviation enthusiasts worldwide.
+                    </p>
+                </div>
+            </div>
+            
             <div class="actions">
                 <button class="btn" onclick="window.location.href='/feeds'">Back to Feed Selection</button>
             </div>
@@ -843,6 +917,160 @@
             
             resultDiv.innerHTML = message;
         }
+        
+        // ========================================
+        // ADSBHub Functions
+        // ========================================
+        
+        // Validate ADSBHub button based on station key
+        function validateADSBHubButton() {
+            const stationKey = document.getElementById('adsbhub-station-key').value.trim();
+            const setupBtn = document.getElementById('setup-adsbhub-btn');
+            
+            // Enable button only if station key has at least 8 characters
+            setupBtn.disabled = stationKey.length < 8;
+        }
+        
+        async function toggleADSBHubEnabled(enabled) {
+            const checkbox = document.getElementById('adsbhub-enabled');
+            const stationKey = document.getElementById('adsbhub-station-key').value.trim();
+            const statusText = enabled ? 'enabling' : 'disabling';
+            const statusTextPast = enabled ? 'enabled' : 'disabled';
+            
+            // Check if trying to enable without a key
+            if (enabled && !stationKey) {
+                checkbox.checked = false;
+                showStatusModal('Station key required');
+                updateStatusModal('Please enter your ADSBHub station key before enabling', 'error');
+                setTimeout(() => hideStatusModal(), 2500);
+                return;
+            }
+            
+            // Show loading modal
+            showStatusModal(`${statusText.charAt(0).toUpperCase() + statusText.slice(1)} ADSBHub feed...`);
+            
+            try {
+                const response = await fetch('/api/feeds/adsbhub/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: enabled })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update status badge
+                    document.getElementById('adsbhub-status').textContent = enabled ? 'Active' : 'Inactive';
+                    document.getElementById('adsbhub-status').className = 'feed-status-badge ' + (enabled ? 'status-active' : 'status-inactive');
+                    
+                    // Show success in modal
+                    updateStatusModal(`ADSBHub feed ${statusTextPast} successfully`, 'success');
+                    
+                    // Auto-dismiss after 1.5 seconds
+                    setTimeout(() => {
+                        hideStatusModal();
+                    }, 1500);
+                } else {
+                    // Revert checkbox on error
+                    checkbox.checked = !enabled;
+                    
+                    // Show error in modal
+                    updateStatusModal(`Failed: ${data.message}`, 'error');
+                    
+                    // Auto-dismiss after 2 seconds
+                    setTimeout(() => {
+                        hideStatusModal();
+                    }, 2000);
+                }
+            } catch (error) {
+                // Revert checkbox on error
+                checkbox.checked = !enabled;
+                
+                // Show error in modal
+                updateStatusModal(`Error: ${error.message}`, 'error');
+                
+                // Auto-dismiss after 2 seconds
+                setTimeout(() => {
+                    hideStatusModal();
+                }, 2000);
+            }
+        }
+        
+        // Validate ADSBHub station key and enable/disable button
+        function validateADSBHubKey() {
+            const stationKey = document.getElementById('adsbhub-station-key').value.trim();
+            const setupBtn = document.getElementById('setup-adsbhub-btn');
+            
+            // Enable button only if key is entered
+            setupBtn.disabled = !stationKey;
+        }
+        
+        async function setupADSBHub() {
+            const stationKey = document.getElementById('adsbhub-station-key').value.trim();
+            const setupBtn = document.getElementById('setup-adsbhub-btn');
+            const setupText = document.getElementById('setup-adsbhub-text');
+            const resultDiv = document.getElementById('adsbhub-result');
+            
+            if (!stationKey) {
+                // Use modal for validation error
+                showStatusModal('Please enter your station key');
+                updateStatusModal('Please enter your ADSBHub station key', 'error');
+                setTimeout(() => hideStatusModal(), 2000);
+                return;
+            }
+            
+            // Disable button and hide old result div
+            setupBtn.disabled = true;
+            resultDiv.style.display = 'none';
+            
+            try {
+                showStatusModal('Configuring ADSBHub feed...');
+                
+                const response = await fetch('/api/feeds/adsbhub/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ station_key: stationKey })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update status badge
+                    document.getElementById('adsbhub-status').textContent = 'Active';
+                    document.getElementById('adsbhub-status').className = 'feed-status-badge status-active';
+                    
+                    // Update checkbox
+                    document.getElementById('adsbhub-enabled').checked = true;
+                    
+                    // Show success in modal
+                    updateStatusModal('ADSBHub feed enabled successfully!', 'success');
+                    
+                    // Auto-dismiss after 2 seconds
+                    setTimeout(() => {
+                        hideStatusModal();
+                    }, 2000);
+                } else {
+                    // Show error in modal
+                    updateStatusModal(`Failed: ${data.message}`, 'error');
+                    
+                    // Auto-dismiss after 3 seconds
+                    setTimeout(() => {
+                        hideStatusModal();
+                    }, 3000);
+                }
+            } catch (error) {
+                updateStatusModal(`Error: ${error.message}`, 'error');
+                setTimeout(() => hideStatusModal(), 2000);
+            } finally {
+                setupBtn.disabled = false;
+                setupText.textContent = 'Save & Enable ADSBHub';
+            }
+        }
+        
+        // Validate ADSBHub button on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            validateADSBHubKey();
+        });
     </script>
 </body>
 </html>

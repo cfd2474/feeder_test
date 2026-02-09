@@ -110,11 +110,16 @@ echo "  • FlightRadar24 (~320MB)"
 docker pull ghcr.io/sdr-enthusiasts/docker-flightradar24:latest &
 PID_FR24=$!
 
+echo "  • ADSBHub (~280MB)"
+docker pull ghcr.io/sdr-enthusiasts/docker-adsbexchange:latest &
+PID_ADSBHUB=$!
+
 # Wait for all downloads to complete
 echo "  Downloading in parallel..."
 wait $PID_ULTRA && echo "  ✓ Ultrafeeder downloaded"
 wait $PID_PIAWARE && echo "  ✓ PiAware downloaded"
 wait $PID_FR24 && echo "  ✓ FlightRadar24 downloaded"
+wait $PID_ADSBHUB && echo "  ✓ ADSBHub downloaded"
 
 echo "✓ All Docker images pre-downloaded (setup wizard will be fast!)"
 

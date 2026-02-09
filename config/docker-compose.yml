@@ -82,3 +82,21 @@ services:
     depends_on:
       - ultrafeeder
 
+  adsbhub:
+    image: ghcr.io/sdr-enthusiasts/docker-adsbexchange:latest
+    container_name: adsbhub
+    hostname: adsbhub
+    restart: unless-stopped
+    networks:
+      - adsb_net
+    environment:
+      - BEASTHOST=ultrafeeder
+      - BEASTPORT=30005
+      - ADSBHUB_STATION_KEY=${ADSBHUB_STATION_KEY}
+      - ADSBHUB_SERVER=data.adsbhub.org
+      - MLAT=no
+    tmpfs:
+      - /run:exec,size=64M
+      - /var/log
+    depends_on:
+      - ultrafeeder

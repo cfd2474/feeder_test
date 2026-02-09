@@ -17,7 +17,7 @@ import socket
 app = Flask(__name__)
 
 # Version information
-VERSION = "2.41.3"
+VERSION = "2.41.5"
 
 # Global progress tracking
 service_progress = {
@@ -1467,6 +1467,106 @@ def api_piaware_toggle():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+# ========================================
+# ADSBHub Feed API Endpoints
+# ========================================
+
+@app.route('/api/feeds/adsbhub/setup', methods=['POST'])
+def api_adsbhub_setup():
+    """Configure ADSBHub feed with station key"""
+    try:
+        data = request.json
+        station_key = data.get('station_key', '').strip()
+        
+        if not station_key:
+            return jsonify({'success': False, 'message': 'Station key is required'})
+        
+        # Update .env file
+        update_env_var('ADSBHUB_STATION_KEY', station_key)
+        update_env_var('ADSBHUB_ENABLED', 'true')
+        
+        # Use the correct paths
+        compose_file = '/opt/adsb/config/docker-compose.yml'
+        env_file = str(ENV_FILE)
+        
+        # Verify files exist
+        if not Path(compose_file).exists():
+            return jsonify({
+                'success': False,
+                'message': f'docker-compose.yml not found at: {compose_file}\n\nPlease run the installer to create the docker-compose.yml file.'
+            })
+        
+        if not ENV_FILE.exists():
+            return jsonify({
+                'success': False,
+                'message': f'.env file not found at: {env_file}\n\nPlease run the installer to create the .env file.'
+            })
+        
+        # Start ADSBHub container
+        result = subprocess.run(
+            ['docker', 'compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'adsbhub'],
+            capture_output=True, text=True, timeout=60
+        )
+        
+        if result.returncode == 0:
+            return jsonify({'success': True, 'message': 'ADSBHub feed configured successfully'})
+        else:
+            return jsonify({'success': False, 'message': f'Failed to start ADSBHub: {result.stderr}'})
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'message': 'Operation timed out'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/feeds/adsbhub/toggle', methods=['POST'])
+def api_adsbhub_toggle():
+    """Toggle ADSBHub feed enabled/disabled"""
+    try:
+        data = request.json
+        enabled = data.get('enabled', False)
+        
+        # Update .env
+        update_env_var('ADSBHUB_ENABLED', 'true' if enabled else 'false')
+        
+        # Use the correct paths
+        compose_file = '/opt/adsb/config/docker-compose.yml'
+        env_file = str(ENV_FILE)
+        
+        # Verify files exist
+        if not Path(compose_file).exists():
+            return jsonify({
+                'success': False,
+                'message': f'docker-compose.yml not found at: {compose_file}\n\nPlease run the installer to create the docker-compose.yml file.'
+            })
+        
+        if not ENV_FILE.exists():
+            return jsonify({
+                'success': False,
+                'message': f'.env file not found at: {env_file}\n\nPlease run the installer to create the .env file.'
+            })
+        
+        # Start or stop ADSBHub container using docker compose
+        if enabled:
+            result = subprocess.run(
+                ['docker', 'compose', '-f', compose_file, '--env-file', env_file, 'up', '-d', 'adsbhub'],
+                capture_output=True, text=True, timeout=60
+            )
+        else:
+            result = subprocess.run(
+                ['docker', 'compose', '-f', compose_file, 'stop', 'adsbhub'],
+                capture_output=True, text=True, timeout=30
+            )
+        
+        if result.returncode == 0:
+            return jsonify({'success': True, 'message': f'ADSBHub feed {"enabled" if enabled else "disabled"}'})
+        else:
+            return jsonify({'success': False, 'message': f'Failed: {result.stderr}'})
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'message': 'Operation timed out'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 @app.route('/settings')
 def settings():
     """Settings page"""
@@ -1511,13 +1611,29 @@ def feeds_account_required():
         except:
             piaware_status = False
     
+    # Check ADSBHub status
+    adsbhub_key = env.get('ADSBHUB_STATION_KEY', '')
+    adsbhub_enabled = env.get('ADSBHUB_ENABLED', 'false') == 'true'
+    adsbhub_status = False
+    if adsbhub_key and adsbhub_enabled:
+        # Check if ADSBHub container is running
+        try:
+            result = subprocess.run(['docker', 'ps', '--filter', 'name=adsbhub', '--format', '{{.Names}}'],
+                                  capture_output=True, text=True, timeout=5)
+            adsbhub_status = 'adsbhub' in result.stdout
+        except:
+            adsbhub_status = False
+    
     return render_template('feeds-account-required.html', 
                          fr24_key=fr24_key,
                          fr24_enabled=fr24_enabled,
                          fr24_status=fr24_status,
                          piaware_feeder_id=piaware_feeder_id,
                          piaware_enabled=piaware_enabled,
-                         piaware_status=piaware_status)
+                         piaware_status=piaware_status,
+                         adsbhub_key=adsbhub_key,
+                         adsbhub_enabled=adsbhub_enabled,
+                         adsbhub_status=adsbhub_status)
 
 # API Endpoints
 
