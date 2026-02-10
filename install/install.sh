@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.46.0
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.46.1
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.46.0"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.46.1"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -640,6 +640,13 @@ while true; do
             else
                 # First detection of WiFi config without connection
                 log "WiFi configured but not connected, starting 5-minute retry timer..."
+                
+                # Ensure wpa_supplicant is unmasked and enabled
+                systemctl unmask wpa_supplicant 2>/dev/null || true
+                systemctl enable wpa_supplicant 2>/dev/null || true
+                systemctl restart wpa_supplicant 2>/dev/null || true
+                log "Ensured wpa_supplicant is running for WiFi connection attempt"
+                
                 echo "wifi_retry" > "$STATE_FILE"
                 date +%s > /var/run/wifi-retry-start
                 sleep 10
@@ -1027,8 +1034,9 @@ ExecStartPre=-/usr/bin/systemctl stop wpa_supplicant
 WantedBy=multi-user.target
 MONITOREOF
 
-# Mask wpa_supplicant to prevent conflicts
-systemctl mask wpa_supplicant 2>/dev/null || true
+# Disable (but don't mask) wpa_supplicant - network-monitor will manage it
+# Using disable instead of mask allows wpa_supplicant to be started when needed
+systemctl disable wpa_supplicant 2>/dev/null || true
 
 systemctl daemon-reload
 systemctl enable network-monitor captive-portal
