@@ -416,41 +416,27 @@
 
     <!-- Tailscale Connection Progress Modal -->
     <div id="tailscaleProgressModal" class="modal">
-        <div class="modal-content">
-            <h2 class="modal-header">🔗 Connecting Tailscale</h2>
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 class="modal-header">🔗 Configuring Tailscale</h2>
             <div class="modal-body">
-                <div id="progress-status-text" style="margin-bottom: 20px; font-weight: 500; color: #374151;">
-                    Initializing...
-                </div>
-                
-                <!-- Download Progress -->
-                <div class="progress-section" style="margin-bottom: 25px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="font-size: 0.9em; color: #6b7280;">Download Tailscale</span>
-                        <span id="download-percent" style="font-size: 0.9em; color: #6b7280;">0%</span>
-                    </div>
-                    <div class="progress-bar" style="width: 100%; height: 24px; background: #e5e7eb; border-radius: 12px; overflow: hidden;">
-                        <div id="download-progress" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #2563eb); transition: width 0.3s ease;"></div>
+                <div style="display: flex; align-items: center; justify-content: center; padding: 30px 20px;">
+                    <!-- Spinner -->
+                    <div id="tailscale-spinner" class="status-spinner" style="margin-right: 15px;"></div>
+                    <div>
+                        <div id="progress-status-text" style="font-weight: 500; color: #374151; font-size: 1.05em;">
+                            Configuring Tailscale VPN...
+                        </div>
+                        <div id="progress-status-detail" style="margin-top: 8px; font-size: 0.9em; color: #6b7280;">
+                            This usually takes 5-10 seconds
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Installation Progress -->
-                <div class="progress-section">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="font-size: 0.9em; color: #6b7280;">Install & Connect</span>
-                        <span id="install-percent" style="font-size: 0.9em; color: #6b7280;">0%</span>
-                    </div>
-                    <div class="progress-bar" style="width: 100%; height: 24px; background: #e5e7eb; border-radius: 12px; overflow: hidden;">
-                        <div id="install-progress" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #059669); transition: width 0.3s ease;"></div>
-                    </div>
+                <!-- Result message (hidden initially) -->
+                <div id="tailscale-result" style="display: none; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                    <div id="tailscale-result-icon" style="font-size: 2em; text-align: center; margin-bottom: 10px;">✓</div>
+                    <div id="tailscale-result-message" style="text-align: center; font-weight: 500;"></div>
                 </div>
-                
-                <div id="progress-details" style="margin-top: 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 0.85em; color: #6b7280; font-family: 'Courier New', monospace; max-height: 150px; overflow-y: auto;">
-                    <!-- Progress details will be inserted here -->
-                </div>
-            </div>
-            <div class="modal-buttons" id="progress-modal-buttons" style="display: none;">
-                <button class="btn btn-primary" onclick="closeProgressModal()">Close</button>
             </div>
         </div>
     </div>
@@ -1466,10 +1452,12 @@
                 return;
             }
             
-            // Show progress modal
+            // Show simplified progress modal
             document.getElementById('tailscaleProgressModal').style.display = 'block';
-            document.getElementById('progress-status-text').textContent = 'Starting Tailscale installation...';
-            document.getElementById('progress-details').innerHTML = '<div>Initializing...</div>';
+            document.getElementById('tailscale-spinner').style.display = 'block';
+            document.getElementById('progress-status-text').textContent = 'Configuring Tailscale VPN...';
+            document.getElementById('progress-status-detail').textContent = 'This usually takes 5-10 seconds';
+            document.getElementById('tailscale-result').style.display = 'none';
             
             try {
                 // Call the install API
@@ -1482,16 +1470,15 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error('Failed to start Tailscale installation');
+                    throw new Error('Failed to start Tailscale configuration');
                 }
                 
                 // Start polling for progress
                 pollTailscaleProgress();
                 
             } catch (error) {
-                console.error('Failed to connect Tailscale:', error);
-                document.getElementById('progress-status-text').textContent = 'Error: ' + error.message;
-                document.getElementById('progress-modal-buttons').style.display = 'block';
+                console.error('Failed to configure Tailscale:', error);
+                showTailscaleResult(false, 'Configuration failed: ' + error.message);
             }
         }
         
@@ -1512,12 +1499,63 @@
                     updateTailscaleProgressUI(data);
                     
                     // Check if complete or failed
-                    if (data.status === 'completed' || data.status === 'failed' || attempts >= maxAttempts) {
+                    if (data.status === 'completed') {
                         clearInterval(progressPollInterval);
-                        document.getElementById('progress-modal-buttons').style.display = 'block';
+                        showTailscaleResult(true, 'Tailscale connected successfully!');
                         
-                        // Refresh status
+                        // Auto-close after 2 seconds and refresh page
                         setTimeout(() => {
+                            closeProgressModal();
+                            location.reload(); // Refresh to show new Tailscale status
+                        }, 2000);
+                        
+                    } else if (data.status === 'failed' || attempts >= maxAttempts) {
+                        clearInterval(progressPollInterval);
+                        const errorMsg = data.message || 'Connection timed out';
+                        showTailscaleResult(false, errorMsg);
+                        
+                        // Auto-close after 3 seconds
+                        setTimeout(() => {
+                            closeProgressModal();
+                        }, 3000);
+                    }
+                } catch (error) {
+                    console.error('Error polling progress:', error);
+                }
+            }, 1000); // Poll every second
+        }
+        
+        // Show Tailscale result (success or failure)
+        function showTailscaleResult(success, message) {
+            // Hide spinner
+            document.getElementById('tailscale-spinner').style.display = 'none';
+            
+            // Show result
+            const resultDiv = document.getElementById('tailscale-result');
+            const iconDiv = document.getElementById('tailscale-result-icon');
+            const messageDiv = document.getElementById('tailscale-result-message');
+            
+            if (success) {
+                resultDiv.style.background = '#d1fae5';
+                resultDiv.style.border = '2px solid #10b981';
+                iconDiv.textContent = '✓';
+                iconDiv.style.color = '#10b981';
+                messageDiv.style.color = '#10b981';
+            } else {
+                resultDiv.style.background = '#fee2e2';
+                resultDiv.style.border = '2px solid #ef4444';
+                iconDiv.textContent = '✗';
+                iconDiv.style.color = '#ef4444';
+                messageDiv.style.color = '#ef4444';
+            }
+            
+            messageDiv.textContent = message;
+            resultDiv.style.display = 'block';
+            
+            // Update main text
+            document.getElementById('progress-status-text').textContent = success ? 'Configuration complete!' : 'Configuration failed';
+            document.getElementById('progress-status-detail').textContent = '';
+        }
                             checkTailscaleStatus();
                         }, 2000);
                     }
@@ -1530,34 +1568,25 @@
         // Update Tailscale progress UI
         function updateTailscaleProgressUI(data) {
             const statusText = document.getElementById('progress-status-text');
-            const downloadPercent = document.getElementById('download-percent');
-            const downloadProgress = document.getElementById('download-progress');
-            const installPercent = document.getElementById('install-percent');
-            const installProgress = document.getElementById('install-progress');
-            const progressDetails = document.getElementById('progress-details');
+            const statusDetail = document.getElementById('progress-status-detail');
             
-            // Update status text
+            // Update status text based on phase
             if (data.status === 'downloading') {
-                statusText.textContent = 'Downloading Tailscale...';
-                downloadPercent.textContent = `${data.download_progress || 0}%`;
-                downloadProgress.style.width = `${data.download_progress || 0}%`;
-                installPercent.textContent = '0%';
-                installProgress.style.width = '0%';
+                // Tailscale is pre-installed, so skip this phase
+                statusText.textContent = 'Configuring Tailscale VPN...';
+                statusDetail.textContent = 'Preparing connection...';
             } else if (data.status === 'installing') {
-                statusText.textContent = 'Installing Tailscale...';
-                downloadPercent.textContent = '100%';
-                downloadProgress.style.width = '100%';
-                installPercent.textContent = `${data.install_progress || 0}%`;
-                installProgress.style.width = `${data.install_progress || 0}%`;
+                statusText.textContent = 'Configuring Tailscale VPN...';
+                statusDetail.textContent = 'Setting up VPN tunnel...';
             } else if (data.status === 'connecting') {
-                statusText.textContent = 'Connecting to Tailscale network...';
-                downloadPercent.textContent = '100%';
-                downloadProgress.style.width = '100%';
-                installPercent.textContent = '75%';
-                installProgress.style.width = '75%';
+                statusText.textContent = 'Configuring Tailscale VPN...';
+                statusDetail.textContent = 'Connecting to network...';
             } else if (data.status === 'completed') {
-                statusText.textContent = '✓ Tailscale connected successfully!';
-                statusText.style.color = '#10b981';
+                // Will be handled by showTailscaleResult
+            } else if (data.status === 'failed') {
+                // Will be handled by showTailscaleResult
+            }
+        }
                 downloadPercent.textContent = '100%';
                 downloadProgress.style.width = '100%';
                 installPercent.textContent = '100%';
@@ -1751,8 +1780,8 @@
             
             if (!currentWifiSelection) return;
             
-            // Close password modal
-            closeWifiPasswordModal();
+            // DON'T close password modal yet - let addWifiNetwork handle it
+            // This prevents the modal from disappearing before status modal is shown
             
             // Add network with immediate connection
             addWifiNetwork(currentWifiSelection.ssid, password, currentWifiSelection.security, false);
@@ -1811,12 +1840,17 @@
         // Add WiFi network (from scan selection or manual entry)
         async function addWifiNetwork(ssid, password, security, saveOnly = false) {
             try {
-                // Show status modal
+                // Show status modal FIRST
                 if (saveOnly) {
                     showWifiStatus('Saving WiFi configuration...');
                 } else {
                     showWifiStatus('Connecting to WiFi network...');
                 }
+                
+                // Wait for status modal to render, THEN close password modal
+                setTimeout(() => {
+                    closeWifiPasswordModal();
+                }, 100);
                 
                 // Set up progress messages for connection attempts
                 let progressTimeout;
