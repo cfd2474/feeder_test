@@ -63,6 +63,22 @@
                         <span class="status-value">{{ network_info.hostname }}</span>
                     </div>
                     <div class="status-item" style="margin-bottom: 10px;">
+                        <span class="status-label">Connection:</span>
+                        <span class="status-value">
+                            {% if network_info.connection_mode == 'wifi' %}
+                                <span style="color: #3b82f6;">📶 WiFi</span> - {{ network_info.connection_details }}
+                            {% elif network_info.connection_mode == 'ethernet' %}
+                                <span style="color: #10b981;">🔌 Ethernet</span> - {{ network_info.connection_details }}
+                            {% elif network_info.connection_mode == 'usb' %}
+                                <span style="color: #f59e0b;">🔗 USB</span> - {{ network_info.connection_details }}
+                            {% elif network_info.connection_mode == 'none' %}
+                                <span style="color: #ef4444;">❌ No Connection</span>
+                            {% else %}
+                                <span style="color: #6b7280;">❓ {{ network_info.connection_mode }}</span> - {{ network_info.connection_details }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="status-item" style="margin-bottom: 10px;">
                         <span class="status-label">Internet:</span>
                         <span id="internet-status" class="status-value">
                             <span class="status-dot active"></span>

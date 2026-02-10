@@ -809,6 +809,109 @@ def install_tailscale_with_progress(auth_key=None, hostname=None):
         update_tailscale_progress('failed', 0, 0, 0, str(e), 0, 0)
         update_tailscale_progress('failed', 0, 0, str(e))
 
+def get_network_connection_mode():
+    """Detect current internet connection type: wifi, ethernet, usb, or none"""
+    try:
+        # Check for active interfaces with internet connectivity
+        result = subprocess.run(['ip', 'route', 'get', '8.8.8.8'], 
+                              capture_output=True, text=True, timeout=5)
+        
+        if result.returncode != 0:
+            return {'mode': 'none', 'interface': None, 'details': 'No internet connection'}
+        
+        # Parse the output to find the interface
+        # Example output: "8.8.8.8 via 192.168.1.1 dev wlan0 src 192.168.1.100"
+        output = result.stdout
+        interface = None
+        
+        if ' dev ' in output:
+            parts = output.split(' dev ')
+            if len(parts) > 1:
+                interface = parts[1].split()[0]
+        
+        if not interface:
+            return {'mode': 'unknown', 'interface': None, 'details': 'Could not determine interface'}
+        
+        # Determine connection type based on interface name
+        if interface.startswith('wlan') or interface.startswith('wl'):
+            # WiFi connection - get SSID
+            try:
+                ssid_result = subprocess.run(['iwgetid', '-r'], 
+                                           capture_output=True, text=True, timeout=2)
+                ssid = ssid_result.stdout.strip() if ssid_result.returncode == 0 else 'Unknown'
+                return {
+                    'mode': 'wifi',
+                    'interface': interface,
+                    'details': f'Connected to {ssid}',
+                    'ssid': ssid
+                }
+            except:
+                return {
+                    'mode': 'wifi',
+                    'interface': interface,
+                    'details': 'WiFi connected'
+                }
+        
+        elif interface.startswith('eth') or interface.startswith('enp'):
+            # Ethernet connection
+            return {
+                'mode': 'ethernet',
+                'interface': interface,
+                'details': 'Ethernet connected'
+            }
+        
+        elif interface.startswith('usb') or interface.startswith('rndis'):
+            # USB tethering
+            return {
+                'mode': 'usb',
+                'interface': interface,
+                'details': 'USB tethering'
+            }
+        
+        elif interface.startswith('tailscale') or interface.startswith('ts'):
+            # Tailscale VPN (check underlying connection)
+            # Try to find the physical interface
+            try:
+                # Get all interfaces with IP addresses
+                ip_result = subprocess.run(['ip', '-br', 'addr', 'show'], 
+                                         capture_output=True, text=True, timeout=2)
+                for line in ip_result.stdout.split('\n'):
+                    if 'UP' in line:
+                        iface_name = line.split()[0]
+                        if iface_name.startswith('wlan'):
+                            return {
+                                'mode': 'wifi',
+                                'interface': iface_name,
+                                'details': 'WiFi (via Tailscale)'
+                            }
+                        elif iface_name.startswith('eth'):
+                            return {
+                                'mode': 'ethernet',
+                                'interface': iface_name,
+                                'details': 'Ethernet (via Tailscale)'
+                            }
+            except:
+                pass
+            
+            return {
+                'mode': 'vpn',
+                'interface': interface,
+                'details': 'Tailscale VPN'
+            }
+        
+        else:
+            # Unknown interface type
+            return {
+                'mode': 'other',
+                'interface': interface,
+                'details': f'Connected via {interface}'
+            }
+    
+    except subprocess.TimeoutExpired:
+        return {'mode': 'none', 'interface': None, 'details': 'Connection check timed out'}
+    except Exception as e:
+        return {'mode': 'unknown', 'interface': None, 'details': f'Error: {str(e)}'}
+
 # Routes
 @app.route('/')
 def index():
@@ -864,9 +967,13 @@ def dashboard():
     feeder_uuid = get_or_create_feeder_uuid()
     
     # Get network info
+    connection_mode = get_network_connection_mode()
     network_info = {
         'hostname': env.get('TAILSCALE_HOSTNAME', socket.gethostname()),
-        'machine_name': env.get('MLAT_SITE_NAME', 'Unknown')
+        'machine_name': env.get('MLAT_SITE_NAME', 'Unknown'),
+        'connection_mode': connection_mode.get('mode', 'unknown'),
+        'connection_details': connection_mode.get('details', 'Unknown'),
+        'interface': connection_mode.get('interface', 'N/A')
     }
     
     return render_template('dashboard.html', config=env, docker=docker_status, version=VERSION, taknet_status=taknet_status, feeder_uuid=feeder_uuid, network_info=network_info)
@@ -2219,13 +2326,23 @@ def wifi_add():
                     )
                 
                 if result.returncode == 0:
-                    return jsonify({'success': True, 'message': 'Connected to WiFi network successfully'})
+                    return jsonify({'success': True, 'message': 'Connected to WiFi network successfully!'})
                 else:
-                    error_msg = result.stderr.strip() if result.stderr else 'Failed to connect to network'
-                    return jsonify({'success': False, 'message': error_msg})
+                    # Parse error message
+                    error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
+                    
+                    # Make error messages more user-friendly
+                    if 'Secrets were required' in error_msg or 'authentication' in error_msg.lower():
+                        return jsonify({'success': False, 'message': 'Authentication failed - check your password'})
+                    elif 'not found' in error_msg.lower():
+                        return jsonify({'success': False, 'message': f'Network "{ssid}" not found - try scanning again'})
+                    elif 'timeout' in error_msg.lower():
+                        return jsonify({'success': False, 'message': 'Connection timeout - network may be out of range'})
+                    else:
+                        return jsonify({'success': False, 'message': f'Connection failed: {error_msg[:100] if error_msg else "Unknown error"}'})
         
         except subprocess.TimeoutExpired:
-            return jsonify({'success': False, 'message': 'Connection attempt timed out'})
+            return jsonify({'success': False, 'message': 'Connection attempt timed out (30s) - network may be weak or out of range'})
         except (FileNotFoundError, subprocess.CalledProcessError):
             # nmcli not available or failed, use wpa_supplicant
             wpa_conf = Path('/etc/wpa_supplicant/wpa_supplicant.conf')
