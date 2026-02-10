@@ -387,6 +387,7 @@
 
             <div class="actions">
                 <button class="btn btn-success" onclick="saveSettings()">💾 Save Configuration</button>
+                <button class="btn btn-primary" onclick="showRestartServicesModal()">🔄 Restart Services</button>
                 <button class="btn" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
             </div>
         </div>
@@ -1224,6 +1225,87 @@
         </div>
     </div>
 
+    <!-- Restart Services Selection Modal -->
+    <div id="restartServicesModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2>🔄 Restart Services</h2>
+            <p style="color: #6b7280; margin-bottom: 20px;">Select which services to restart:</p>
+            
+            <div style="margin-bottom: 20px;">
+                <!-- Select All -->
+                <label style="display: flex; align-items: center; padding: 12px; background: #f3f4f6; border-radius: 8px; margin-bottom: 10px; cursor: pointer;">
+                    <input type="checkbox" id="selectAllServices" onchange="toggleAllServices()" 
+                           style="width: 20px; height: 20px; margin-right: 12px; cursor: pointer;">
+                    <span style="font-weight: 600; font-size: 1.05em;">Select All</span>
+                </label>
+                
+                <!-- Individual Services -->
+                <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; cursor: pointer;">
+                    <input type="checkbox" class="service-checkbox" value="ultrafeeder" 
+                           style="width: 20px; height: 20px; margin-right: 12px; cursor: pointer;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">Ultrafeeder</div>
+                        <div style="font-size: 0.85em; color: #6b7280;">Main ADS-B aggregator and feeder</div>
+                    </div>
+                </label>
+                
+                <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; cursor: pointer;">
+                    <input type="checkbox" class="service-checkbox" value="fr24" 
+                           style="width: 20px; height: 20px; margin-right: 12px; cursor: pointer;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">FlightRadar24</div>
+                        <div style="font-size: 0.85em; color: #6b7280;">FR24 feeder service</div>
+                    </div>
+                </label>
+                
+                <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer;">
+                    <input type="checkbox" class="service-checkbox" value="piaware" 
+                           style="width: 20px; height: 20px; margin-right: 12px; cursor: pointer;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">PiAware</div>
+                        <div style="font-size: 0.85em; color: #6b7280;">FlightAware feeder service</div>
+                    </div>
+                </label>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeRestartServicesModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmRestartServices()">🔄 Restart Services</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restart Progress Modal -->
+    <div id="restartProgressModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>🔄 Restarting Services</h2>
+            <p style="color: #6b7280; margin-bottom: 20px;">Please wait while services are being restarted...</p>
+            
+            <!-- Service Status List -->
+            <div id="restartServicesList" style="margin-bottom: 20px;">
+                <!-- Populated dynamically -->
+            </div>
+            
+            <!-- Overall Progress -->
+            <div style="background: #1a1a1a; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <div style="font-size: 13px; color: #e5e7eb; margin-bottom: 8px; font-weight: 500;">
+                    Overall Progress
+                </div>
+                <div style="width: 100%; height: 30px; background: #374151; border-radius: 15px; overflow: hidden;">
+                    <div id="restartOverallProgress" style="height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.5s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px; width: 0%;">
+                        <span id="restartOverallText">0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Completion Message -->
+            <div id="restartCompletionMessage" style="display: none; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 1.3em; margin-bottom: 5px;">✅ Restart Complete!</div>
+                <div>Redirecting to dashboard in <span id="restartCountdown">3</span> seconds...</div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Service Progress Modal Functions
         function showServiceProgressModal(serviceName) {
@@ -1953,6 +2035,168 @@
                 });
             };
         })());
+
+        // ========== Restart Services Functions ==========
+        
+        function showRestartServicesModal() {
+            // Uncheck all services by default
+            document.getElementById('selectAllServices').checked = false;
+            document.querySelectorAll('.service-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            
+            document.getElementById('restartServicesModal').style.display = 'block';
+        }
+        
+        function closeRestartServicesModal() {
+            document.getElementById('restartServicesModal').style.display = 'none';
+        }
+        
+        function toggleAllServices() {
+            const selectAll = document.getElementById('selectAllServices');
+            const checkboxes = document.querySelectorAll('.service-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll.checked;
+            });
+        }
+        
+        async function confirmRestartServices() {
+            // Get selected services
+            const selectedServices = [];
+            document.querySelectorAll('.service-checkbox:checked').forEach(cb => {
+                selectedServices.push(cb.value);
+            });
+            
+            if (selectedServices.length === 0) {
+                alert('Please select at least one service to restart');
+                return;
+            }
+            
+            // Close selection modal
+            closeRestartServicesModal();
+            
+            // Show progress modal
+            showRestartProgressModal(selectedServices);
+            
+            // Start restart process
+            await restartSelectedServices(selectedServices);
+        }
+        
+        function showRestartProgressModal(services) {
+            const modal = document.getElementById('restartProgressModal');
+            const listContainer = document.getElementById('restartServicesList');
+            
+            // Build service status list
+            listContainer.innerHTML = services.map(service => {
+                const names = {
+                    'ultrafeeder': 'Ultrafeeder',
+                    'fr24': 'FlightRadar24',
+                    'piaware': 'PiAware'
+                };
+                return `
+                    <div id="restart-status-${service}" style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px;">
+                        <div class="spinner" style="width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; margin-right: 12px;"></div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">${names[service]}</div>
+                            <div id="restart-msg-${service}" style="font-size: 0.85em; color: #6b7280;">Waiting...</div>
+                        </div>
+                        <div id="restart-icon-${service}" style="font-size: 1.5em;">⏳</div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add spinner animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                .spinner {
+                    animation: spin 1s linear infinite;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Reset progress
+            document.getElementById('restartOverallProgress').style.width = '0%';
+            document.getElementById('restartOverallText').textContent = '0%';
+            document.getElementById('restartCompletionMessage').style.display = 'none';
+            
+            modal.style.display = 'block';
+        }
+        
+        async function restartSelectedServices(services) {
+            const totalServices = services.length;
+            let completedServices = 0;
+            
+            for (const service of services) {
+                // Update status
+                updateServiceRestartStatus(service, 'Restarting...', '⏳');
+                
+                try {
+                    // Call restart API
+                    const response = await fetch(`/api/service/${service}/restart`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        // Wait a bit for service to start
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Check if service is running
+                        const statusResponse = await fetch(`/api/service/${service}/status`);
+                        const statusData = await statusResponse.json();
+                        
+                        if (statusData.running) {
+                            updateServiceRestartStatus(service, 'Running', '✅');
+                        } else {
+                            updateServiceRestartStatus(service, 'Started (checking...)', '⚠️');
+                        }
+                    } else {
+                        updateServiceRestartStatus(service, 'Failed to restart', '❌');
+                    }
+                } catch (error) {
+                    updateServiceRestartStatus(service, `Error: ${error.message}`, '❌');
+                }
+                
+                // Update overall progress
+                completedServices++;
+                const progressPercent = Math.round((completedServices / totalServices) * 100);
+                document.getElementById('restartOverallProgress').style.width = progressPercent + '%';
+                document.getElementById('restartOverallText').textContent = progressPercent + '%';
+            }
+            
+            // Show completion message
+            document.getElementById('restartCompletionMessage').style.display = 'block';
+            
+            // Countdown and redirect
+            let countdown = 3;
+            const countdownEl = document.getElementById('restartCountdown');
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                countdownEl.textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    window.location.href = '/dashboard';
+                }
+            }, 1000);
+        }
+        
+        function updateServiceRestartStatus(service, message, icon) {
+            const messageEl = document.getElementById(`restart-msg-${service}`);
+            const iconEl = document.getElementById(`restart-icon-${service}`);
+            const spinnerEl = document.querySelector(`#restart-status-${service} .spinner`);
+            
+            if (messageEl) messageEl.textContent = message;
+            if (iconEl) iconEl.textContent = icon;
+            
+            // Hide spinner when complete
+            if (spinnerEl && (icon === '✅' || icon === '❌' || icon === '⚠️')) {
+                spinnerEl.style.display = 'none';
+            }
+        }
+    
     </script>
 </body>
 </html>

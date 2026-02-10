@@ -2058,6 +2058,90 @@ def api_service_state(service_name):
         'state': state
     })
 
+@app.route('/api/service/<service_name>/restart', methods=['POST'])
+def api_restart_individual_service(service_name):
+    """Restart an individual service (ultrafeeder, fr24, or piaware)"""
+    try:
+        valid_services = ['ultrafeeder', 'fr24', 'piaware']
+        if service_name not in valid_services:
+            return jsonify({
+                'success': False,
+                'message': f'Invalid service name. Must be one of: {", ".join(valid_services)}'
+            }), 400
+        
+        # Rebuild config if restarting ultrafeeder
+        if service_name == 'ultrafeeder':
+            config_ok = rebuild_config()
+            if not config_ok:
+                return jsonify({
+                    'success': False,
+                    'message': 'Configuration rebuild failed. Check logs for details.'
+                }), 500
+        
+        # Restart the service
+        result = subprocess.run(
+            ['sudo', 'systemctl', 'restart', service_name],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return jsonify({
+                'success': True,
+                'message': f'{service_name} service restarted successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Failed to restart {service_name}: {result.stderr}'
+            }), 500
+            
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            'success': False,
+            'message': f'{service_name} restart timed out'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Exception: {str(e)}'
+        }), 500
+
+@app.route('/api/service/<service_name>/status', methods=['GET'])
+def api_service_status(service_name):
+    """Check if a service is running"""
+    try:
+        valid_services = ['ultrafeeder', 'fr24', 'piaware']
+        if service_name not in valid_services:
+            return jsonify({
+                'success': False,
+                'message': f'Invalid service name. Must be one of: {", ".join(valid_services)}'
+            }), 400
+        
+        # Check service status
+        result = subprocess.run(
+            ['systemctl', 'is-active', service_name],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        is_running = result.returncode == 0 and result.stdout.strip() == 'active'
+        
+        return jsonify({
+            'service': service_name,
+            'running': is_running,
+            'status': result.stdout.strip()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'service': service_name,
+            'running': False,
+            'error': str(e)
+        })
+
 @app.route('/api/network-status', methods=['GET'])
 def api_network_status():
     """Get network connectivity status"""
