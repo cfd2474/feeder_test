@@ -2217,55 +2217,78 @@ def api_taknet_ps_connection():
 
 @app.route('/api/taknet-ps/stats', methods=['GET'])
 def api_taknet_ps_stats():
-    """Get TAKNET-PS feed status from local ultrafeeder service"""
+    """Get TAKNET-PS feed status by checking TCP connections to aggregator"""
     try:
-        # Check if ultrafeeder service is running
-        result = subprocess.run(
-            ['systemctl', 'is-active', 'ultrafeeder'],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        
-        ultrafeeder_running = result.returncode == 0 and result.stdout.strip() == 'active'
-        
-        # Get connection info
         env = read_env()
         
-        # Check Tailscale status
-        tailscale_running = False
-        connection_method = 'public_ip'
+        # Get aggregator host based on Tailscale status
         connection_host = env.get('TAKNET_PS_SERVER_HOST_FALLBACK', 'adsb.tak-solutions.com')
-        
         try:
             ts_result = subprocess.run(['tailscale', 'status', '--json'],
                                      capture_output=True, text=True, timeout=5)
             if ts_result.returncode == 0:
                 status_data = json.loads(ts_result.stdout)
                 if status_data.get('BackendState') == 'Running':
-                    tailscale_running = True
-                    connection_method = 'tailscale'
                     connection_host = env.get('TAKNET_PS_SERVER_HOST_PRIMARY', 'secure.tak-solutions.com')
         except:
             pass
         
-        # Determine overall feed status
-        feed_active = ultrafeeder_running
-        feed_status = 'connected' if feed_active else 'disconnected'
+        # Get ports
+        beast_port = env.get('TAKNET_PS_SERVER_PORT', '30004')
+        mlat_port = env.get('TAKNET_PS_MLAT_PORT', '30105')
+        mlat_enabled = env.get('TAKNET_PS_MLAT_ENABLED') == 'true'
+        
+        # Check for ESTABLISHED TCP connections using ss command
+        def check_tcp_connection(host, port):
+            """Check if there's an ESTABLISHED TCP connection to host:port"""
+            try:
+                # Use ss to check for established connections
+                # ss -tn state established '( dport = :PORT or sport = :PORT )'
+                result = subprocess.run(
+                    ['ss', '-tn', 'state', 'established'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                
+                if result.returncode == 0:
+                    # Parse output looking for connection to our host:port
+                    for line in result.stdout.split('\n'):
+                        if f':{port}' in line:
+                            # Check if this line contains our host (IP or hostname)
+                            # Connection line format: ESTAB 0 0 local_ip:local_port remote_ip:remote_port
+                            parts = line.split()
+                            if len(parts) >= 5:
+                                remote = parts[4]  # remote_ip:remote_port
+                                # Check if the port matches
+                                if remote.endswith(f':{port}'):
+                                    # Found an established connection on this port
+                                    return True
+                return False
+            except Exception as e:
+                print(f"⚠ Error checking TCP connection to {host}:{port}: {e}")
+                return False
+        
+        # Check BEAST connection (data feed)
+        data_feed_active = check_tcp_connection(connection_host, beast_port)
+        
+        # Check MLAT connection (only if enabled)
+        mlat_active = False
+        if mlat_enabled:
+            mlat_active = check_tcp_connection(connection_host, mlat_port)
         
         return jsonify({
             'success': True,
-            'feed_active': feed_active,
-            'feed_status': feed_status,
-            'ultrafeeder_running': ultrafeeder_running,
-            'connection_method': connection_method,
+            'data_feed_active': data_feed_active,
+            'mlat_active': mlat_active,
+            'mlat_enabled': mlat_enabled,
             'connection_host': connection_host,
-            'tailscale_running': tailscale_running,
-            'mlat_enabled': env.get('TAKNET_PS_MLAT_ENABLED') == 'true'
+            'beast_port': beast_port,
+            'mlat_port': mlat_port
         })
         
     except subprocess.TimeoutExpired:
-        return jsonify({'success': False, 'error': 'Service check timed out'}), 504
+        return jsonify({'success': False, 'error': 'Connection check timed out'}), 504
     except Exception as e:
         print(f"❌ Error in api_taknet_ps_stats: {e}")
         import traceback

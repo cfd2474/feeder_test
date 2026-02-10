@@ -282,25 +282,41 @@
                 const response = await fetch('/api/status');
                 const data = await response.json();
                 
-                // Update TAKNET-PS feed table status (based on ultrafeeder)
-                if (data.service_states && data.service_states.ultrafeeder) {
-                    const ultrafeederState = data.service_states.ultrafeeder;
-                    const taknetCheck = document.getElementById('taknet-check');
+                // Update TAKNET-PS feed table status (based on TCP connection check)
+                try {
+                    const taknetResponse = await fetch('/api/taknet-ps/stats');
+                    const taknetData = await taknetResponse.json();
                     
-                    if (taknetCheck) {
-                        switch(ultrafeederState) {
-                            case 'running':
+                    if (taknetData.success) {
+                        const taknetCheck = document.getElementById('taknet-check');
+                        const taknetDataCol = document.getElementById('taknet-data');
+                        const taknetMlatCol = document.getElementById('taknet-mlat');
+                        
+                        if (taknetCheck) {
+                            // Update checkmark based on data feed status
+                            if (taknetData.data_feed_active) {
                                 taknetCheck.setAttribute('data-status', 'good');
-                                break;
-                            case 'starting':
-                                taknetCheck.setAttribute('data-status', 'unknown');
-                                break;
-                            case 'stopped':
-                            case 'not_installed':
+                            } else {
                                 taknetCheck.setAttribute('data-status', 'down');
-                                break;
+                            }
+                        }
+                        
+                        if (taknetDataCol) {
+                            // Update data column
+                            taknetDataCol.textContent = taknetData.data_feed_active ? '+' : '-';
+                        }
+                        
+                        if (taknetMlatCol) {
+                            // Update MLAT column
+                            if (taknetData.mlat_enabled) {
+                                taknetMlatCol.textContent = taknetData.mlat_active ? '+' : '-';
+                            } else {
+                                taknetMlatCol.textContent = '-';
+                            }
                         }
                     }
+                } catch (e) {
+                    console.error('Error fetching TAKNET-PS status:', e);
                 }
                 
                 // Update PiAware feed table status if enabled

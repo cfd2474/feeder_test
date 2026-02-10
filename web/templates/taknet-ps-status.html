@@ -180,19 +180,18 @@
                 <div class="info-section">
                     <h2>Feed Status</h2>
                     <div class="info-row">
-                        <span class="info-label">TAKNET-PS Feed</span>
-                        <span id="feed-status" class="info-value">
-                            <span style="font-size: 1.2em;" id="feed-icon">🔄</span>
-                            <span id="feed-text">Checking...</span>
+                        <span class="info-label">Data Feed</span>
+                        <span id="data-feed-status" class="info-value">
+                            <span style="font-size: 1.2em;" id="data-feed-icon">🔄</span>
+                            <span id="data-feed-text">Checking...</span>
                         </span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Ultrafeeder Service</span>
-                        <span id="ultrafeeder-status" class="info-value">-</span>
-                    </div>
-                    <div class="info-row">
                         <span class="info-label">MLAT</span>
-                        <span id="mlat-status" class="info-value">-</span>
+                        <span id="mlat-status" class="info-value">
+                            <span style="font-size: 1.2em;" id="mlat-icon">🔄</span>
+                            <span id="mlat-text">Checking...</span>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -247,33 +246,42 @@
                 const statsData = await statsResponse.json();
                 
                 if (statsData.success) {
-                    // Update feed status
-                    const feedIcon = document.getElementById('feed-icon');
-                    const feedText = document.getElementById('feed-text');
+                    // Update data feed status
+                    const dataFeedIcon = document.getElementById('data-feed-icon');
+                    const dataFeedText = document.getElementById('data-feed-text');
                     
-                    if (statsData.feed_active) {
-                        feedIcon.textContent = '✅';
-                        feedText.textContent = 'Active';
-                        feedText.style.color = '#059669';
-                        feedText.style.fontWeight = '600';
+                    if (statsData.data_feed_active) {
+                        dataFeedIcon.textContent = '✅';
+                        dataFeedText.textContent = 'Active';
+                        dataFeedText.style.color = '#059669';
+                        dataFeedText.style.fontWeight = '600';
                     } else {
-                        feedIcon.textContent = '❌';
-                        feedText.textContent = 'Inactive';
-                        feedText.style.color = '#dc2626';
-                        feedText.style.fontWeight = '600';
+                        dataFeedIcon.textContent = '❌';
+                        dataFeedText.textContent = 'Inactive';
+                        dataFeedText.style.color = '#dc2626';
+                        dataFeedText.style.fontWeight = '600';
                     }
                     
-                    // Update ultrafeeder status
-                    document.getElementById('ultrafeeder-status').innerHTML = 
-                        statsData.ultrafeeder_running ? 
-                        '<span style="color: #059669; font-weight: 600;">✅ Running</span>' : 
-                        '<span style="color: #dc2626; font-weight: 600;">❌ Stopped</span>';
-                    
                     // Update MLAT status
-                    document.getElementById('mlat-status').innerHTML = 
-                        statsData.mlat_enabled ? 
-                        '<span style="color: #059669; font-weight: 600;">✅ Enabled</span>' : 
-                        '<span style="color: #6b7280;">➖ Disabled</span>';
+                    const mlatIcon = document.getElementById('mlat-icon');
+                    const mlatText = document.getElementById('mlat-text');
+                    
+                    if (!statsData.mlat_enabled) {
+                        mlatIcon.textContent = '➖';
+                        mlatText.textContent = 'Disabled';
+                        mlatText.style.color = '#6b7280';
+                        mlatText.style.fontWeight = '600';
+                    } else if (statsData.mlat_active) {
+                        mlatIcon.textContent = '✅';
+                        mlatText.textContent = 'Active';
+                        mlatText.style.color = '#059669';
+                        mlatText.style.fontWeight = '600';
+                    } else {
+                        mlatIcon.textContent = '❌';
+                        mlatText.textContent = 'Inactive';
+                        mlatText.style.color = '#dc2626';
+                        mlatText.style.fontWeight = '600';
+                    }
                     
                     // Show content
                     document.getElementById('loading').style.display = 'none';
