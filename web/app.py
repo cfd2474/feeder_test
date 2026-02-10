@@ -2160,8 +2160,13 @@ def api_service_status(service_name):
 @app.route('/taknet-ps-status')
 def taknet_ps_status():
     """TAKNET-PS connection status and statistics page"""
-    env = read_env()
-    return render_template('taknet-ps-status.html', config=env)
+    try:
+        return render_template('taknet-ps-status.html')
+    except Exception as e:
+        print(f"❌ Error rendering taknet-ps-status page: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"Error loading page: {e}", 500
 
 @app.route('/api/taknet-ps/connection', methods=['GET'])
 def api_taknet_ps_connection():
@@ -2183,7 +2188,8 @@ def api_taknet_ps_connection():
                     tailscale_ips = self_info.get('TailscaleIPs', [])
                     if tailscale_ips:
                         tailscale_ip = tailscale_ips[0]
-        except:
+        except Exception as e:
+            print(f"⚠ Tailscale status check failed: {e}")
             pass
         
         # Determine connection method
@@ -2204,6 +2210,9 @@ def api_taknet_ps_connection():
         })
         
     except Exception as e:
+        print(f"❌ Error in api_taknet_ps_connection: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/taknet-ps/stats', methods=['GET'])
@@ -2223,9 +2232,12 @@ def api_taknet_ps_stats():
                 s.connect(('adsb.tak-solutions.com', 80))
                 outbound_ip = s.getsockname()[0]
                 s.close()
+                print(f"✓ Detected outbound IP: {outbound_ip}")
                 return outbound_ip
             except Exception as e:
-                print(f"⚠ Could not determine outbound IP: {e}")
+                print(f"❌ Could not determine outbound IP: {e}")
+                import traceback
+                traceback.print_exc()
                 return None
         
         feeder_ip = get_outbound_ip()
@@ -2248,6 +2260,7 @@ def api_taknet_ps_stats():
         
         if response.status_code == 200:
             stats = response.json()
+            print(f"✓ Successfully fetched stats for {feeder_ip}")
             return jsonify({
                 'success': True,
                 'stats': stats,
@@ -2255,12 +2268,14 @@ def api_taknet_ps_stats():
                 'stats_url': stats_url
             })
         elif response.status_code == 404:
+            print(f"⚠ Feeder not found on aggregator: {feeder_ip}")
             return jsonify({
                 'success': False,
                 'error': f'Feeder not found on aggregator (IP: {feeder_ip})',
                 'stats_url': stats_url
             }), 404
         else:
+            print(f"⚠ Aggregator returned status {response.status_code}")
             return jsonify({
                 'success': False,
                 'error': f'Aggregator returned status {response.status_code}',
@@ -2268,10 +2283,15 @@ def api_taknet_ps_stats():
             }), response.status_code
         
     except requests.Timeout:
+        print("❌ Connection to aggregator timed out")
         return jsonify({'success': False, 'error': 'Connection to aggregator timed out'}), 504
-    except requests.ConnectionError:
+    except requests.ConnectionError as e:
+        print(f"❌ Could not connect to aggregator: {e}")
         return jsonify({'success': False, 'error': 'Could not connect to aggregator'}), 503
     except Exception as e:
+        print(f"❌ Error in api_taknet_ps_stats: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/network-status', methods=['GET'])

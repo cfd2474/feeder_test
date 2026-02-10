@@ -368,6 +368,7 @@ wget -q $REPO/web/templates/feeds-account-required.html -O /opt/adsb/web/templat
 wget -q $REPO/web/templates/settings.html -O /opt/adsb/web/templates/settings.html
 wget -q $REPO/web/templates/logs.html -O /opt/adsb/web/templates/logs.html
 wget -q $REPO/web/templates/loading.html -O /opt/adsb/web/templates/loading.html
+wget -q $REPO/web/templates/taknet-ps-status.html -O /opt/adsb/web/templates/taknet-ps-status.html
 wget -q $REPO/web/static/css/style.css -O /opt/adsb/web/static/css/style.css
 wget -q $REPO/web/static/js/setup.js -O /opt/adsb/web/static/js/setup.js
 wget -q $REPO/web/static/js/dashboard.js -O /opt/adsb/web/static/js/dashboard.js
