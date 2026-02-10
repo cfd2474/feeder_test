@@ -53,7 +53,7 @@ async function updateStatus() {
         
         // Update container status
         const container = document.getElementById('container-status');
-        if (data.docker && data.docker.ultrafeeder) {
+        if (container && data.docker && data.docker.ultrafeeder) {
             const isRunning = data.docker.ultrafeeder.includes('Up');
             container.innerHTML = `
                 <div class="status-item">
@@ -64,9 +64,9 @@ async function updateStatus() {
             `;
         }
         
-        // Update feeds
+        // Update feeds (if element exists)
         const feedsContainer = document.getElementById('active-feeds');
-        if (data.feeds && data.feeds.length > 0) {
+        if (feedsContainer && data.feeds && data.feeds.length > 0) {
             feedsContainer.innerHTML = data.feeds.map(feed => `
                 <div class="feed-item">
                     <span class="status-dot active"></span>
