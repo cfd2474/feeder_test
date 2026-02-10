@@ -176,80 +176,31 @@
                     </div>
                 </div>
 
-                <!-- Statistics Grid -->
-                <div class="status-grid" id="stats-grid">
-                    <div class="status-card">
-                        <h3>Connection Status</h3>
-                        <div class="status-icon">📡</div>
-                        <div id="status-value" class="status-value">-</div>
-                        <div class="status-label">Feeder Status</div>
-                    </div>
-
-                    <div class="status-card">
-                        <h3>Message Rate</h3>
-                        <div class="status-icon">📊</div>
-                        <div id="message-rate" class="status-value">-</div>
-                        <div class="status-label">messages/second</div>
-                    </div>
-
-                    <div class="status-card">
-                        <h3>Health</h3>
-                        <div class="status-icon">❤️</div>
-                        <div id="health" class="status-value">-</div>
-                    </div>
-
-                    <div class="status-card">
-                        <h3>BEAST Connection</h3>
-                        <div class="status-icon">📡</div>
-                        <div id="beast-connected" class="status-value">-</div>
-                        <div class="status-label">ADS-B Data</div>
-                    </div>
-
-                    <div class="status-card">
-                        <h3>MLAT Connection</h3>
-                        <div class="status-icon">📍</div>
-                        <div id="mlat-connected" class="status-value">-</div>
-                        <div class="status-label">Multilateration</div>
-                    </div>
-
-                    <div class="status-card">
-                        <h3>Data Flowing</h3>
-                        <div class="status-icon">💧</div>
-                        <div id="data-flowing" class="status-value">-</div>
-                        <div class="status-label">Active Data Stream</div>
-                    </div>
-                </div>
-
-                <!-- Detailed Information -->
+                <!-- Feed Status -->
                 <div class="info-section">
-                    <h2>Detailed Information</h2>
+                    <h2>Feed Status</h2>
                     <div class="info-row">
-                        <span class="info-label">Feeder IP</span>
-                        <span id="feeder-ip" class="info-value">-</span>
+                        <span class="info-label">TAKNET-PS Feed</span>
+                        <span id="feed-status" class="info-value">
+                            <span style="font-size: 1.2em;" id="feed-icon">🔄</span>
+                            <span id="feed-text">Checking...</span>
+                        </span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Hostname</span>
-                        <span id="hostname" class="info-value">-</span>
+                        <span class="info-label">Ultrafeeder Service</span>
+                        <span id="ultrafeeder-status" class="info-value">-</span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">Receive Queue</span>
-                        <span id="recv-queue" class="info-value">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Send Queue</span>
-                        <span id="send-queue" class="info-value">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Last Updated</span>
-                        <span id="last-updated" class="info-value">-</span>
+                        <span class="info-label">MLAT</span>
+                        <span id="mlat-status" class="info-value">-</span>
                     </div>
                 </div>
             </div>
 
             <div id="error" style="display: none;" class="error-message">
-                <h3>⚠️ Unable to Connect to Aggregator</h3>
-                <p id="error-message">Could not fetch statistics from TAKNET-PS aggregator.</p>
-                <p style="margin-top: 10px; font-size: 0.9em;">Please check your internet connection and try again.</p>
+                <h3>⚠️ Unable to Check Feed Status</h3>
+                <p id="error-message">Could not fetch TAKNET-PS feed status.</p>
+                <p style="margin-top: 10px; font-size: 0.9em;">Please check that the ultrafeeder service is running.</p>
             </div>
 
             <div class="actions">
@@ -291,49 +242,44 @@
                     document.getElementById('aggregator-host').textContent = connData.connection_host;
                 }
                 
-                // Fetch stats from aggregator
+                // Fetch feed status
                 const statsResponse = await fetch('/api/taknet-ps/stats');
                 const statsData = await statsResponse.json();
                 
-                if (statsData.success && statsData.stats) {
-                    const stats = statsData.stats;
+                if (statsData.success) {
+                    // Update feed status
+                    const feedIcon = document.getElementById('feed-icon');
+                    const feedText = document.getElementById('feed-text');
                     
-                    // Update status cards
-                    document.getElementById('status-value').textContent = 
-                        stats.status === 'connected' ? '✅ Connected' : '❌ Disconnected';
-                    
-                    document.getElementById('message-rate').textContent = 
-                        stats.message_rate || 0;
-                    
-                    const healthEl = document.getElementById('health');
-                    const health = stats.health || 'unknown';
-                    healthEl.innerHTML = `<span class="health-badge health-${health}">${health.toUpperCase()}</span>`;
-                    
-                    document.getElementById('beast-connected').textContent = 
-                        stats.beast_connected ? '✅ Connected' : '❌ Disconnected';
-                    
-                    document.getElementById('mlat-connected').textContent = 
-                        stats.mlat_connected ? '✅ Connected' : '❌ Disconnected';
-                    
-                    document.getElementById('data-flowing').textContent = 
-                        stats.data_flowing ? '✅ Flowing' : '❌ Stopped';
-                    
-                    // Update detailed info
-                    document.getElementById('feeder-ip').textContent = stats.ip || '-';
-                    document.getElementById('hostname').textContent = stats.hostname || '-';
-                    document.getElementById('recv-queue').textContent = stats.recv_queue || 0;
-                    document.getElementById('send-queue').textContent = stats.send_queue || 0;
-                    
-                    if (stats.last_updated) {
-                        const date = new Date(stats.last_updated * 1000);
-                        document.getElementById('last-updated').textContent = date.toLocaleString();
+                    if (statsData.feed_active) {
+                        feedIcon.textContent = '✅';
+                        feedText.textContent = 'Active';
+                        feedText.style.color = '#059669';
+                        feedText.style.fontWeight = '600';
+                    } else {
+                        feedIcon.textContent = '❌';
+                        feedText.textContent = 'Inactive';
+                        feedText.style.color = '#dc2626';
+                        feedText.style.fontWeight = '600';
                     }
+                    
+                    // Update ultrafeeder status
+                    document.getElementById('ultrafeeder-status').innerHTML = 
+                        statsData.ultrafeeder_running ? 
+                        '<span style="color: #059669; font-weight: 600;">✅ Running</span>' : 
+                        '<span style="color: #dc2626; font-weight: 600;">❌ Stopped</span>';
+                    
+                    // Update MLAT status
+                    document.getElementById('mlat-status').innerHTML = 
+                        statsData.mlat_enabled ? 
+                        '<span style="color: #059669; font-weight: 600;">✅ Enabled</span>' : 
+                        '<span style="color: #6b7280;">➖ Disabled</span>';
                     
                     // Show content
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('content').style.display = 'block';
                 } else {
-                    throw new Error(statsData.error || 'Failed to fetch statistics');
+                    throw new Error(statsData.error || 'Failed to fetch feed status');
                 }
                 
             } catch (error) {

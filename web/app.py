@@ -2217,77 +2217,55 @@ def api_taknet_ps_connection():
 
 @app.route('/api/taknet-ps/stats', methods=['GET'])
 def api_taknet_ps_stats():
-    """Fetch feeder statistics from TAKNET-PS aggregator graphs1090"""
+    """Get TAKNET-PS feed status from local ultrafeeder service"""
     try:
-        import requests
+        # Check if ultrafeeder service is running
+        result = subprocess.run(
+            ['systemctl', 'is-active', 'ultrafeeder'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
         
-        # Get our outbound IP address (what the aggregator actually sees)
-        def get_outbound_ip():
-            """Get the IP address we use to connect to the aggregator"""
-            try:
-                # Create a socket connection to determine which interface/IP we use
-                import socket
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                # Connect to aggregator to see which IP we're using
-                s.connect(('adsb.tak-solutions.com', 80))
-                outbound_ip = s.getsockname()[0]
-                s.close()
-                print(f"✓ Detected outbound IP: {outbound_ip}")
-                return outbound_ip
-            except Exception as e:
-                print(f"❌ Could not determine outbound IP: {e}")
-                import traceback
-                traceback.print_exc()
-                return None
+        ultrafeeder_running = result.returncode == 0 and result.stdout.strip() == 'active'
         
-        feeder_ip = get_outbound_ip()
-        if not feeder_ip:
-            return jsonify({
-                'success': False,
-                'error': 'Could not determine feeder IP address'
-            }), 500
+        # Get connection info
+        env = read_env()
         
-        # ALWAYS use adsb.tak-solutions.com for graphs1090 data (both Tailscale and public IP)
-        aggregator_host = 'adsb.tak-solutions.com'
+        # Check Tailscale status
+        tailscale_running = False
+        connection_method = 'public_ip'
+        connection_host = env.get('TAKNET_PS_SERVER_HOST_FALLBACK', 'adsb.tak-solutions.com')
         
-        # Build correct stats URL: http://adsb.tak-solutions.com/graphs1090/data/[IP].json
-        stats_url = f'http://{aggregator_host}/graphs1090/data/{feeder_ip}.json'
+        try:
+            ts_result = subprocess.run(['tailscale', 'status', '--json'],
+                                     capture_output=True, text=True, timeout=5)
+            if ts_result.returncode == 0:
+                status_data = json.loads(ts_result.stdout)
+                if status_data.get('BackendState') == 'Running':
+                    tailscale_running = True
+                    connection_method = 'tailscale'
+                    connection_host = env.get('TAKNET_PS_SERVER_HOST_PRIMARY', 'secure.tak-solutions.com')
+        except:
+            pass
         
-        print(f"✓ Fetching stats from: {stats_url}")
+        # Determine overall feed status
+        feed_active = ultrafeeder_running
+        feed_status = 'connected' if feed_active else 'disconnected'
         
-        # Fetch stats from aggregator
-        response = requests.get(stats_url, timeout=10)
+        return jsonify({
+            'success': True,
+            'feed_active': feed_active,
+            'feed_status': feed_status,
+            'ultrafeeder_running': ultrafeeder_running,
+            'connection_method': connection_method,
+            'connection_host': connection_host,
+            'tailscale_running': tailscale_running,
+            'mlat_enabled': env.get('TAKNET_PS_MLAT_ENABLED') == 'true'
+        })
         
-        if response.status_code == 200:
-            stats = response.json()
-            print(f"✓ Successfully fetched stats for {feeder_ip}")
-            return jsonify({
-                'success': True,
-                'stats': stats,
-                'feeder_ip': feeder_ip,
-                'stats_url': stats_url
-            })
-        elif response.status_code == 404:
-            print(f"⚠ Feeder not found on aggregator: {feeder_ip}")
-            return jsonify({
-                'success': False,
-                'error': f'Feeder not found on aggregator (IP: {feeder_ip})',
-                'stats_url': stats_url
-            }), 404
-        else:
-            print(f"⚠ Aggregator returned status {response.status_code}")
-            return jsonify({
-                'success': False,
-                'error': f'Aggregator returned status {response.status_code}',
-                'stats_url': stats_url
-            }), response.status_code
-        
-    except requests.Timeout:
-        print("❌ Connection to aggregator timed out")
-        return jsonify({'success': False, 'error': 'Connection to aggregator timed out'}), 504
-    except requests.ConnectionError as e:
-        print(f"❌ Could not connect to aggregator: {e}")
-        return jsonify({'success': False, 'error': 'Could not connect to aggregator'}), 503
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': 'Service check timed out'}), 504
     except Exception as e:
         print(f"❌ Error in api_taknet_ps_stats: {e}")
         import traceback
