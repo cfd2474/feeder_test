@@ -803,6 +803,21 @@ def install_tailscale_with_progress(auth_key=None, hostname=None):
         update_tailscale_progress('completed', 100, 100, 100, 
                                 'Tailscale connected successfully!', 0, 0)
         
+        # CRITICAL: Rebuild ultrafeeder config to switch from public IP to Tailscale
+        print("✓ Tailscale connected - rebuilding ultrafeeder config...")
+        try:
+            if rebuild_config():
+                print("✓ Config rebuilt successfully")
+                # Restart ultrafeeder to apply new Tailscale connection
+                if restart_service():
+                    print("✓ Ultrafeeder restarted with Tailscale connection")
+                else:
+                    print("⚠ Config rebuilt but service restart failed")
+            else:
+                print("⚠ Config rebuild failed after Tailscale install")
+        except Exception as e:
+            print(f"⚠ Error rebuilding config after Tailscale install: {e}")
+        
     except subprocess.TimeoutExpired:
         update_tailscale_progress('failed', 0, 0, 0, 'Installation timed out', 0, 0)
     except Exception as e:
@@ -2141,6 +2156,123 @@ def api_service_status(service_name):
             'running': False,
             'error': str(e)
         })
+
+@app.route('/taknet-ps-status')
+def taknet_ps_status():
+    """TAKNET-PS connection status and statistics page"""
+    env = read_env()
+    return render_template('taknet-ps-status.html', config=env)
+
+@app.route('/api/taknet-ps/connection', methods=['GET'])
+def api_taknet_ps_connection():
+    """Get TAKNET-PS connection information"""
+    try:
+        env = read_env()
+        
+        # Get Tailscale status
+        tailscale_running = False
+        tailscale_ip = None
+        try:
+            result = subprocess.run(['tailscale', 'status', '--json'],
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                status_data = json.loads(result.stdout)
+                if status_data.get('BackendState') == 'Running':
+                    tailscale_running = True
+                    self_info = status_data.get('Self', {})
+                    tailscale_ips = self_info.get('TailscaleIPs', [])
+                    if tailscale_ips:
+                        tailscale_ip = tailscale_ips[0]
+        except:
+            pass
+        
+        # Determine connection method
+        connection_method = 'public_ip'
+        connection_host = env.get('TAKNET_PS_SERVER_HOST_FALLBACK', 'adsb.tak-solutions.com')
+        
+        if tailscale_running:
+            connection_method = 'tailscale'
+            connection_host = env.get('TAKNET_PS_SERVER_HOST_PRIMARY', 'secure.tak-solutions.com')
+        
+        return jsonify({
+            'success': True,
+            'connection_method': connection_method,
+            'connection_host': connection_host,
+            'tailscale_running': tailscale_running,
+            'tailscale_ip': tailscale_ip,
+            'mode': env.get('TAKNET_PS_CONNECTION_MODE', 'auto')
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/taknet-ps/stats', methods=['GET'])
+def api_taknet_ps_stats():
+    """Fetch feeder statistics from TAKNET-PS aggregator graphs1090"""
+    try:
+        import requests
+        
+        # Get our outbound IP address (what the aggregator actually sees)
+        def get_outbound_ip():
+            """Get the IP address we use to connect to the aggregator"""
+            try:
+                # Create a socket connection to determine which interface/IP we use
+                import socket
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                # Connect to aggregator to see which IP we're using
+                s.connect(('adsb.tak-solutions.com', 80))
+                outbound_ip = s.getsockname()[0]
+                s.close()
+                return outbound_ip
+            except Exception as e:
+                print(f"⚠ Could not determine outbound IP: {e}")
+                return None
+        
+        feeder_ip = get_outbound_ip()
+        if not feeder_ip:
+            return jsonify({
+                'success': False,
+                'error': 'Could not determine feeder IP address'
+            }), 500
+        
+        # ALWAYS use adsb.tak-solutions.com for graphs1090 data (both Tailscale and public IP)
+        aggregator_host = 'adsb.tak-solutions.com'
+        
+        # Build correct stats URL: http://adsb.tak-solutions.com/graphs1090/data/[IP].json
+        stats_url = f'http://{aggregator_host}/graphs1090/data/{feeder_ip}.json'
+        
+        print(f"✓ Fetching stats from: {stats_url}")
+        
+        # Fetch stats from aggregator
+        response = requests.get(stats_url, timeout=10)
+        
+        if response.status_code == 200:
+            stats = response.json()
+            return jsonify({
+                'success': True,
+                'stats': stats,
+                'feeder_ip': feeder_ip,
+                'stats_url': stats_url
+            })
+        elif response.status_code == 404:
+            return jsonify({
+                'success': False,
+                'error': f'Feeder not found on aggregator (IP: {feeder_ip})',
+                'stats_url': stats_url
+            }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Aggregator returned status {response.status_code}',
+                'stats_url': stats_url
+            }), response.status_code
+        
+    except requests.Timeout:
+        return jsonify({'success': False, 'error': 'Connection to aggregator timed out'}), 504
+    except requests.ConnectionError:
+        return jsonify({'success': False, 'error': 'Could not connect to aggregator'}), 503
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/network-status', methods=['GET'])
 def api_network_status():
