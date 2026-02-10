@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.46.1
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.46.2
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.46.1"
+echo "  TAKNET-PS-ADSB-Feeder Installer v2.46.2"
 echo "  Ultrafeeder + TAKNET-PS + Web UI"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -122,6 +122,26 @@ wait $PID_FR24 && echo "  ✓ FlightRadar24 downloaded"
 wait $PID_ADSBHUB && echo "  ✓ ADSBHub downloaded"
 
 echo "✓ All Docker images pre-downloaded (setup wizard will be fast!)"
+
+# Pre-install Tailscale (speeds up wizard significantly)
+echo ""
+echo "Installing Tailscale VPN..."
+if ! command -v tailscale &> /dev/null; then
+    echo "  • Downloading from tailscale.com..."
+    curl -fsSL https://tailscale.com/install.sh | sh > /dev/null 2>&1
+    
+    # Verify installation
+    if command -v tailscale &> /dev/null; then
+        echo "  ✓ Tailscale installed successfully"
+        echo "    (Wizard will skip download and go straight to configuration)"
+    else
+        echo "  ⚠ Tailscale installation may have failed"
+        echo "    (Wizard will attempt to install if needed)"
+    fi
+else
+    echo "  ✓ Tailscale already installed"
+    echo "    (Wizard will skip download and go straight to configuration)"
+fi
 
 # Wait for apt locks again before installing packages
 wait_for_apt_lock
