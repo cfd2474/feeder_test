@@ -2217,7 +2217,7 @@ def api_taknet_ps_connection():
 
 @app.route('/api/taknet-ps/stats', methods=['GET'])
 def api_taknet_ps_stats():
-    """Get TAKNET-PS feed status by checking TCP connections to aggregator"""
+    """Get TAKNET-PS feed status by checking ultrafeeder container connections"""
     try:
         env = read_env()
         
@@ -2238,44 +2238,57 @@ def api_taknet_ps_stats():
         mlat_port = env.get('TAKNET_PS_MLAT_PORT', '30105')
         mlat_enabled = env.get('TAKNET_PS_MLAT_ENABLED') == 'true'
         
-        # Check for ESTABLISHED TCP connections using ss command
-        def check_tcp_connection(host, port):
-            """Check if there's an ESTABLISHED TCP connection to host:port"""
+        # Check for connections inside the ultrafeeder Docker container
+        def check_container_connection(port):
+            """Check if ultrafeeder container has connection to aggregator on port"""
             try:
-                # Use ss to check for established connections
-                # ss -tn state established '( dport = :PORT or sport = :PORT )'
+                # First, check if container is running
+                container_check = subprocess.run(
+                    ['docker', 'ps', '--filter', 'name=ultrafeeder', '--format', '{{.Names}}'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                
+                if 'ultrafeeder' not in container_check.stdout:
+                    print("⚠ ultrafeeder container not running")
+                    return False
+                
+                # Check for ESTABLISHED connections inside the container
                 result = subprocess.run(
-                    ['ss', '-tn', 'state', 'established'],
+                    ['docker', 'exec', 'ultrafeeder', 'ss', '-tn', 'state', 'established'],
                     capture_output=True,
                     text=True,
                     timeout=5
                 )
                 
                 if result.returncode == 0:
-                    # Parse output looking for connection to our host:port
+                    # Look for connection to our port
                     for line in result.stdout.split('\n'):
                         if f':{port}' in line:
-                            # Check if this line contains our host (IP or hostname)
-                            # Connection line format: ESTAB 0 0 local_ip:local_port remote_ip:remote_port
-                            parts = line.split()
-                            if len(parts) >= 5:
-                                remote = parts[4]  # remote_ip:remote_port
-                                # Check if the port matches
-                                if remote.endswith(f':{port}'):
-                                    # Found an established connection on this port
-                                    return True
+                            # Found a connection on this port
+                            print(f"✓ Found connection to port {port}: {line.strip()}")
+                            return True
+                    print(f"⚠ No connection found to port {port}")
+                    return False
+                else:
+                    print(f"⚠ Failed to check connections in container: {result.stderr}")
+                    return False
+                    
+            except subprocess.TimeoutExpired:
+                print(f"⚠ Timeout checking connection to port {port}")
                 return False
             except Exception as e:
-                print(f"⚠ Error checking TCP connection to {host}:{port}: {e}")
+                print(f"⚠ Error checking connection to port {port}: {e}")
                 return False
         
         # Check BEAST connection (data feed)
-        data_feed_active = check_tcp_connection(connection_host, beast_port)
+        data_feed_active = check_container_connection(beast_port)
         
         # Check MLAT connection (only if enabled)
         mlat_active = False
         if mlat_enabled:
-            mlat_active = check_tcp_connection(connection_host, mlat_port)
+            mlat_active = check_container_connection(mlat_port)
         
         return jsonify({
             'success': True,
