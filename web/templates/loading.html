@@ -112,8 +112,9 @@
     <script>
         async function startSetup() {
             try {
-                // Get configuration from session
-                const config = {{ config|tojson|safe }};
+                // Fetch configuration from API
+                const configResponse = await fetch('/api/config');
+                const config = await configResponse.json();
                 
                 // Step 1: Tailscale (if enabled)
                 if (config.TAILSCALE_ENABLED === 'true' && config.TAILSCALE_AUTH_KEY) {
