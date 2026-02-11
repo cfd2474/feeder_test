@@ -385,6 +385,66 @@
                 </p>
             </div>
 
+            <!-- System Updates Section -->
+            <div class="section">
+                <h2>🔄 System Updates</h2>
+                
+                <div class="form-group">
+                    <label style="font-weight: 600; color: #2563eb;">Current Version</label>
+                    <div style="padding: 10px; background: #f3f4f6; border-radius: 6px; font-family: monospace;">
+                        <span id="current-version">Checking...</span>
+                    </div>
+                </div>
+
+                <div class="form-group" id="latest-version-group" style="display: none;">
+                    <label style="font-weight: 600; color: #16a34a;">Latest Version</label>
+                    <div style="padding: 10px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; font-family: monospace;">
+                        <span id="latest-version">-</span>
+                    </div>
+                </div>
+
+                <div class="form-group" id="update-info" style="display: none;">
+                    <div style="padding: 15px; background: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 6px;">
+                        <strong style="color: #1e40af;">Update Available!</strong>
+                        <p id="release-notes" style="margin: 10px 0 0 0; font-size: 0.9em; color: #1e3a8a;"></p>
+                    </div>
+                </div>
+
+                <div class="form-group" id="update-error" style="display: none;">
+                    <div style="padding: 15px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 6px;">
+                        <strong style="color: #991b1b;">Update Check Failed</strong>
+                        <p id="update-error-text" style="margin: 10px 0 0 0; font-size: 0.9em; color: #7f1d1d;"></p>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <button class="btn btn-primary" onclick="checkForUpdates()" id="check-update-btn" style="margin-right: 10px;">
+                        🔍 Check for Updates
+                    </button>
+                    <button class="btn btn-success" onclick="startUpdate()" id="update-btn" style="display: none;">
+                        ⬆️ Update Now
+                    </button>
+                </div>
+
+                <div id="update-progress" style="display: none; margin-top: 20px;">
+                    <div style="padding: 20px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px;">
+                        <strong style="color: #92400e;">🔄 Update in Progress...</strong>
+                        <p style="margin: 10px 0; font-size: 0.9em; color: #78350f;">
+                            Please wait while the system updates. This may take a few minutes.
+                            The page will automatically reload when the update is complete.
+                        </p>
+                        <div style="margin-top: 15px; padding: 10px; background: #fffbeb; border-radius: 4px; font-family: monospace; font-size: 0.85em; max-height: 200px; overflow-y: auto;" id="update-log">
+                            Initializing update...
+                        </div>
+                    </div>
+                </div>
+
+                <p class="note" style="margin-top: 15px;">
+                    <strong>Note:</strong> Updates preserve your current configuration (aggregator keys, feed selections, etc.).
+                    Your feeder will restart automatically after the update completes.
+                </p>
+            </div>
+
             <div class="actions">
                 <button class="btn btn-success" onclick="saveSettings()">💾 Save Configuration</button>
                 <button class="btn btn-primary" onclick="showRestartServicesModal()">🔄 Restart Services</button>
@@ -2195,6 +2255,173 @@
             if (spinnerEl && (icon === '✅' || icon === '❌' || icon === '⚠️')) {
                 spinnerEl.style.display = 'none';
             }
+        }
+
+        // ============================================================================
+        // SYSTEM UPDATE FUNCTIONS
+        // ============================================================================
+
+        // Check for updates on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            checkForUpdates();
+        });
+
+        async function checkForUpdates() {
+            const checkBtn = document.getElementById('check-update-btn');
+            const updateBtn = document.getElementById('update-btn');
+            const currentVersionEl = document.getElementById('current-version');
+            const latestVersionEl = document.getElementById('latest-version');
+            const latestVersionGroup = document.getElementById('latest-version-group');
+            const updateInfo = document.getElementById('update-info');
+            const updateError = document.getElementById('update-error');
+            const updateErrorText = document.getElementById('update-error-text');
+            const releaseNotes = document.getElementById('release-notes');
+
+            // Reset UI
+            checkBtn.disabled = true;
+            checkBtn.textContent = '🔄 Checking...';
+            updateBtn.style.display = 'none';
+            updateInfo.style.display = 'none';
+            updateError.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/system/version');
+                const data = await response.json();
+
+                if (data.success) {
+                    // Show current version
+                    currentVersionEl.textContent = `v${data.current_version}`;
+
+                    if (data.update_available) {
+                        // Update available
+                        latestVersionEl.textContent = `v${data.latest_version}`;
+                        latestVersionGroup.style.display = 'block';
+                        updateInfo.style.display = 'block';
+                        updateBtn.style.display = 'inline-block';
+
+                        // Show release notes
+                        if (data.release_info && data.release_info.release_notes) {
+                            releaseNotes.textContent = data.release_info.release_notes;
+                        } else {
+                            releaseNotes.textContent = `New version ${data.latest_version} is available`;
+                        }
+                    } else if (data.error) {
+                        // Error checking for updates
+                        updateError.style.display = 'block';
+                        updateErrorText.textContent = data.error;
+                    } else {
+                        // No update available
+                        latestVersionEl.textContent = `v${data.latest_version} (current)`;
+                        latestVersionGroup.style.display = 'block';
+                    }
+                }
+
+                checkBtn.disabled = false;
+                checkBtn.textContent = '🔍 Check for Updates';
+
+            } catch (error) {
+                console.error('Error checking for updates:', error);
+                updateError.style.display = 'block';
+                updateErrorText.textContent = `Network error: ${error.message}`;
+                checkBtn.disabled = false;
+                checkBtn.textContent = '🔍 Check for Updates';
+            }
+        }
+
+        async function startUpdate() {
+            if (!confirm('Are you sure you want to update TAKNET-PS?\n\nYour current configuration will be preserved, but services will restart. This may take a few minutes.')) {
+                return;
+            }
+
+            const updateBtn = document.getElementById('update-btn');
+            const checkBtn = document.getElementById('check-update-btn');
+            const updateProgress = document.getElementById('update-progress');
+            const updateLog = document.getElementById('update-log');
+
+            // Disable buttons
+            updateBtn.disabled = true;
+            checkBtn.disabled = true;
+
+            // Show progress
+            updateProgress.style.display = 'block';
+            updateLog.textContent = 'Starting update process...\n';
+
+            try {
+                const response = await fetch('/api/system/update', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateLog.textContent += 'Update initiated successfully!\n';
+                    updateLog.textContent += 'Downloading latest version...\n\n';
+
+                    // Poll for update status
+                    pollUpdateStatus();
+                } else {
+                    updateLog.textContent += `\nERROR: ${data.message}\n`;
+                    updateBtn.disabled = false;
+                    checkBtn.disabled = false;
+                }
+
+            } catch (error) {
+                console.error('Error starting update:', error);
+                updateLog.textContent += `\nERROR: ${error.message}\n`;
+                updateBtn.disabled = false;
+                checkBtn.disabled = false;
+            }
+        }
+
+        let updatePollInterval = null;
+        let noChangeCount = 0;
+        let lastLogLength = 0;
+
+        async function pollUpdateStatus() {
+            const updateLog = document.getElementById('update-log');
+
+            // Clear any existing interval
+            if (updatePollInterval) {
+                clearInterval(updatePollInterval);
+            }
+
+            updatePollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/system/update/status');
+                    const data = await response.json();
+
+                    if (data.success && data.log) {
+                        updateLog.textContent = data.log;
+
+                        // Auto-scroll to bottom
+                        updateLog.scrollTop = updateLog.scrollHeight;
+
+                        // Check if update is complete (log not changing and no lock file)
+                        if (data.log.length === lastLogLength) {
+                            noChangeCount++;
+                        } else {
+                            noChangeCount = 0;
+                            lastLogLength = data.log.length;
+                        }
+
+                        // If no changes for 5 polls (10 seconds) and not updating, assume complete
+                        if (!data.is_updating && noChangeCount >= 5) {
+                            clearInterval(updatePollInterval);
+                            updateLog.textContent += '\n\n✅ Update complete! Reloading page in 3 seconds...';
+
+                            // Reload page after 3 seconds
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 3000);
+                        }
+                    }
+
+                } catch (error) {
+                    console.error('Error polling update status:', error);
+                    // Don't stop polling on error, might be temporary
+                }
+
+            }, 2000); // Poll every 2 seconds
         }
     
     </script>

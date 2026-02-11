@@ -1,8 +1,20 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.46.10
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.47.0
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
+
+# Check for update mode flag
+UPDATE_MODE=false
+if [ "$1" == "--update" ]; then
+    UPDATE_MODE=true
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  TAKNET-PS UPDATE MODE"
+    echo "  Preserving existing configuration"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+fi
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
@@ -27,12 +39,14 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  TAKNET-PS-ADSB-Feeder Installer v2.46.10"
-echo "  Ultrafeeder + TAKNET-PS + Web UI"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
+if [ "$UPDATE_MODE" != true ]; then
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  TAKNET-PS-ADSB-Feeder Installer v2.47.0"
+    echo "  Ultrafeeder + TAKNET-PS + Web UI"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+fi
 
 # Function to wait for apt locks to clear
 wait_for_apt_lock() {
@@ -351,11 +365,23 @@ fi
 echo "    ✓ docker-compose.yml downloaded with adsbhub service"
 
 echo "  - env-template..."
-wget -q $REPO/config/env-template -O /opt/adsb/config/.env
+if [ "$UPDATE_MODE" = true ] && [ -f /opt/adsb/config/.env ]; then
+    echo "    (Preserving existing configuration)"
+else
+    wget -q $REPO/config/env-template -O /opt/adsb/config/.env
+fi
 
 echo "  - config_builder.py..."
 wget -q $REPO/scripts/config_builder.py -O /opt/adsb/scripts/config_builder.py
 chmod +x /opt/adsb/scripts/config_builder.py
+
+echo "  - updater.sh..."
+wget -q $REPO/scripts/updater.sh -O /opt/adsb/scripts/updater.sh
+chmod +x /opt/adsb/scripts/updater.sh
+
+# Download version.json for update checking
+echo "  - version.json..."
+wget -q $REPO/version.json -O /opt/adsb/version.json 2>/dev/null || echo "  (version.json not found, skipping)"
 
 # Web UI files
 echo "Installing Web UI..."
@@ -1147,38 +1173,54 @@ IP=$(hostname -I | awk '{print $1}')
 # Done
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "✓ Installation complete!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "🌐 Open your browser and go to:"
-echo ""
-echo "   http://taknet-ps.local"
-echo ""
-echo "   Complete the setup wizard to configure your feeder."
-echo ""
-echo "After setup, you can access:"
-echo "   • Setup/Dashboard: http://taknet-ps.local"
-echo "   • Live Map: http://taknet-ps.local:8080"
-echo ""
-echo "   (Or use http://$IP if .local doesn't work)"
-echo ""
-echo "Manual commands (if needed):"
-echo "   • Start: sudo systemctl start ultrafeeder"
-echo "   • Restart: sudo systemctl restart ultrafeeder"
-echo "   • Logs: sudo docker logs ultrafeeder"
-echo ""
-echo "📡 Remote Access:"
-echo "   • User: remote"
-echo "   • Password: adsb"
-echo "   • Limited sudo privileges for ADSB commands"
-echo "   • SSH access BLOCKED until Tailscale configured (secure by default)"
-echo ""
-echo "🔒 SSH Security (automatic):"
-echo "   • 'remote' user currently BLOCKED from all SSH access"
-echo "   • Will auto-configure for Tailscale-only when you enable Tailscale"
-echo "   • Or manually run: cd /opt/adsb && sudo ./configure-ssh-tailscale.sh"
-echo ""
-echo "📊 Network Monitoring:"
-echo "   • vnstat configured (30-day retention)"
-echo "   • Usage: vnstat -d (daily stats)"
-echo ""
+
+if [ "$UPDATE_MODE" = true ]; then
+    echo "✓ Update complete!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "✅ TAKNET-PS has been updated successfully"
+    echo ""
+    echo "   • Configuration preserved"
+    echo "   • Services will restart automatically"
+    echo "   • Return to dashboard: http://taknet-ps.local"
+    echo ""
+    
+    # Remove update lock file
+    rm -f /tmp/taknet_update.lock
+else
+    echo "✓ Installation complete!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "🌐 Open your browser and go to:"
+    echo ""
+    echo "   http://taknet-ps.local"
+    echo ""
+    echo "   Complete the setup wizard to configure your feeder."
+    echo ""
+    echo "After setup, you can access:"
+    echo "   • Setup/Dashboard: http://taknet-ps.local"
+    echo "   • Live Map: http://taknet-ps.local:8080"
+    echo ""
+    echo "   (Or use http://$IP if .local doesn't work)"
+    echo ""
+    echo "Manual commands (if needed):"
+    echo "   • Start: sudo systemctl start ultrafeeder"
+    echo "   • Restart: sudo systemctl restart ultrafeeder"
+    echo "   • Logs: sudo docker logs ultrafeeder"
+    echo ""
+    echo "📡 Remote Access:"
+    echo "   • User: remote"
+    echo "   • Password: adsb"
+    echo "   • Limited sudo privileges for ADSB commands"
+    echo "   • SSH access BLOCKED until Tailscale configured (secure by default)"
+    echo ""
+    echo "🔒 SSH Security (automatic):"
+    echo "   • 'remote' user currently BLOCKED from all SSH access"
+    echo "   • Will auto-configure for Tailscale-only when you enable Tailscale"
+    echo "   • Or manually run: cd /opt/adsb && sudo ./configure-ssh-tailscale.sh"
+    echo ""
+    echo "📊 Network Monitoring:"
+    echo "   • vnstat configured (30-day retention)"
+    echo "   • Usage: vnstat -d (daily stats)"
+    echo ""
+fi

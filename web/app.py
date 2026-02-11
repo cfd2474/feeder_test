@@ -2703,6 +2703,149 @@ def wifi_remove():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+# ============================================================================
+# SYSTEM UPDATE ENDPOINTS
+# ============================================================================
+
+@app.route('/api/system/version', methods=['GET'])
+def get_system_version():
+    """Get current version and check for updates"""
+    try:
+        # Read current version
+        version_file = Path('/opt/adsb/VERSION')
+        current_version = 'unknown'
+        if version_file.exists():
+            current_version = version_file.read_text().strip()
+        
+        # Fetch latest version from GitHub
+        repo_url = 'https://raw.githubusercontent.com/cfd2474/feeder_test/main/version.json'
+        
+        try:
+            import requests
+            response = requests.get(repo_url, timeout=10)
+            
+            if response.status_code == 200:
+                latest_info = response.json()
+                latest_version = latest_info.get('version', 'unknown')
+                
+                # Compare versions
+                update_available = False
+                if current_version != 'unknown' and latest_version != 'unknown':
+                    # Simple version comparison (assumes format: 2.46.10)
+                    current_parts = [int(x) for x in current_version.split('.')]
+                    latest_parts = [int(x) for x in latest_version.split('.')]
+                    
+                    # Compare major.minor.patch
+                    if latest_parts > current_parts:
+                        update_available = True
+                
+                return jsonify({
+                    'success': True,
+                    'current_version': current_version,
+                    'latest_version': latest_version,
+                    'update_available': update_available,
+                    'release_info': latest_info
+                })
+            else:
+                # Couldn't fetch from GitHub
+                return jsonify({
+                    'success': True,
+                    'current_version': current_version,
+                    'latest_version': 'unknown',
+                    'update_available': False,
+                    'error': 'Could not check for updates'
+                })
+                
+        except Exception as e:
+            # Network error or GitHub unavailable
+            return jsonify({
+                'success': True,
+                'current_version': current_version,
+                'latest_version': 'unknown',
+                'update_available': False,
+                'error': f'Update check failed: {str(e)}'
+            })
+    
+    except Exception as e:
+        print(f"❌ Error in get_system_version: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/system/update', methods=['POST'])
+def trigger_system_update():
+    """Trigger system update process"""
+    try:
+        # Check if update is already running
+        update_lock = Path('/tmp/taknet_update.lock')
+        if update_lock.exists():
+            return jsonify({
+                'success': False,
+                'message': 'Update already in progress'
+            }), 409
+        
+        # Create lock file
+        update_lock.touch()
+        
+        # Run updater script in background
+        updater_script = Path('/opt/adsb/scripts/updater.sh')
+        
+        if not updater_script.exists():
+            update_lock.unlink()
+            return jsonify({
+                'success': False,
+                'message': 'Updater script not found'
+            }), 404
+        
+        # Start update process in background
+        # Output will be logged to /tmp/taknet_update.log
+        subprocess.Popen(
+            ['sudo', 'bash', str(updater_script)],
+            stdout=open('/tmp/taknet_update.log', 'w'),
+            stderr=subprocess.STDOUT
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Update started',
+            'log_file': '/tmp/taknet_update.log'
+        })
+    
+    except Exception as e:
+        # Clean up lock file on error
+        if update_lock.exists():
+            update_lock.unlink()
+        
+        print(f"❌ Error in trigger_system_update: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/system/update/status', methods=['GET'])
+def get_update_status():
+    """Get status of ongoing update"""
+    try:
+        update_lock = Path('/tmp/taknet_update.lock')
+        log_file = Path('/tmp/taknet_update.log')
+        
+        is_updating = update_lock.exists()
+        
+        # Read last 50 lines of log
+        log_tail = []
+        if log_file.exists():
+            with open(log_file, 'r') as f:
+                log_tail = f.readlines()[-50:]
+        
+        return jsonify({
+            'success': True,
+            'is_updating': is_updating,
+            'log': ''.join(log_tail)
+        })
+    
+    except Exception as e:
+        print(f"❌ Error in get_update_status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Run on all interfaces, port 5000
     app.run(host='0.0.0.0', port=5000, debug=False)
