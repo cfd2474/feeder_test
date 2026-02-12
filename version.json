@@ -1,10 +1,10 @@
 {
-  "version": "2.47.5",
+  "version": "2.47.6",
   "release_date": "2026-02-11",
-  "release_name": "Tailscale Button Controls",
+  "release_name": "Setup Wizard Bugfix",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Replaced Tailscale checkbox with button controls. Added status indicator showing Enabled/Disabled state. Disable button now properly stops Tailscale service."
+  "release_notes": "Fixed setup wizard crash caused by attempting to read removed Tailscale field. Setup wizard now completes successfully."
 }

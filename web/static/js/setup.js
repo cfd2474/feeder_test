@@ -214,30 +214,11 @@ async function saveAndStart() {
 
     console.log("Zip code processing complete. finalSiteName:", finalSiteName);
     
-    // Declare variables for Tailscale
-    let tailscaleEnabled, tailscaleKey;
-    
-    // Check if we're online or offline
-    if (isOnline) {
-        // ONLINE MODE: Read Tailscale key field
-        console.log("Online mode: Reading Tailscale key...");
-        tailscaleKey = document.getElementById('tailscale_key').value.trim();
-        
-        // Enable Tailscale if key is provided
-        tailscaleEnabled = tailscaleKey.length > 0;
-        console.log("Tailscale:", {enabled: tailscaleEnabled, hasKey: tailscaleKey.length > 0});
-        
-        if (tailscaleKey && tailscaleKey.length > 0) {
-            console.log("Tailscale key provided, will be enabled");
-        } else {
-            console.log("No Tailscale key, will be disabled");
-        }
-    } else {
-        // OFFLINE MODE: Disable all internet-dependent services
-        console.log("Offline mode: Disabling Tailscale");
-        tailscaleEnabled = false;
-        tailscaleKey = '';
-    }
+    // Tailscale is configured in Settings, not in setup wizard
+    // Always disabled during initial setup
+    const tailscaleEnabled = false;
+    const tailscaleKey = '';
+    console.log("Initial setup: Tailscale will be disabled (can enable in Settings)");
     
     const config = {
         // Location settings
@@ -248,9 +229,9 @@ async function saveAndStart() {
         MLAT_SITE_NAME: finalSiteName,
         ZIP_CODE: userZipCode || zipCode || '',
         
-        // Tailscale settings
-        TAILSCALE_ENABLED: tailscaleEnabled ? 'true' : 'false',
-        TAILSCALE_AUTH_KEY: tailscaleKey || ''
+        // Tailscale settings (disabled by default, configured in Settings)
+        TAILSCALE_ENABLED: 'false',
+        TAILSCALE_AUTH_KEY: ''
         
         // TAKNET-PS Server is hardcoded - DO NOT send these parameters
         // TAKNET_PS_ENABLED, TAKNET_PS_SERVER_HOST_*, TAKNET_PS_SERVER_PORT will use defaults from env-template
