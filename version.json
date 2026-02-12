@@ -1,10 +1,10 @@
 {
-  "version": "2.47.8",
+  "version": "2.47.9",
   "release_date": "2026-02-12",
-  "release_name": "Tailscale Button Click Fix",
+  "release_name": "One-Button Tailscale Setup",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Fixed Tailscale enable/disable button not responding to clicks. Replaced inline onclick handler with proper event listener."
+  "release_notes": "Simplified Tailscale to single button: Enter key, click Enable & Connect. Removed separate connect button. Auth key now required to enable."
 }

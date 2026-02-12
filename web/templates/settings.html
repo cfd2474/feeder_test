@@ -260,10 +260,10 @@
                 <!-- Auth Key Input (shown when disabled) -->
                 <div id="tailscale-disabled-section" style="display: none; margin-top: 15px;">
                     <div class="form-group">
-                        <label>Tailscale Auth Key</label>
+                        <label>Tailscale Auth Key <span style="color: #ef4444;">*</span></label>
                         <input type="text" id="tailscale_initial_key" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx">
                         <small style="color: #666; display: block; margin-top: 5px;">
-                            Enter your Tailscale authentication key to enable and connect
+                            Required to enable and connect to Tailscale VPN
                         </small>
                     </div>
                     <div class="info-note" style="margin-top: 15px;">
@@ -278,22 +278,6 @@
                         <p style="margin: 0;">✓ Tailscale auth key is configured</p>
                     </div>
                     {% endif %}
-                    
-                    <!-- Connect Tailscale Section (shown when not connected) -->
-                    <div id="tailscale-connect-section" style="display: none; margin-bottom: 15px;">
-                        <div class="form-group">
-                            <label>Tailscale Auth Key</label>
-                            <input type="text" id="tailscale_connect_key" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx">
-                            <small style="color: #666; display: block; margin-top: 5px;">
-                                Enter your Tailscale authentication key
-                            </small>
-                        </div>
-                        <div class="form-group" style="margin-top: 15px;">
-                            <button class="btn btn-primary" id="connect-tailscale-btn" onclick="connectTailscaleSettings()" disabled>
-                                🔗 Connect Tailscale
-                            </button>
-                        </div>
-                    </div>
                     
                     <!-- Enter New Key Checkbox (shown when already connected) -->
                     <div id="tailscale-rekey-section" style="display: none;">
@@ -590,18 +574,6 @@
             // Start polling Tailscale status every 10 seconds
             setInterval(checkTailscaleStatus, 10000);
             
-            // Validate Connect Tailscale button
-            const connectKeyInput = document.getElementById('tailscale_connect_key');
-            const connectBtn = document.getElementById('connect-tailscale-btn');
-            
-            if (connectKeyInput && connectBtn) {
-                connectKeyInput.addEventListener('input', function() {
-                    const key = this.value.trim();
-                    const isValid = key.startsWith('tskey-') && key.length > 20;
-                    connectBtn.disabled = !isValid;
-                });
-            }
-            
             // Tailscale toggle state
             let tailscaleEnabled = {{ 'true' if config.get('TAILSCALE_ENABLED', 'false') == 'true' else 'false' }};
             let tailscaleConnected = false;
@@ -627,7 +599,7 @@
                     toggleBtn.className = 'btn';
                     toggleText.textContent = '🔴 Disable Tailscale';
                 } else if (enabled && !connected) {
-                    // Enabled but not connected
+                    // Enabled but not connected (shouldn't happen with new flow)
                     statusIcon.textContent = '⚠️';
                     statusText.textContent = 'Enabled (Not Connected)';
                     statusIcon.parentElement.style.background = '#fef3c7';
@@ -641,7 +613,7 @@
                     statusIcon.parentElement.style.background = '#f3f4f6';
                     statusIcon.parentElement.style.border = '1px solid #d1d5db';
                     toggleBtn.className = 'btn btn-primary';
-                    toggleText.textContent = '🟢 Enable Tailscale';
+                    toggleText.textContent = '🟢 Enable & Connect';
                 }
                 
                 tailscaleEnabled = enabled;
@@ -686,11 +658,17 @@
                     showDisableModal();
                 } else {
                     // User wants to enable
-                    // Check if they provided an auth key
+                    // Check if they provided an auth key (REQUIRED)
                     const initialKey = document.getElementById('tailscale_initial_key').value.trim();
                     
+                    if (!initialKey || initialKey.length === 0) {
+                        showStatus('Please enter a Tailscale auth key first', 'error');
+                        document.getElementById('tailscale_initial_key').focus();
+                        return;
+                    }
+                    
                     toggleBtn.disabled = true;
-                    toggleText.textContent = '⏳ Enabling...';
+                    toggleText.textContent = '⏳ Enabling & Connecting...';
                     
                     try {
                         // First enable Tailscale
@@ -703,35 +681,30 @@
                         
                         if (result.success) {
                             updateTailscaleStatusUI(true, false);
-                            showStatus('Tailscale enabled successfully', 'success');
+                            showStatus('Connecting to Tailscale...', 'info');
                             
-                            // If they provided an auth key, install/connect Tailscale
-                            if (initialKey && initialKey.length > 0) {
-                                showStatus('Connecting to Tailscale...', 'info');
-                                
-                                // Get feeder name for hostname
-                                const siteName = document.getElementById('site_name').value.trim();
-                                const lat = document.getElementById('lat').value;
-                                const lon = document.getElementById('lon').value;
-                                
-                                let machineName = siteName;
-                                if (lat && lon && siteName) {
-                                    const zipCode = await getZipCodeFromCoords(lat, lon);
-                                    if (zipCode) {
-                                        machineName = `${zipCode}-${siteName}`;
-                                    } else {
-                                        machineName = `00000-${siteName}`;
-                                    }
+                            // Get feeder name for hostname
+                            const siteName = document.getElementById('site_name').value.trim();
+                            const lat = document.getElementById('lat').value;
+                            const lon = document.getElementById('lon').value;
+                            
+                            let machineName = siteName;
+                            if (lat && lon && siteName) {
+                                const zipCode = await getZipCodeFromCoords(lat, lon);
+                                if (zipCode) {
+                                    machineName = `${zipCode}-${siteName}`;
                                 } else {
-                                    const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
-                                    if (currentFullName) {
-                                        machineName = currentFullName;
-                                    }
+                                    machineName = `00000-${siteName}`;
                                 }
-                                
-                                // Show progress modal and connect
-                                showTailscaleProgressModal(initialKey, machineName);
+                            } else {
+                                const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
+                                if (currentFullName) {
+                                    machineName = currentFullName;
+                                }
                             }
+                            
+                            // Show progress modal and connect
+                            showTailscaleProgressModal(initialKey, machineName);
                         } else {
                             showStatus('Failed to enable Tailscale: ' + result.message, 'error');
                         }
@@ -1642,21 +1615,14 @@
                 
                 updateTailscaleStatusDisplay(data);
                 
-                // Show/hide connect vs rekey sections
-                const connectSection = document.getElementById('tailscale-connect-section');
+                // Show/hide rekey section based on connection status
                 const rekeySection = document.getElementById('tailscale-rekey-section');
                 
                 if (data.installed && data.connected) {
                     // Tailscale is connected - show rekey section
-                    connectSection.style.display = 'none';
                     rekeySection.style.display = 'block';
-                } else if (data.installed && !data.connected) {
-                    // Tailscale installed but not connected - show connect section
-                    connectSection.style.display = 'block';
-                    rekeySection.style.display = 'none';
                 } else {
-                    // Tailscale not installed - show connect section
-                    connectSection.style.display = 'block';
+                    // Not connected - hide rekey section
                     rekeySection.style.display = 'none';
                 }
             } catch (error) {
@@ -1720,45 +1686,6 @@
             }
             
             statusDisplay.innerHTML = statusHTML;
-        }
-        
-        // Connect Tailscale (from Settings page)
-        async function connectTailscaleSettings() {
-            const authKey = document.getElementById('tailscale_connect_key').value.trim();
-            
-            if (!authKey.startsWith('tskey-') || authKey.length < 20) {
-                alert('Please enter a valid Tailscale auth key (starts with tskey-)');
-                return;
-            }
-            
-            // Show simplified progress modal
-            document.getElementById('tailscaleProgressModal').style.display = 'block';
-            document.getElementById('tailscale-spinner').style.display = 'block';
-            document.getElementById('progress-status-text').textContent = 'Configuring Tailscale VPN...';
-            document.getElementById('progress-status-detail').textContent = 'This usually takes 5-10 seconds';
-            document.getElementById('tailscale-result').style.display = 'none';
-            
-            try {
-                // Call the install API
-                const response = await fetch('/api/tailscale/install', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ auth_key: authKey })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to start Tailscale configuration');
-                }
-                
-                // Start polling for progress
-                pollTailscaleProgress();
-                
-            } catch (error) {
-                console.error('Failed to configure Tailscale:', error);
-                showTailscaleResult(false, 'Configuration failed: ' + error.message);
-            }
         }
         
         // Poll Tailscale installation progress
