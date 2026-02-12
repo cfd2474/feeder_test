@@ -2137,9 +2137,9 @@ def api_service_state(service_name):
 
 @app.route('/api/service/<service_name>/restart', methods=['POST'])
 def api_restart_individual_service(service_name):
-    """Restart an individual service (ultrafeeder, fr24, or piaware)"""
+    """Restart an individual service (ultrafeeder, fr24, piaware, or tailscale)"""
     try:
-        valid_services = ['ultrafeeder', 'fr24', 'piaware']
+        valid_services = ['ultrafeeder', 'fr24', 'piaware', 'tailscale']
         if service_name not in valid_services:
             return jsonify({
                 'success': False,
@@ -2189,7 +2189,7 @@ def api_restart_individual_service(service_name):
 def api_service_status(service_name):
     """Check if a service is running"""
     try:
-        valid_services = ['ultrafeeder', 'fr24', 'piaware']
+        valid_services = ['ultrafeeder', 'fr24', 'piaware', 'tailscale']
         if service_name not in valid_services:
             return jsonify({
                 'success': False,

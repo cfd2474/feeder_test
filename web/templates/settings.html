@@ -1639,12 +1639,21 @@
                     </div>
                 </label>
                 
-                <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer;">
+                <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; cursor: pointer;">
                     <input type="checkbox" class="service-checkbox" value="piaware" 
                            style="width: 20px; height: 20px; margin-right: 12px; cursor: pointer;">
                     <div style="flex: 1;">
                         <div style="font-weight: 600;">PiAware</div>
                         <div style="font-size: 0.85em; color: #6b7280;">FlightAware feeder service</div>
+                    </div>
+                </label>
+                
+                <label style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer;">
+                    <input type="checkbox" class="service-checkbox" value="tailscale" 
+                           style="width: 20px; height: 20px; margin-right: 12px; cursor: pointer;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">Tailscale</div>
+                        <div style="font-size: 0.85em; color: #6b7280;">VPN connection service</div>
                     </div>
                 </label>
             </div>
@@ -2311,7 +2320,8 @@
                 const names = {
                     'ultrafeeder': 'Ultrafeeder',
                     'fr24': 'FlightRadar24',
-                    'piaware': 'PiAware'
+                    'piaware': 'PiAware',
+                    'tailscale': 'Tailscale'
                 };
                 return `
                     <div id="restart-status-${service}" style="display: flex; align-items: center; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px;">
