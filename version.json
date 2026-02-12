@@ -1,10 +1,10 @@
 {
-  "version": "2.47.1",
+  "version": "2.47.2",
   "release_date": "2026-02-11",
-  "release_name": "Built-in Update System (Fixed)",
+  "release_name": "Simplified Setup Wizard",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Fixed VERSION file deployment. Added built-in update system with one-click updates from Settings page. Updates preserve configuration automatically."
+  "release_notes": "Removed Tailscale from setup wizard. Tailscale configuration now only available in Settings page for simpler initial setup."
 }

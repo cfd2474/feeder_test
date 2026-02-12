@@ -36,7 +36,7 @@
                 <div>
                     <strong style="color: #92400e;">Offline Mode</strong>
                     <p style="margin: 5px 0 0 0; color: #78350f;">
-                        No internet connection detected. Tailscale and public aggregators (FR24, adsb.lol, etc.) require internet and will be skipped. 
+                        No internet connection detected. Public aggregators (FR24, adsb.lol, etc.) require internet and will be skipped. 
                         You can configure these later from Settings once online.
                     </p>
                 </div>
@@ -44,64 +44,9 @@
         </div>
 
         <div class="wizard">
-            <!-- Step 2: Tailscale Setup -->
+            <!-- Step 2: Location -->
             <div class="step active" id="step1">
-                <h2>Step 2: Tailscale VPN</h2>
-                <p>Secure connection to TAKNET-PS Server aggregator</p>
-                
-                <div class="info-box" style="margin-bottom: 20px; background: #e8f5e9; border-left: 4px solid #4caf50;">
-                    <h3 style="color: #2e7d32;">✓ Recommended: Tailscale VPN</h3>
-                    <p>Tailscale is the <strong>preferred method</strong> to reach the TAKNET-PS Server aggregator. It provides:</p>
-                    <ul style="margin: 10px 0; padding-left: 20px;">
-                        <li>Secure encrypted connection</li>
-                        <li>Direct network access to aggregator</li>
-                        <li>Better reliability than public internet</li>
-                        <li>Automatic failover to public IP if needed</li>
-                    </ul>
-                </div>
-                
-                <div class="form-group">
-                    <label>Tailscale Auth Key</label>
-                    <input type="text" id="tailscale_key" placeholder="tskey-auth-xxxxx" value="{{ config.get('TAILSCALE_AUTH_KEY', '') }}">
-                    <small style="color: #666; display: block; margin-top: 5px;">
-                        Enter your Tailscale authentication key to enable secure VPN connectivity
-                    </small>
-                </div>
-                
-                <div style="margin-top: 15px;">
-                    <button class="btn btn-primary" id="connect-tailscale-btn" onclick="connectTailscale()" disabled>
-                        🔐 Connect Tailscale
-                    </button>
-                    <small style="display: block; margin-top: 8px; color: #6b7280;">
-                        Button will enable when you enter a valid auth key
-                    </small>
-                </div>
-                
-                <div class="info-note" style="margin-top: 15px;">
-                    <p><strong>Need a Tailscale auth key?</strong></p>
-                    <p>Contact: <a href="mailto:michael.leckliter@yahoo.com" style="color: #667eea;">Michael Leckliter</a></p>
-                    <p style="margin-top: 5px; font-size: 0.9em;">
-                        You can also configure Tailscale later from the Settings page.
-                    </p>
-                </div>
-                
-                <div class="info-box" style="margin-top: 20px;">
-                    <h3>✓ TAKNET-PS Server (Always Active)</h3>
-                    <p>Your feeder will automatically connect to the TAKNET-PS Server aggregator via:</p>
-                    <ul style="margin: 10px 0; padding-left: 20px;">
-                        <li><strong>Primary:</strong> Tailscale VPN (if configured)</li>
-                        <li><strong>Fallback:</strong> Public IP (automatic failover)</li>
-                    </ul>
-                </div>
-                
-                <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-                    <button class="btn btn-success" onclick="skipTailscale()">Continue without Tailscale →</button>
-                </div>
-            </div>
-
-            <!-- Step 3: Location -->
-            <div class="step" id="step2">
-                <h2>Step 3: Location</h2>
+                <h2>Step 2: Location</h2>
                 <p>Enter your receiver location</p>
                 
                 <div class="info-note" style="margin-bottom: 20px;">
@@ -241,7 +186,6 @@
                 </div>
                 
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-                    <button class="btn" onclick="prevStep(1)">← Back to Tailscale</button>
                     <button class="btn btn-success" onclick="saveAndStart()">Install & Finish →</button>
                 </div>
             </div>
@@ -265,48 +209,6 @@
             }
         });
     </script>
-
-    <!-- Tailscale Connection Progress Modal -->
-    <div id="tailscaleProgressModal" class="modal">
-        <div class="modal-content">
-            <h2 class="modal-header">🔗 Connecting Tailscale</h2>
-            <div class="modal-body">
-                <div id="progress-status-text" style="margin-bottom: 20px; font-weight: 500; color: #374151; font-size: 1.1em;">
-                    Initializing...
-                </div>
-                
-                <!-- Overall Progress Bar -->
-                <div class="progress-section" style="margin-bottom: 30px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="font-size: 0.95em; font-weight: 600; color: #374151;">Overall Progress</span>
-                        <span id="overall-percent" style="font-size: 0.95em; font-weight: 600; color: #374151;">0%</span>
-                    </div>
-                    <div class="progress-bar" style="width: 100%; height: 28px; background: #e5e7eb; border-radius: 14px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);">
-                        <div id="overall-progress" style="width: 0%; height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.5s ease;"></div>
-                    </div>
-                </div>
-                
-                <!-- Current Process Bar -->
-                <div class="progress-section">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span id="current-process-label" style="font-size: 0.9em; color: #6b7280;">Initializing...</span>
-                        <span id="current-percent" style="font-size: 0.9em; color: #6b7280;">0%</span>
-                    </div>
-                    <div class="progress-bar" style="width: 100%; height: 20px; background: #e5e7eb; border-radius: 10px; overflow: hidden;">
-                        <div id="current-progress" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #059669); transition: width 0.3s ease;"></div>
-                    </div>
-                </div>
-                
-                <!-- Error Details (hidden by default) -->
-                <div id="progress-details" style="display: none; margin-top: 20px; padding: 12px; background: #fee2e2; border: 1px solid #ef4444; border-radius: 8px; color: #991b1b;">
-                    <!-- Error details will be inserted here -->
-                </div>
-            </div>
-            <div class="modal-buttons" id="progress-modal-buttons" style="display: none;">
-                <button class="btn btn-primary" onclick="closeProgressModal()">Close</button>
-            </div>
-        </div>
-    </div>
 
 </body>
 </html>
