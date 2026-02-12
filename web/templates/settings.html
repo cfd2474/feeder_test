@@ -775,7 +775,28 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    updateTailscaleStatusUI(false, false);
+                    // Update UI directly
+                    const statusIcon = document.getElementById('tailscale-status-icon');
+                    const statusText = document.getElementById('tailscale-status-text');
+                    const statusIndicator = document.getElementById('tailscale-status-indicator');
+                    const disabledSection = document.getElementById('tailscale-disabled-section');
+                    const tailscaleConfig = document.getElementById('tailscale-config');
+                    
+                    // Show status indicator
+                    if (statusIndicator) statusIndicator.style.display = 'flex';
+                    statusIcon.textContent = '⭕';
+                    statusText.textContent = 'Disabled';
+                    statusIcon.parentElement.style.background = '#f3f4f6';
+                    statusIcon.parentElement.style.border = '1px solid #d1d5db';
+                    
+                    // Update button
+                    toggleBtn.className = 'btn btn-primary';
+                    toggleText.textContent = '🟢 Enable & Connect';
+                    
+                    // Show disabled section, hide config section
+                    disabledSection.style.display = 'block';
+                    tailscaleConfig.style.display = 'none';
+                    
                     showStatus('Tailscale disabled successfully', 'success');
                 } else {
                     showStatus('Failed to disable Tailscale: ' + result.message, 'error');

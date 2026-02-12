@@ -1,10 +1,10 @@
 {
-  "version": "2.47.16",
+  "version": "2.47.17",
   "release_date": "2026-02-12",
-  "release_name": "Remote SSH Access Fix",
+  "release_name": "Disable Tailscale Fix",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Fixed remote user SSH access via Tailscale. Corrected SSH Match block syntax - AllowUsers cannot be inside Match block. Added verify-remote-access.sh script to troubleshoot and fix SSH configuration."
+  "release_notes": "Fixed JavaScript error when clicking Disable Tailscale button. Function was in wrong scope causing 'updateTailscaleStatusUI is not defined' error. Disable button now works correctly."
 }
