@@ -1262,6 +1262,91 @@
                 alert('Error saving configuration: ' + error.message);
             }
         }
+        
+        // Check Tailscale status (needed for DOMContentLoaded above)
+        async function checkTailscaleStatus() {
+            try {
+                const response = await fetch('/api/tailscale/status');
+                const data = await response.json();
+                
+                updateTailscaleStatusDisplay(data);
+                
+                // Show/hide rekey section based on connection status
+                const rekeySection = document.getElementById('tailscale-rekey-section');
+                
+                if (rekeySection) {
+                    if (data.installed && data.connected) {
+                        // Tailscale is connected - show rekey section
+                        rekeySection.style.display = 'block';
+                    } else {
+                        // Not connected - hide rekey section
+                        rekeySection.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to check Tailscale status:', error);
+                updateTailscaleStatusDisplay({
+                    installed: false,
+                    connected: false,
+                    error: 'Failed to check status'
+                });
+            }
+        }
+        
+        // Update Tailscale status display (needed by checkTailscaleStatus)
+        function updateTailscaleStatusDisplay(data) {
+            const statusDisplay = document.getElementById('tailscale-status-display');
+            
+            if (!statusDisplay) return;
+            
+            if (!data) {
+                statusDisplay.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">Status unknown</div>';
+                return;
+            }
+            
+            let statusHTML = '';
+            
+            if (data.connected) {
+                statusHTML = `
+                    <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.5em;">✓</span>
+                            <div>
+                                <div style="font-weight: 600; color: #2e7d32;">Connected</div>
+                                ${data.ip ? `<div style="font-size: 0.9em; color: #666; margin-top: 4px;">IP: ${data.ip}</div>` : ''}
+                                ${data.hostname ? `<div style="font-size: 0.9em; color: #666;">Hostname: ${data.hostname}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (data.installed) {
+                statusHTML = `
+                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.5em;">⚠️</span>
+                            <div>
+                                <div style="font-weight: 600; color: #856404;">Installed but Not Connected</div>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 4px;">Enter auth key below to connect</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                statusHTML = `
+                    <div style="background: #f3f4f6; border-left: 4px solid #9ca3af; padding: 15px; border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.5em;">○</span>
+                            <div>
+                                <div style="font-weight: 600; color: #4b5563;">Not Installed</div>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 4px;">Enable and enter auth key to install</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            statusDisplay.innerHTML = statusHTML;
+        }
     </script>
     
     <!-- Save Confirmation Modal -->
@@ -1728,121 +1813,6 @@
             statusDisplay.innerHTML = statusHTML;
         }
         
-        // Poll Tailscale installation progress
-        let progressPollInterval = null;
-        
-        async function pollTailscaleProgress() {
-            let attempts = 0;
-            const maxAttempts = 60; // 60 seconds timeout
-            
-            progressPollInterval = setInterval(async () => {
-                attempts++;
-                
-                try {
-                    const response = await fetch('/api/tailscale/progress');
-                    const data = await response.json();
-                    
-                    updateTailscaleProgressUI(data);
-                    
-                    // Check if complete or failed
-                    if (data.status === 'completed') {
-                        clearInterval(progressPollInterval);
-                        showTailscaleResult(true, 'Tailscale connected successfully!');
-                        
-                        // Auto-close after 2 seconds and refresh page
-                        setTimeout(() => {
-                            closeProgressModal();
-                            location.reload(); // Refresh to show new Tailscale status
-                        }, 2000);
-                        
-                    } else if (data.status === 'failed' || attempts >= maxAttempts) {
-                        clearInterval(progressPollInterval);
-                        const errorMsg = data.message || 'Connection timed out';
-                        showTailscaleResult(false, errorMsg);
-                        
-                        // Auto-close after 3 seconds
-                        setTimeout(() => {
-                            closeProgressModal();
-                        }, 3000);
-                    }
-                } catch (error) {
-                    console.error('Error polling progress:', error);
-                }
-            }, 1000); // Poll every second
-        }
-        
-        // Show Tailscale result (success or failure)
-        function showTailscaleResult(success, message) {
-            // Hide spinner
-            document.getElementById('tailscale-spinner').style.display = 'none';
-            
-            // Show result
-            const resultDiv = document.getElementById('tailscale-result');
-            const iconDiv = document.getElementById('tailscale-result-icon');
-            const messageDiv = document.getElementById('tailscale-result-message');
-            
-            if (success) {
-                resultDiv.style.background = '#d1fae5';
-                resultDiv.style.border = '2px solid #10b981';
-                iconDiv.textContent = '✓';
-                iconDiv.style.color = '#10b981';
-                messageDiv.style.color = '#10b981';
-            } else {
-                resultDiv.style.background = '#fee2e2';
-                resultDiv.style.border = '2px solid #ef4444';
-                iconDiv.textContent = '✗';
-                iconDiv.style.color = '#ef4444';
-                messageDiv.style.color = '#ef4444';
-            }
-            
-            messageDiv.textContent = message;
-            resultDiv.style.display = 'block';
-            
-            // Update main text
-            document.getElementById('progress-status-text').textContent = success ? 'Configuration complete!' : 'Configuration failed';
-            document.getElementById('progress-status-detail').textContent = '';
-        }
-        
-        // Update Tailscale progress UI
-        function updateTailscaleProgressUI(data) {
-            const statusText = document.getElementById('progress-status-text');
-            const statusDetail = document.getElementById('progress-status-detail');
-            
-            // Update status text based on phase
-            if (data.status === 'downloading') {
-                // Tailscale is pre-installed, so skip this phase
-                statusText.textContent = 'Configuring Tailscale VPN...';
-                statusDetail.textContent = 'Preparing connection...';
-            } else if (data.status === 'installing') {
-                statusText.textContent = 'Configuring Tailscale VPN...';
-                statusDetail.textContent = 'Setting up VPN tunnel...';
-            } else if (data.status === 'connecting') {
-                statusText.textContent = 'Configuring Tailscale VPN...';
-                statusDetail.textContent = 'Connecting to network...';
-            } else if (data.status === 'completed') {
-                // Will be handled by showTailscaleResult
-            } else if (data.status === 'failed') {
-                // Will be handled by showTailscaleResult
-            }
-        }
-        
-        // Close progress modal
-        function closeProgressModal() {
-            document.getElementById('tailscaleProgressModal').style.display = 'none';
-            
-            // Reset UI to initial state
-            document.getElementById('tailscale-spinner').style.display = 'block';
-            document.getElementById('progress-status-text').textContent = 'Configuring Tailscale VPN...';
-            document.getElementById('progress-status-text').style.color = '#374151';
-            document.getElementById('progress-status-detail').textContent = 'This usually takes 5-10 seconds';
-            document.getElementById('tailscale-result').style.display = 'none';
-            
-            // Clear polling interval if still running
-            if (progressPollInterval) {
-                clearInterval(progressPollInterval);
-                progressPollInterval = null;
-            }
-        }
         
         // ========================================
         // WiFi Management Functions
