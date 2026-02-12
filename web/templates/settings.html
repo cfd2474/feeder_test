@@ -685,18 +685,31 @@
                             
                             // Get feeder name for hostname
                             const siteName = document.getElementById('site_name').value.trim();
+                            const userZipCode = document.getElementById('zip_code').value.trim();
                             const lat = document.getElementById('lat').value;
                             const lon = document.getElementById('lon').value;
                             
                             let machineName = siteName;
-                            if (lat && lon && siteName) {
+                            
+                            // First check if user entered a zip code
+                            if (userZipCode && siteName) {
+                                machineName = `${userZipCode}-${siteName}`;
+                            } else if (lat && lon && siteName) {
+                                // Try to get zip from coordinates
                                 const zipCode = await getZipCodeFromCoords(lat, lon);
                                 if (zipCode) {
                                     machineName = `${zipCode}-${siteName}`;
                                 } else {
-                                    machineName = `00000-${siteName}`;
+                                    // Use current MLAT_SITE_NAME which should already have zip
+                                    const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
+                                    if (currentFullName && currentFullName.includes('-')) {
+                                        machineName = currentFullName;
+                                    } else {
+                                        machineName = siteName; // No zip available
+                                    }
                                 }
                             } else {
+                                // Use current MLAT_SITE_NAME as fallback
                                 const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
                                 if (currentFullName) {
                                     machineName = currentFullName;
@@ -796,6 +809,7 @@
         async function updateTailscale() {
             const tailscaleKey = document.getElementById('tailscale_key').value.trim();
             const siteName = document.getElementById('site_name').value.trim();
+            const userZipCode = document.getElementById('zip_code').value.trim();
             const lat = document.getElementById('lat').value;
             const lon = document.getElementById('lon').value;
             
@@ -811,14 +825,26 @@
             
             // Get feeder name with zip code
             let machineName = siteName;
-            if (lat && lon && siteName) {
+            
+            // First check if user entered a zip code
+            if (userZipCode && siteName) {
+                machineName = `${userZipCode}-${siteName}`;
+            } else if (lat && lon && siteName) {
+                // Try to get zip from coordinates
                 const zipCode = await getZipCodeFromCoords(lat, lon);
                 if (zipCode) {
                     machineName = `${zipCode}-${siteName}`;
                 } else {
-                    machineName = `00000-${siteName}`;
+                    // Use current MLAT_SITE_NAME which should already have zip
+                    const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
+                    if (currentFullName && currentFullName.includes('-')) {
+                        machineName = currentFullName;
+                    } else {
+                        machineName = siteName; // No zip available
+                    }
                 }
             } else {
+                // Use current MLAT_SITE_NAME as fallback
                 const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
                 if (currentFullName) {
                     machineName = currentFullName;

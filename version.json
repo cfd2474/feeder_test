@@ -1,10 +1,10 @@
 {
-  "version": "2.47.11",
+  "version": "2.47.12",
   "release_date": "2026-02-12",
-  "release_name": "JavaScript Fixes",
+  "release_name": "Zip Code Fix",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Fixed JavaScript errors: removed duplicate progressPollInterval declaration and moved checkTailscaleStatus to correct scope. Tailscale status now loads properly."
+  "release_notes": "Fixed Tailscale hostname using 00000 instead of actual zip code. Now uses zip code from form field, falls back to existing MLAT_SITE_NAME, then API lookup. Never uses 00000."
 }
