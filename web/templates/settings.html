@@ -236,7 +236,7 @@
                     </div>
                 </div>
                 
-                <!-- Tailscale Enable/Disable Section -->
+                <!-- Tailscale Status & Control Section -->
                 <div class="form-group" style="margin-bottom: 20px;">
                     <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
                         <div style="flex: 1;">
@@ -257,6 +257,18 @@
                     </small>
                 </div>
                 
+                <!-- Auth Key Input (shown when disabled) -->
+                <div id="tailscale-disabled-section" style="display: none; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label>Tailscale Auth Key</label>
+                        <input type="text" id="tailscale_auth_key_initial" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx" value="{{ config.get('TAILSCALE_AUTH_KEY', '') }}">
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            Enter your Tailscale authentication key, then click "Enable Tailscale" above
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Configuration Section (shown when enabled) -->
                 <div id="tailscale-config" style="display: none; margin-top: 15px;">
                     {% if config.get('TAILSCALE_AUTH_KEY', '') %}
                     <div class="info-box" style="background: #e8f5e9; border-left: 4px solid #4caf50; margin-bottom: 15px;">
@@ -264,11 +276,11 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Connect Tailscale Section (shown when not connected) -->
+                    <!-- Connect Tailscale Section (shown when enabled but not connected) -->
                     <div id="tailscale-connect-section" style="display: none; margin-bottom: 15px;">
                         <div class="form-group">
                             <label>Tailscale Auth Key</label>
-                            <input type="text" id="tailscale_connect_key" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx">
+                            <input type="text" id="tailscale_connect_key" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx" value="{{ config.get('TAILSCALE_AUTH_KEY', '') }}">
                             <small style="color: #666; display: block; margin-top: 5px;">
                                 Enter your Tailscale authentication key
                             </small>
@@ -593,6 +605,7 @@
             
             // Show/hide Tailscale config section
             const tailscaleConfig = document.getElementById('tailscale-config');
+            const tailscaleDisabledSection = document.getElementById('tailscale-disabled-section');
             const enterNewKeyCheckbox = document.getElementById('enter_new_key');
             const newKeySection = document.getElementById('new-key-section');
             
@@ -635,7 +648,11 @@
             }
             
             function toggleTailscaleConfig() {
+                // Show auth key input when disabled
+                tailscaleDisabledSection.style.display = tailscaleEnabled ? 'none' : 'block';
+                // Show config section when enabled
                 tailscaleConfig.style.display = tailscaleEnabled ? 'block' : 'none';
+                
                 if (!tailscaleEnabled) {
                     // Also hide new key section if Tailscale disabled
                     enterNewKeyCheckbox.checked = false;
@@ -664,10 +681,31 @@
                     showDisableModal();
                 } else {
                     // User wants to enable
+                    const authKey = document.getElementById('tailscale_auth_key_initial').value.trim();
+                    
+                    if (!authKey) {
+                        showStatus('Please enter a Tailscale auth key first', 'error');
+                        return;
+                    }
+                    
                     toggleBtn.disabled = true;
                     toggleText.textContent = '⏳ Enabling...';
                     
                     try {
+                        // First save the auth key to config
+                        const saveResponse = await fetch('/api/config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                TAILSCALE_AUTH_KEY: authKey
+                            })
+                        });
+                        
+                        if (!saveResponse.ok) {
+                            throw new Error('Failed to save auth key');
+                        }
+                        
+                        // Now enable Tailscale
                         const response = await fetch('/api/tailscale/enable', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' }
@@ -981,7 +1019,9 @@
                 ZIP_CODE: userZipCode || zipCode || '',
                 
                 TAILSCALE_ENABLED: tailscaleEnabled ? 'true' : 'false',
-                TAILSCALE_AUTH_KEY: document.getElementById('tailscale_key').value.trim()
+                TAILSCALE_AUTH_KEY: tailscaleEnabled 
+                    ? document.getElementById('tailscale_key').value.trim()  // Re-key field when enabled
+                    : document.getElementById('tailscale_auth_key_initial').value.trim()  // Initial field when disabled
             };
             
             try {
