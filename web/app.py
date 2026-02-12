@@ -1006,7 +1006,7 @@ def dashboard():
 @app.route('/logs')
 def logs():
     """Logs page (placeholder)"""
-    return render_template('logs.html')
+    return render_template('logs.html', version=VERSION)
 
 @app.route('/about')
 def about():
@@ -1708,7 +1708,7 @@ def api_adsbhub_toggle():
 def settings():
     """Settings page"""
     env = read_env()
-    return render_template('settings.html', config=env)
+    return render_template('settings.html', config=env, version=VERSION)
 
 @app.route('/feeds')
 def feeds():

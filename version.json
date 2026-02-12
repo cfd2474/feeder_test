@@ -1,10 +1,10 @@
 {
-  "version": "2.47.19",
+  "version": "2.47.20",
   "release_date": "2026-02-12",
-  "release_name": "About Page Polish",
+  "release_name": "Consistent Headers",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Updated About page with consistent header format and version display. Changed support section from purple to light red for better readability. Header now matches Dashboard style across all tabs."
+  "release_notes": "Standardized headers across all pages. All tabs now show identical header with title, subtitle, and version. Changed About page support section to light blue for better readability. All pages now centered and consistent."
 }

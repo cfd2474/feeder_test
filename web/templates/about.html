@@ -4,63 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About - TAKNET-PS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        header {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            color: #667eea;
-            font-size: 2em;
-            margin-bottom: 0;
-        }
-
-        header nav {
-            display: flex;
-            gap: 20px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-        }
-
-        header nav a {
-            color: #667eea;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            transition: all 0.3s;
-        }
-
-        header nav a:hover {
-            background: #f3f4f6;
-        }
-
-        header nav a.active {
-            background: #667eea;
-            color: white;
-        }
-
         .content-card {
             background: white;
             padding: 40px;
@@ -107,8 +52,8 @@
         }
 
         .support-section {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-            color: white;
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            color: #0c4a6e;
             padding: 30px;
             border-radius: 10px;
             margin-top: 30px;
@@ -118,12 +63,13 @@
         .support-section h3 {
             font-size: 1.5em;
             margin-bottom: 20px;
+            color: #0c4a6e;
         }
 
         .support-link {
             display: inline-block;
-            background: white;
-            color: #667eea;
+            background: #667eea;
+            color: white;
             padding: 15px 40px;
             border-radius: 8px;
             text-decoration: none;
@@ -137,32 +83,15 @@
         .support-link:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            background: #5568d3;
         }
 
         .footer-note {
             text-align: center;
             margin-top: 20px;
             font-style: italic;
-            opacity: 0.9;
-        }
-
-        @media (max-width: 768px) {
-            .content-card {
-                padding: 25px;
-            }
-
-            h1 {
-                font-size: 1.5em;
-            }
-
-            .content-card h2 {
-                font-size: 1.4em;
-            }
-
-            .content-card p,
-            .content-card ul li {
-                font-size: 1em;
-            }
+            opacity: 0.8;
+            color: #0c4a6e;
         }
     </style>
 </head>
