@@ -247,7 +247,7 @@
                             </div>
                         </div>
                         <div>
-                            <button class="btn" id="tailscale-toggle-btn" onclick="toggleTailscale()" style="min-width: 150px;">
+                            <button class="btn" id="tailscale-toggle-btn" style="min-width: 150px;">
                                 <span id="tailscale-toggle-text">⏳ Loading...</span>
                             </button>
                         </div>
@@ -745,6 +745,9 @@
             
             // Initialize status on page load
             updateTailscaleStatusUI(tailscaleEnabled, false);
+            
+            // Add event listener to toggle button
+            document.getElementById('tailscale-toggle-btn').addEventListener('click', toggleTailscale);
             
             // Check actual Tailscale connection status
             fetch('/api/tailscale/status')

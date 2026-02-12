@@ -1,10 +1,10 @@
 {
-  "version": "2.47.7",
-  "release_date": "2026-02-11",
-  "release_name": "Tailscale Auth Key Input",
+  "version": "2.47.8",
+  "release_date": "2026-02-12",
+  "release_name": "Tailscale Button Click Fix",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Added auth key input field when Tailscale is disabled. Users can now enter a key and enable Tailscale in one step. Re-key functionality preserved for already-connected systems."
+  "release_notes": "Fixed Tailscale enable/disable button not responding to clicks. Replaced inline onclick handler with proper event listener."
 }
