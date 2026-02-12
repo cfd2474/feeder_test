@@ -803,6 +803,16 @@ def install_tailscale_with_progress(auth_key=None, hostname=None):
         update_tailscale_progress('completed', 100, 100, 100, 
                                 'Tailscale connected successfully!', 0, 0)
         
+        # Save hostname to .env file if it was provided
+        if hostname:
+            try:
+                env = read_env()
+                env['TAILSCALE_HOSTNAME'] = hostname
+                write_env(env)
+                print(f"✓ Tailscale hostname saved: {hostname}")
+            except Exception as e:
+                print(f"⚠️ Could not save Tailscale hostname: {e}")
+        
         # CRITICAL: Rebuild ultrafeeder config to switch from public IP to Tailscale
         print("✓ Tailscale connected - rebuilding ultrafeeder config...")
         try:

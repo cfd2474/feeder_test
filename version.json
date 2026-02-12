@@ -1,10 +1,10 @@
 {
-  "version": "2.47.2",
+  "version": "2.47.3",
   "release_date": "2026-02-11",
-  "release_name": "Simplified Setup Wizard",
+  "release_name": "Tailscale Machine Name Fix",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Removed Tailscale from setup wizard. Tailscale configuration now only available in Settings page for simpler initial setup."
+  "release_notes": "Tailscale machine name now uses feeder name (MLAT_SITE_NAME) instead of system hostname. Saves hostname to configuration for proper display."
 }
