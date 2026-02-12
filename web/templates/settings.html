@@ -846,8 +846,8 @@
         async function installTailscaleWithProgress(authKey, hostname) {
             try {
                 // Update status
-                document.getElementById('progress-status-text').textContent = 'Configuring Tailscale VPN...';
-                document.getElementById('progress-status-detail').textContent = 'Preparing connection...';
+                document.getElementById('progress-status-text').textContent = 'Starting Tailscale installation...';
+                document.getElementById('progress-status-detail').textContent = 'This may take 10-30 seconds';
                 
                 const response = await fetch('/api/tailscale/install', {
                     method: 'POST',
@@ -861,61 +861,101 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Show success
-                    document.getElementById('tailscale-spinner').style.display = 'none';
-                    const resultDiv = document.getElementById('tailscale-result');
-                    resultDiv.style.background = '#d1fae5';
-                    resultDiv.style.border = '2px solid #10b981';
-                    resultDiv.style.display = 'block';
-                    document.getElementById('tailscale-result-icon').textContent = '✓';
-                    document.getElementById('tailscale-result-icon').style.color = '#10b981';
-                    document.getElementById('tailscale-result-message').textContent = 'Tailscale configured successfully!';
-                    document.getElementById('tailscale-result-message').style.color = '#10b981';
-                    document.getElementById('progress-status-text').textContent = 'Configuration complete!';
-                    document.getElementById('progress-status-detail').textContent = '';
-                    
-                    // Auto-close and refresh
-                    setTimeout(() => {
-                        document.getElementById('tailscaleProgressModal').style.display = 'none';
-                        location.reload();
-                    }, 2000);
+                    // Start polling for progress
+                    pollTailscaleProgress();
                 } else {
                     // Show error
-                    document.getElementById('tailscale-spinner').style.display = 'none';
-                    const resultDiv = document.getElementById('tailscale-result');
-                    resultDiv.style.background = '#fee2e2';
-                    resultDiv.style.border = '2px solid #ef4444';
-                    resultDiv.style.display = 'block';
-                    document.getElementById('tailscale-result-icon').textContent = '✗';
-                    document.getElementById('tailscale-result-icon').style.color = '#ef4444';
-                    document.getElementById('tailscale-result-message').textContent = data.message || 'Configuration failed';
-                    document.getElementById('tailscale-result-message').style.color = '#ef4444';
-                    document.getElementById('progress-status-text').textContent = 'Configuration failed';
-                    document.getElementById('progress-status-detail').textContent = '';
-                    
-                    // Auto-close
-                    setTimeout(() => {
-                        document.getElementById('tailscaleProgressModal').style.display = 'none';
-                    }, 3000);
+                    showTailscaleResult(false, data.message || 'Failed to start installation');
                 }
             } catch (error) {
                 // Show error
-                document.getElementById('tailscale-spinner').style.display = 'none';
-                const resultDiv = document.getElementById('tailscale-result');
+                console.error('Failed to start Tailscale installation:', error);
+                showTailscaleResult(false, 'Error: ' + error.message);
+            }
+        }
+        
+        // Poll Tailscale installation progress
+        let progressPollInterval = null;
+        
+        async function pollTailscaleProgress() {
+            let attempts = 0;
+            const maxAttempts = 60; // 60 seconds timeout
+            
+            progressPollInterval = setInterval(async () => {
+                attempts++;
+                
+                try {
+                    const response = await fetch('/api/tailscale/progress');
+                    const data = await response.json();
+                    
+                    updateTailscaleProgressUI(data);
+                    
+                    // Check if complete or failed
+                    if (data.status === 'completed') {
+                        clearInterval(progressPollInterval);
+                        showTailscaleResult(true, 'Tailscale connected successfully!');
+                        
+                        // Reload page to update status
+                        setTimeout(() => {
+                            location.reload();
+                        }, 2000);
+                    } else if (data.status === 'failed') {
+                        clearInterval(progressPollInterval);
+                        showTailscaleResult(false, data.message || 'Tailscale connection failed');
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(progressPollInterval);
+                        showTailscaleResult(false, 'Timeout waiting for Tailscale connection');
+                    }
+                } catch (error) {
+                    console.error('Error polling progress:', error);
+                    if (attempts >= maxAttempts) {
+                        clearInterval(progressPollInterval);
+                        showTailscaleResult(false, 'Error checking connection status');
+                    }
+                }
+            }, 1000); // Poll every second
+        }
+        
+        function updateTailscaleProgressUI(data) {
+            const statusText = document.getElementById('progress-status-text');
+            const statusDetail = document.getElementById('progress-status-detail');
+            
+            if (data.status === 'downloading') {
+                statusText.textContent = 'Downloading Tailscale...';
+                statusDetail.textContent = data.message || 'Please wait...';
+            } else if (data.status === 'installing') {
+                statusText.textContent = 'Installing Tailscale...';
+                statusDetail.textContent = data.message || 'Please wait...';
+            } else if (data.status === 'registering') {
+                statusText.textContent = 'Connecting to Tailscale network...';
+                statusDetail.textContent = data.message || 'Almost done...';
+            }
+        }
+        
+        function showTailscaleResult(success, message) {
+            document.getElementById('tailscale-spinner').style.display = 'none';
+            const resultDiv = document.getElementById('tailscale-result');
+            
+            if (success) {
+                resultDiv.style.background = '#d1fae5';
+                resultDiv.style.border = '2px solid #10b981';
+                resultDiv.style.display = 'block';
+                document.getElementById('tailscale-result-icon').textContent = '✓';
+                document.getElementById('tailscale-result-icon').style.color = '#10b981';
+                document.getElementById('tailscale-result-message').textContent = message;
+                document.getElementById('tailscale-result-message').style.color = '#10b981';
+                document.getElementById('progress-status-text').textContent = 'Complete!';
+                document.getElementById('progress-status-detail').textContent = '';
+            } else {
                 resultDiv.style.background = '#fee2e2';
                 resultDiv.style.border = '2px solid #ef4444';
                 resultDiv.style.display = 'block';
                 document.getElementById('tailscale-result-icon').textContent = '✗';
                 document.getElementById('tailscale-result-icon').style.color = '#ef4444';
-                document.getElementById('tailscale-result-message').textContent = 'Error: ' + error.message;
+                document.getElementById('tailscale-result-message').textContent = message;
                 document.getElementById('tailscale-result-message').style.color = '#ef4444';
-                document.getElementById('progress-status-text').textContent = 'Configuration failed';
+                document.getElementById('progress-status-text').textContent = 'Failed';
                 document.getElementById('progress-status-detail').textContent = '';
-                
-                // Auto-close
-                setTimeout(() => {
-                    document.getElementById('tailscaleProgressModal').style.display = 'none';
-                }, 3000);
             }
         }
         

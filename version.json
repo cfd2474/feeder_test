@@ -1,10 +1,10 @@
 {
-  "version": "2.47.9",
+  "version": "2.47.10",
   "release_date": "2026-02-12",
-  "release_name": "One-Button Tailscale Setup",
+  "release_name": "Tailscale Connection Fix",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Simplified Tailscale to single button: Enter key, click Enable & Connect. Removed separate connect button. Auth key now required to enable."
+  "release_notes": "Fixed Tailscale not actually connecting when Enable & Connect is clicked. Added progress polling to monitor installation and connection status."
 }
