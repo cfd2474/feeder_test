@@ -236,7 +236,7 @@
                     </div>
                 </div>
                 
-                <!-- Tailscale Status & Control Section -->
+                <!-- Tailscale Enable/Disable Section -->
                 <div class="form-group" style="margin-bottom: 20px;">
                     <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
                         <div style="flex: 1;">
@@ -258,17 +258,20 @@
                 </div>
                 
                 <!-- Auth Key Input (shown when disabled) -->
-                <div id="tailscale-disabled-section" style="display: none; margin-bottom: 20px;">
+                <div id="tailscale-disabled-section" style="display: none; margin-top: 15px;">
                     <div class="form-group">
                         <label>Tailscale Auth Key</label>
-                        <input type="text" id="tailscale_auth_key_initial" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx" value="{{ config.get('TAILSCALE_AUTH_KEY', '') }}">
+                        <input type="text" id="tailscale_initial_key" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx">
                         <small style="color: #666; display: block; margin-top: 5px;">
-                            Enter your Tailscale authentication key, then click "Enable Tailscale" above
+                            Enter your Tailscale authentication key to enable and connect
                         </small>
+                    </div>
+                    <div class="info-note" style="margin-top: 15px;">
+                        <p><strong>Need a Tailscale auth key?</strong></p>
+                        <p>Contact: <a href="mailto:michael.leckliter@yahoo.com" style="color: #667eea;">Michael Leckliter</a></p>
                     </div>
                 </div>
                 
-                <!-- Configuration Section (shown when enabled) -->
                 <div id="tailscale-config" style="display: none; margin-top: 15px;">
                     {% if config.get('TAILSCALE_AUTH_KEY', '') %}
                     <div class="info-box" style="background: #e8f5e9; border-left: 4px solid #4caf50; margin-bottom: 15px;">
@@ -276,11 +279,11 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Connect Tailscale Section (shown when enabled but not connected) -->
+                    <!-- Connect Tailscale Section (shown when not connected) -->
                     <div id="tailscale-connect-section" style="display: none; margin-bottom: 15px;">
                         <div class="form-group">
                             <label>Tailscale Auth Key</label>
-                            <input type="text" id="tailscale_connect_key" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx" value="{{ config.get('TAILSCALE_AUTH_KEY', '') }}">
+                            <input type="text" id="tailscale_connect_key" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx">
                             <small style="color: #666; display: block; margin-top: 5px;">
                                 Enter your Tailscale authentication key
                             </small>
@@ -605,7 +608,6 @@
             
             // Show/hide Tailscale config section
             const tailscaleConfig = document.getElementById('tailscale-config');
-            const tailscaleDisabledSection = document.getElementById('tailscale-disabled-section');
             const enterNewKeyCheckbox = document.getElementById('enter_new_key');
             const newKeySection = document.getElementById('new-key-section');
             
@@ -648,9 +650,12 @@
             }
             
             function toggleTailscaleConfig() {
-                // Show auth key input when disabled
-                tailscaleDisabledSection.style.display = tailscaleEnabled ? 'none' : 'block';
-                // Show config section when enabled
+                const disabledSection = document.getElementById('tailscale-disabled-section');
+                
+                // Show disabled section when disabled, hide when enabled
+                disabledSection.style.display = tailscaleEnabled ? 'none' : 'block';
+                
+                // Show config section when enabled, hide when disabled
                 tailscaleConfig.style.display = tailscaleEnabled ? 'block' : 'none';
                 
                 if (!tailscaleEnabled) {
@@ -681,31 +686,14 @@
                     showDisableModal();
                 } else {
                     // User wants to enable
-                    const authKey = document.getElementById('tailscale_auth_key_initial').value.trim();
-                    
-                    if (!authKey) {
-                        showStatus('Please enter a Tailscale auth key first', 'error');
-                        return;
-                    }
+                    // Check if they provided an auth key
+                    const initialKey = document.getElementById('tailscale_initial_key').value.trim();
                     
                     toggleBtn.disabled = true;
                     toggleText.textContent = '⏳ Enabling...';
                     
                     try {
-                        // First save the auth key to config
-                        const saveResponse = await fetch('/api/config', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                TAILSCALE_AUTH_KEY: authKey
-                            })
-                        });
-                        
-                        if (!saveResponse.ok) {
-                            throw new Error('Failed to save auth key');
-                        }
-                        
-                        // Now enable Tailscale
+                        // First enable Tailscale
                         const response = await fetch('/api/tailscale/enable', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' }
@@ -716,6 +704,34 @@
                         if (result.success) {
                             updateTailscaleStatusUI(true, false);
                             showStatus('Tailscale enabled successfully', 'success');
+                            
+                            // If they provided an auth key, install/connect Tailscale
+                            if (initialKey && initialKey.length > 0) {
+                                showStatus('Connecting to Tailscale...', 'info');
+                                
+                                // Get feeder name for hostname
+                                const siteName = document.getElementById('site_name').value.trim();
+                                const lat = document.getElementById('lat').value;
+                                const lon = document.getElementById('lon').value;
+                                
+                                let machineName = siteName;
+                                if (lat && lon && siteName) {
+                                    const zipCode = await getZipCodeFromCoords(lat, lon);
+                                    if (zipCode) {
+                                        machineName = `${zipCode}-${siteName}`;
+                                    } else {
+                                        machineName = `00000-${siteName}`;
+                                    }
+                                } else {
+                                    const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
+                                    if (currentFullName) {
+                                        machineName = currentFullName;
+                                    }
+                                }
+                                
+                                // Show progress modal and connect
+                                showTailscaleProgressModal(initialKey, machineName);
+                            }
                         } else {
                             showStatus('Failed to enable Tailscale: ' + result.message, 'error');
                         }
@@ -1019,9 +1035,7 @@
                 ZIP_CODE: userZipCode || zipCode || '',
                 
                 TAILSCALE_ENABLED: tailscaleEnabled ? 'true' : 'false',
-                TAILSCALE_AUTH_KEY: tailscaleEnabled 
-                    ? document.getElementById('tailscale_key').value.trim()  // Re-key field when enabled
-                    : document.getElementById('tailscale_auth_key_initial').value.trim()  // Initial field when disabled
+                TAILSCALE_AUTH_KEY: document.getElementById('tailscale_key').value.trim()
             };
             
             try {
