@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.47.17
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.47.18
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -42,7 +42,7 @@ fi
 if [ "$UPDATE_MODE" != true ]; then
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  TAKNET-PS-ADSB-Feeder Installer v2.47.17"
+    echo "  TAKNET-PS-ADSB-Feeder Installer v2.47.18"
     echo "  Ultrafeeder + TAKNET-PS + Web UI"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
@@ -385,7 +385,7 @@ wget -q $REPO/version.json -O /opt/adsb/version.json 2>/dev/null || echo "  (ver
 
 # Download VERSION file
 echo "  - VERSION..."
-wget -q $REPO/VERSION -O /opt/adsb/VERSION 2>/dev/null || echo "2.47.17" > /opt/adsb/VERSION
+wget -q $REPO/VERSION -O /opt/adsb/VERSION 2>/dev/null || echo "2.47.18" > /opt/adsb/VERSION
 
 # Web UI files
 echo "Installing Web UI..."
@@ -397,6 +397,7 @@ wget -q $REPO/web/templates/feeds.html -O /opt/adsb/web/templates/feeds.html
 wget -q $REPO/web/templates/feeds-account-required.html -O /opt/adsb/web/templates/feeds-account-required.html
 wget -q $REPO/web/templates/settings.html -O /opt/adsb/web/templates/settings.html
 wget -q $REPO/web/templates/logs.html -O /opt/adsb/web/templates/logs.html
+wget -q $REPO/web/templates/about.html -O /opt/adsb/web/templates/about.html
 wget -q $REPO/web/templates/loading.html -O /opt/adsb/web/templates/loading.html
 wget -q $REPO/web/templates/taknet-ps-status.html -O /opt/adsb/web/templates/taknet-ps-status.html
 wget -q $REPO/web/static/css/style.css -O /opt/adsb/web/static/css/style.css

@@ -1008,6 +1008,11 @@ def logs():
     """Logs page (placeholder)"""
     return render_template('logs.html')
 
+@app.route('/about')
+def about():
+    """About page"""
+    return render_template('about.html')
+
 @app.route('/api/logs/<source>')
 def get_logs(source):
     """Fetch logs from various sources"""
