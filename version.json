@@ -1,10 +1,10 @@
 {
-  "version": "2.47.4",
+  "version": "2.47.5",
   "release_date": "2026-02-11",
-  "release_name": "Improved Version Comparison",
+  "release_name": "Tailscale Button Controls",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Improved version comparison logic with better error handling and logging. Added version verification script for release validation."
+  "release_notes": "Replaced Tailscale checkbox with button controls. Added status indicator showing Enabled/Disabled state. Disable button now properly stops Tailscale service."
 }

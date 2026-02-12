@@ -236,11 +236,25 @@
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="tailscale_enabled" {{ 'checked' if config.get('TAILSCALE_ENABLED', 'false') == 'true' else '' }}>
-                        Enable Tailscale VPN
-                    </label>
+                <!-- Tailscale Enable/Disable Section -->
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                        <div style="flex: 1;">
+                            <strong style="display: block; margin-bottom: 5px;">Tailscale Status</strong>
+                            <div id="tailscale-status-indicator" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f3f4f6; border-radius: 6px; font-size: 0.95em;">
+                                <span id="tailscale-status-icon">⏳</span>
+                                <span id="tailscale-status-text">Checking...</span>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn" id="tailscale-toggle-btn" onclick="toggleTailscale()" style="min-width: 150px;">
+                                <span id="tailscale-toggle-text">⏳ Loading...</span>
+                            </button>
+                        </div>
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Tailscale provides secure VPN connectivity to TAKNET-PS Server
+                    </small>
                 </div>
                 
                 <div id="tailscale-config" style="display: none; margin-top: 15px;">
@@ -573,18 +587,56 @@
                 });
             }
             
+            // Tailscale toggle state
+            let tailscaleEnabled = {{ 'true' if config.get('TAILSCALE_ENABLED', 'false') == 'true' else 'false' }};
+            let tailscaleConnected = false;
+            
             // Show/hide Tailscale config section
-            const tailscaleCheckbox = document.getElementById('tailscale_enabled');
             const tailscaleConfig = document.getElementById('tailscale-config');
             const enterNewKeyCheckbox = document.getElementById('enter_new_key');
             const newKeySection = document.getElementById('new-key-section');
             
-            // Store initial states
-            originalTailscaleState = tailscaleCheckbox.checked;
+            // Update Tailscale status UI
+            function updateTailscaleStatusUI(enabled, connected) {
+                const statusIcon = document.getElementById('tailscale-status-icon');
+                const statusText = document.getElementById('tailscale-status-text');
+                const toggleBtn = document.getElementById('tailscale-toggle-btn');
+                const toggleText = document.getElementById('tailscale-toggle-text');
+                
+                if (enabled && connected) {
+                    // Enabled and connected
+                    statusIcon.textContent = '✅';
+                    statusText.textContent = 'Enabled & Connected';
+                    statusIcon.parentElement.style.background = '#d1fae5';
+                    statusIcon.parentElement.style.border = '1px solid #10b981';
+                    toggleBtn.className = 'btn';
+                    toggleText.textContent = '🔴 Disable Tailscale';
+                } else if (enabled && !connected) {
+                    // Enabled but not connected
+                    statusIcon.textContent = '⚠️';
+                    statusText.textContent = 'Enabled (Not Connected)';
+                    statusIcon.parentElement.style.background = '#fef3c7';
+                    statusIcon.parentElement.style.border = '1px solid #f59e0b';
+                    toggleBtn.className = 'btn';
+                    toggleText.textContent = '🔴 Disable Tailscale';
+                } else {
+                    // Disabled
+                    statusIcon.textContent = '⭕';
+                    statusText.textContent = 'Disabled';
+                    statusIcon.parentElement.style.background = '#f3f4f6';
+                    statusIcon.parentElement.style.border = '1px solid #d1d5db';
+                    toggleBtn.className = 'btn btn-primary';
+                    toggleText.textContent = '🟢 Enable Tailscale';
+                }
+                
+                tailscaleEnabled = enabled;
+                tailscaleConnected = connected;
+                toggleTailscaleConfig();
+            }
             
             function toggleTailscaleConfig() {
-                tailscaleConfig.style.display = tailscaleCheckbox.checked ? 'block' : 'none';
-                if (!tailscaleCheckbox.checked) {
+                tailscaleConfig.style.display = tailscaleEnabled ? 'block' : 'none';
+                if (!tailscaleEnabled) {
                     // Also hide new key section if Tailscale disabled
                     enterNewKeyCheckbox.checked = false;
                     newKeySection.style.display = 'none';
@@ -599,22 +651,56 @@
                 }
             }
             
-            // Intercept Tailscale checkbox changes
-            tailscaleCheckbox.addEventListener('change', function(e) {
-                if (originalTailscaleState && !this.checked) {
-                    // User is trying to disable - show confirmation
-                    e.preventDefault();
-                    this.checked = true; // Keep it checked until confirmed
-                    showDisableModal();
-                } else {
-                    toggleTailscaleConfig();
-                }
-            });
-            
             // Handle enter new key checkbox
             enterNewKeyCheckbox.addEventListener('change', toggleNewKeySection);
             
-            toggleTailscaleConfig(); // Initial state
+            // Toggle Tailscale on/off
+            async function toggleTailscale() {
+                const toggleBtn = document.getElementById('tailscale-toggle-btn');
+                const toggleText = document.getElementById('tailscale-toggle-text');
+                
+                if (tailscaleEnabled) {
+                    // User wants to disable - show confirmation
+                    showDisableModal();
+                } else {
+                    // User wants to enable
+                    toggleBtn.disabled = true;
+                    toggleText.textContent = '⏳ Enabling...';
+                    
+                    try {
+                        const response = await fetch('/api/tailscale/enable', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            updateTailscaleStatusUI(true, false);
+                            showStatus('Tailscale enabled successfully', 'success');
+                        } else {
+                            showStatus('Failed to enable Tailscale: ' + result.message, 'error');
+                        }
+                    } catch (error) {
+                        showStatus('Error enabling Tailscale: ' + error.message, 'error');
+                    } finally {
+                        toggleBtn.disabled = false;
+                    }
+                }
+            }
+            
+            // Initialize status on page load
+            updateTailscaleStatusUI(tailscaleEnabled, false);
+            
+            // Check actual Tailscale connection status
+            fetch('/api/tailscale/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.status === 'Running') {
+                        updateTailscaleStatusUI(true, true);
+                    }
+                })
+                .catch(error => console.error('Error checking Tailscale status:', error));
         });
         
         function showDisableModal() {
@@ -623,17 +709,36 @@
         
         function cancelDisable() {
             document.getElementById('disableModal').style.display = 'none';
-            // Checkbox stays checked
         }
         
-        function confirmDisable() {
+        async function confirmDisable() {
             document.getElementById('disableModal').style.display = 'none';
-            const checkbox = document.getElementById('tailscale_enabled');
-            checkbox.checked = false;
-            originalTailscaleState = false;
-            document.getElementById('tailscale-config').style.display = 'none';
-            document.getElementById('enter_new_key').checked = false;
-            document.getElementById('new-key-section').style.display = 'none';
+            
+            const toggleBtn = document.getElementById('tailscale-toggle-btn');
+            const toggleText = document.getElementById('tailscale-toggle-text');
+            
+            toggleBtn.disabled = true;
+            toggleText.textContent = '⏳ Disabling...';
+            
+            try {
+                const response = await fetch('/api/tailscale/disable', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateTailscaleStatusUI(false, false);
+                    showStatus('Tailscale disabled successfully', 'success');
+                } else {
+                    showStatus('Failed to disable Tailscale: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showStatus('Error disabling Tailscale: ' + error.message, 'error');
+            } finally {
+                toggleBtn.disabled = false;
+            }
         }
         
         // Get zip code from coordinates
@@ -659,7 +764,6 @@
         
         // Update Tailscale configuration
         async function updateTailscale() {
-            const tailscaleEnabled = document.getElementById('tailscale_enabled').checked;
             const tailscaleKey = document.getElementById('tailscale_key').value.trim();
             const siteName = document.getElementById('site_name').value.trim();
             const lat = document.getElementById('lat').value;
@@ -876,7 +980,7 @@
                 MLAT_SITE_NAME: finalSiteName,
                 ZIP_CODE: userZipCode || zipCode || '',
                 
-                TAILSCALE_ENABLED: document.getElementById('tailscale_enabled').checked ? 'true' : 'false',
+                TAILSCALE_ENABLED: tailscaleEnabled ? 'true' : 'false',
                 TAILSCALE_AUTH_KEY: document.getElementById('tailscale_key').value.trim()
             };
             

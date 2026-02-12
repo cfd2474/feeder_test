@@ -1953,6 +1953,58 @@ def api_tailscale_progress():
     with tailscale_progress_lock:
         return jsonify(tailscale_progress)
 
+@app.route('/api/tailscale/enable', methods=['POST'])
+def api_tailscale_enable():
+    """Enable Tailscale VPN"""
+    try:
+        env = read_env()
+        env['TAILSCALE_ENABLED'] = 'true'
+        write_env(env)
+        
+        # Rebuild config to activate Tailscale connection
+        if rebuild_config():
+            # Restart ultrafeeder to apply changes
+            restart_service()
+            return jsonify({'success': True, 'message': 'Tailscale enabled successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to rebuild configuration'}), 500
+            
+    except Exception as e:
+        print(f"❌ Error enabling Tailscale: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/tailscale/disable', methods=['POST'])
+def api_tailscale_disable():
+    """Disable Tailscale VPN"""
+    try:
+        # Stop Tailscale service
+        try:
+            subprocess.run(['tailscale', 'down'], timeout=10, capture_output=True, check=False)
+            print("✓ Tailscale service stopped")
+        except Exception as e:
+            print(f"⚠️ Could not stop Tailscale: {e}")
+        
+        # Update config to disable
+        env = read_env()
+        env['TAILSCALE_ENABLED'] = 'false'
+        write_env(env)
+        
+        # Rebuild config to use public IP fallback
+        if rebuild_config():
+            # Restart ultrafeeder to apply changes
+            restart_service()
+            return jsonify({'success': True, 'message': 'Tailscale disabled successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to rebuild configuration'}), 500
+            
+    except Exception as e:
+        print(f"❌ Error disabling Tailscale: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/fr24/activate', methods=['POST'])
 def api_activate_fr24():
     """Activate FR24 service - start container and monitor download"""
