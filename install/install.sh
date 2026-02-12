@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.47.0
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.47.1
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -42,7 +42,7 @@ fi
 if [ "$UPDATE_MODE" != true ]; then
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  TAKNET-PS-ADSB-Feeder Installer v2.47.0"
+    echo "  TAKNET-PS-ADSB-Feeder Installer v2.47.1"
     echo "  Ultrafeeder + TAKNET-PS + Web UI"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
@@ -382,6 +382,10 @@ chmod +x /opt/adsb/scripts/updater.sh
 # Download version.json for update checking
 echo "  - version.json..."
 wget -q $REPO/version.json -O /opt/adsb/version.json 2>/dev/null || echo "  (version.json not found, skipping)"
+
+# Download VERSION file
+echo "  - VERSION..."
+wget -q $REPO/VERSION -O /opt/adsb/VERSION 2>/dev/null || echo "2.47.1" > /opt/adsb/VERSION
 
 # Web UI files
 echo "Installing Web UI..."

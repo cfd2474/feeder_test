@@ -15,6 +15,13 @@ echo "  TAKNET-PS System Update"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
+# Show current version
+if [ -f "$VERSION_FILE" ]; then
+    CURRENT_VERSION=$(cat "$VERSION_FILE")
+    echo "Current Version: $CURRENT_VERSION"
+    echo ""
+fi
+
 # Function to backup configuration
 backup_config() {
     echo "📦 Backing up current configuration..."
