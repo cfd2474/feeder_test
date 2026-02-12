@@ -587,27 +587,27 @@
             function updateTailscaleStatusUI(enabled, connected) {
                 const statusIcon = document.getElementById('tailscale-status-icon');
                 const statusText = document.getElementById('tailscale-status-text');
+                const statusIndicator = document.getElementById('tailscale-status-indicator');
                 const toggleBtn = document.getElementById('tailscale-toggle-btn');
                 const toggleText = document.getElementById('tailscale-toggle-text');
                 
                 if (enabled && connected) {
-                    // Enabled and connected
-                    statusIcon.textContent = '✅';
-                    statusText.textContent = 'Enabled & Connected';
-                    statusIcon.parentElement.style.background = '#d1fae5';
-                    statusIcon.parentElement.style.border = '1px solid #10b981';
+                    // Enabled and connected - hide status indicator
+                    if (statusIndicator) statusIndicator.style.display = 'none';
                     toggleBtn.className = 'btn';
                     toggleText.textContent = '🔴 Disable Tailscale';
                 } else if (enabled && !connected) {
-                    // Enabled but not connected (shouldn't happen with new flow)
+                    // Enabled but not connected
+                    if (statusIndicator) statusIndicator.style.display = 'flex';
                     statusIcon.textContent = '⚠️';
-                    statusText.textContent = 'Enabled (Not Connected)';
+                    statusText.textContent = 'Not Connected';
                     statusIcon.parentElement.style.background = '#fef3c7';
                     statusIcon.parentElement.style.border = '1px solid #f59e0b';
                     toggleBtn.className = 'btn';
                     toggleText.textContent = '🔴 Disable Tailscale';
                 } else {
                     // Disabled
+                    if (statusIndicator) statusIndicator.style.display = 'flex';
                     statusIcon.textContent = '⭕';
                     statusText.textContent = 'Disabled';
                     statusIcon.parentElement.style.background = '#f3f4f6';
@@ -1358,17 +1358,20 @@
         // Update Tailscale status display (needed by checkTailscaleStatus)
         function updateTailscaleStatusDisplay(data) {
             const statusDisplay = document.getElementById('tailscale-status-display');
+            const statusIndicator = document.getElementById('tailscale-status-indicator');
             
             if (!statusDisplay) return;
             
             if (!data) {
                 statusDisplay.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">Status unknown</div>';
+                if (statusIndicator) statusIndicator.style.display = 'flex';
                 return;
             }
             
             let statusHTML = '';
             
             if (data.connected) {
+                // Connected - show green box
                 statusHTML = `
                     <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; border-radius: 8px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -1381,30 +1384,23 @@
                         </div>
                     </div>
                 `;
-            } else if (data.installed) {
-                statusHTML = `
-                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 1.5em;">⚠️</span>
-                            <div>
-                                <div style="font-weight: 600; color: #856404;">Installed but Not Connected</div>
-                                <div style="font-size: 0.9em; color: #666; margin-top: 4px;">Enter auth key below to connect</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                // Hide the status indicator when connected
+                if (statusIndicator) statusIndicator.style.display = 'none';
             } else {
+                // Not connected - show simple not connected message
                 statusHTML = `
                     <div style="background: #f3f4f6; border-left: 4px solid #9ca3af; padding: 15px; border-radius: 8px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-size: 1.5em;">○</span>
                             <div>
-                                <div style="font-weight: 600; color: #4b5563;">Not Installed</div>
-                                <div style="font-size: 0.9em; color: #666; margin-top: 4px;">Enable and enter auth key to install</div>
+                                <div style="font-weight: 600; color: #4b5563;">Not Connected</div>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 4px;">Enter auth key below to connect</div>
                             </div>
                         </div>
                     </div>
                 `;
+                // Show the status indicator when not connected
+                if (statusIndicator) statusIndicator.style.display = 'flex';
             }
             
             statusDisplay.innerHTML = statusHTML;
@@ -1834,15 +1830,20 @@
         // Update Tailscale status display
         function updateTailscaleStatusDisplay(data) {
             const statusDisplay = document.getElementById('tailscale-status-display');
+            const statusIndicator = document.getElementById('tailscale-status-indicator');
+            
+            if (!statusDisplay) return;
             
             if (!data) {
                 statusDisplay.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">Status unknown</div>';
+                if (statusIndicator) statusIndicator.style.display = 'flex';
                 return;
             }
             
             let statusHTML = '';
             
             if (data.connected) {
+                // Connected - show green box
                 statusHTML = `
                     <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; border-radius: 8px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -1855,30 +1856,23 @@
                         </div>
                     </div>
                 `;
-            } else if (data.installed) {
-                statusHTML = `
-                    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 1.5em;">⚠️</span>
-                            <div>
-                                <div style="font-weight: 600; color: #856404;">Installed but Not Connected</div>
-                                <div style="font-size: 0.9em; color: #666; margin-top: 4px;">Enter auth key below to connect</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                // Hide the status indicator when connected
+                if (statusIndicator) statusIndicator.style.display = 'none';
             } else {
+                // Not connected - show simple not connected message
                 statusHTML = `
                     <div style="background: #f3f4f6; border-left: 4px solid #9ca3af; padding: 15px; border-radius: 8px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-size: 1.5em;">○</span>
                             <div>
-                                <div style="font-weight: 600; color: #4b5563;">Not Installed</div>
-                                <div style="font-size: 0.9em; color: #666; margin-top: 4px;">Enable and enter auth key to install</div>
+                                <div style="font-weight: 600; color: #4b5563;">Not Connected</div>
+                                <div style="font-size: 0.9em; color: #666; margin-top: 4px;">Enter auth key below to connect</div>
                             </div>
                         </div>
                     </div>
                 `;
+                // Show the status indicator when not connected
+                if (statusIndicator) statusIndicator.style.display = 'flex';
             }
             
             statusDisplay.innerHTML = statusHTML;

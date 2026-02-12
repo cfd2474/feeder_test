@@ -1,10 +1,10 @@
 {
-  "version": "2.47.14",
+  "version": "2.47.15",
   "release_date": "2026-02-12",
-  "release_name": "Tailscale in Restart Services",
+  "release_name": "Tailscale Status Cleanup",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Added Tailscale to Restart Services modal. Can now restart Tailscale along with other services. Backend API updated to accept tailscale service."
+  "release_notes": "Cleaned up Tailscale status display. When connected, only shows green box. When not connected, shows simple 'Not Connected' message. Removed confusing 'Enabled (Not Connected)' and 'Installed but Not Connected' states."
 }
