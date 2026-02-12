@@ -2727,6 +2727,8 @@ def get_system_version():
         if version_file.exists():
             current_version = version_file.read_text().strip()
         
+        print(f"Current version from file: {current_version}")
+        
         # Fetch latest version from GitHub
         repo_url = 'https://raw.githubusercontent.com/cfd2474/feeder_test/main/version.json'
         
@@ -2738,16 +2740,35 @@ def get_system_version():
                 latest_info = response.json()
                 latest_version = latest_info.get('version', 'unknown')
                 
+                print(f"Latest version from GitHub: {latest_version}")
+                
                 # Compare versions
                 update_available = False
                 if current_version != 'unknown' and latest_version != 'unknown':
-                    # Simple version comparison (assumes format: 2.46.10)
-                    current_parts = [int(x) for x in current_version.split('.')]
-                    latest_parts = [int(x) for x in latest_version.split('.')]
+                    try:
+                        # Parse version strings (format: X.Y.Z)
+                        current_parts = [int(x) for x in current_version.split('.')]
+                        latest_parts = [int(x) for x in latest_version.split('.')]
+                        
+                        # Pad to same length if needed (handle 2.47 vs 2.47.0)
+                        while len(current_parts) < len(latest_parts):
+                            current_parts.append(0)
+                        while len(latest_parts) < len(current_parts):
+                            latest_parts.append(0)
+                        
+                        # Compare major.minor.patch
+                        print(f"Comparing: {current_parts} vs {latest_parts}")
+                        
+                        if latest_parts > current_parts:
+                            update_available = True
+                            print(f"Update available: {current_version} → {latest_version}")
+                        else:
+                            print(f"No update needed: current={current_version}, latest={latest_version}")
                     
-                    # Compare major.minor.patch
-                    if latest_parts > current_parts:
-                        update_available = True
+                    except (ValueError, AttributeError) as e:
+                        print(f"Version comparison error: {e}")
+                        # If can't parse, do string comparison as fallback
+                        update_available = (latest_version != current_version)
                 
                 return jsonify({
                     'success': True,
@@ -2758,6 +2779,7 @@ def get_system_version():
                 })
             else:
                 # Couldn't fetch from GitHub
+                print(f"GitHub fetch failed: HTTP {response.status_code}")
                 return jsonify({
                     'success': True,
                     'current_version': current_version,
@@ -2768,6 +2790,7 @@ def get_system_version():
                 
         except Exception as e:
             # Network error or GitHub unavailable
+            print(f"Update check error: {e}")
             return jsonify({
                 'success': True,
                 'current_version': current_version,
