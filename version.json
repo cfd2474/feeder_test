@@ -1,10 +1,10 @@
 {
-  "version": "2.47.15",
+  "version": "2.47.16",
   "release_date": "2026-02-12",
-  "release_name": "Tailscale Status Cleanup",
+  "release_name": "Remote SSH Access Fix",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Cleaned up Tailscale status display. When connected, only shows green box. When not connected, shows simple 'Not Connected' message. Removed confusing 'Enabled (Not Connected)' and 'Installed but Not Connected' states."
+  "release_notes": "Fixed remote user SSH access via Tailscale. Corrected SSH Match block syntax - AllowUsers cannot be inside Match block. Added verify-remote-access.sh script to troubleshoot and fix SSH configuration."
 }
