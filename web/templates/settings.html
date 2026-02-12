@@ -716,6 +716,9 @@
                                 }
                             }
                             
+                            // Sanitize machine name for Tailscale/DNS compatibility
+                            machineName = sanitizeMachineName(machineName);
+                            
                             // Show progress modal and connect
                             showTailscaleProgressModal(initialKey, machineName);
                         } else {
@@ -805,6 +808,36 @@
             }
         }
         
+        // Sanitize machine name for Tailscale/DNS compatibility
+        function sanitizeMachineName(name) {
+            if (!name) return 'adsb-feeder';
+            
+            // Convert to lowercase
+            let sanitized = name.toLowerCase();
+            
+            // Replace underscores and spaces with hyphens
+            sanitized = sanitized.replace(/[_\s]+/g, '-');
+            
+            // Remove any characters that aren't alphanumeric or hyphen
+            sanitized = sanitized.replace(/[^a-z0-9-]/g, '');
+            
+            // Remove leading/trailing hyphens
+            sanitized = sanitized.replace(/^-+|-+$/g, '');
+            
+            // Replace multiple consecutive hyphens with single hyphen
+            sanitized = sanitized.replace(/-{2,}/g, '-');
+            
+            // Limit to 63 characters (DNS label limit)
+            sanitized = sanitized.substring(0, 63);
+            
+            // If empty after sanitization, use default
+            if (!sanitized) {
+                sanitized = 'adsb-feeder';
+            }
+            
+            return sanitized;
+        }
+        
         // Update Tailscale configuration
         async function updateTailscale() {
             const tailscaleKey = document.getElementById('tailscale_key').value.trim();
@@ -850,6 +883,9 @@
                     machineName = currentFullName;
                 }
             }
+            
+            // Sanitize machine name for Tailscale/DNS compatibility
+            machineName = sanitizeMachineName(machineName);
             
             // Show progress modal
             showTailscaleProgressModal(tailscaleKey, machineName);
