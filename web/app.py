@@ -1011,7 +1011,7 @@ def logs():
 @app.route('/about')
 def about():
     """About page"""
-    return render_template('about.html')
+    return render_template('about.html', version=VERSION)
 
 @app.route('/api/logs/<source>')
 def get_logs(source):

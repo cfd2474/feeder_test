@@ -1,10 +1,10 @@
 {
-  "version": "2.47.18",
+  "version": "2.47.19",
   "release_date": "2026-02-12",
-  "release_name": "About Page",
+  "release_name": "About Page Polish",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Added About page with project information and support link. New navigation tab accessible from all pages. Includes project mission, funding details, and Buy Me a Coffee link."
+  "release_notes": "Updated About page with consistent header format and version display. Changed support section from purple to light red for better readability. Header now matches Dashboard style across all tabs."
 }
