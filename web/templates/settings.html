@@ -800,6 +800,10 @@
                     disabledSection.style.display = 'block';
                     tailscaleConfig.style.display = 'none';
                     
+                    // CRITICAL: Update state variables
+                    tailscaleEnabled = false;
+                    tailscaleConnected = false;
+                    
                     showStatus('Tailscale disabled successfully', 'success');
                 } else {
                     showStatus('Failed to disable Tailscale: ' + result.message, 'error');

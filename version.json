@@ -1,10 +1,10 @@
 {
-  "version": "2.47.20",
+  "version": "2.47.21",
   "release_date": "2026-02-12",
-  "release_name": "Consistent Headers",
+  "release_name": "Disable Tailscale State Fix",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Standardized headers across all pages. All tabs now show identical header with title, subtitle, and version. Changed About page support section to light blue for better readability. All pages now centered and consistent."
+  "release_notes": "Fixed bug where Disable Tailscale button wouldn't update state variables. After disabling, clicking Enable & Connect button would show disable modal instead of enabling. Now works correctly without page refresh."
 }
