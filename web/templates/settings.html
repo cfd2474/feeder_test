@@ -322,6 +322,27 @@
                 <h3>📶 WiFi Configuration</h3>
                 <p>Manage WiFi network connections</p>
                 
+                <!-- WiFi Radio Control -->
+                <div style="margin-top: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                        <div style="flex: 1;">
+                            <strong style="display: block; margin-bottom: 5px;">WiFi Radio Status</strong>
+                            <div id="wifi-radio-status" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f3f4f6; border-radius: 6px; font-size: 0.95em;">
+                                <span id="wifi-radio-status-icon">⏳</span>
+                                <span id="wifi-radio-status-text">Checking...</span>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn" id="wifi-radio-toggle-btn" style="min-width: 150px;">
+                                <span id="wifi-radio-toggle-text">⏳ Loading...</span>
+                            </button>
+                        </div>
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 10px;">
+                        Enable or disable the WiFi radio interface
+                    </small>
+                </div>
+                
                 <!-- Saved Networks -->
                 <div style="margin-top: 20px;">
                     <h4 style="margin-bottom: 15px; color: #374151;">Configured Networks</h4>
@@ -1910,6 +1931,95 @@
         // ========================================
         // WiFi Management Functions
         // ========================================
+        
+        // Check WiFi radio status
+        async function checkWifiRadioStatus() {
+            const statusIcon = document.getElementById('wifi-radio-status-icon');
+            const statusText = document.getElementById('wifi-radio-status-text');
+            const statusIndicator = document.getElementById('wifi-radio-status');
+            const toggleBtn = document.getElementById('wifi-radio-toggle-btn');
+            const toggleText = document.getElementById('wifi-radio-toggle-text');
+            
+            try {
+                const response = await fetch('/api/wifi/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.enabled) {
+                        // WiFi enabled
+                        statusIcon.textContent = '✅';
+                        statusText.textContent = 'Enabled';
+                        statusIndicator.style.background = '#d1fae5';
+                        statusIndicator.style.border = '1px solid #10b981';
+                        toggleBtn.className = 'btn';
+                        toggleText.textContent = '🔴 Disable WiFi';
+                    } else {
+                        // WiFi disabled
+                        statusIcon.textContent = '⭕';
+                        statusText.textContent = 'Disabled';
+                        statusIndicator.style.background = '#f3f4f6';
+                        statusIndicator.style.border = '1px solid #d1d5db';
+                        toggleBtn.className = 'btn btn-primary';
+                        toggleText.textContent = '🟢 Enable WiFi';
+                    }
+                    toggleBtn.disabled = false;
+                } else {
+                    statusIcon.textContent = '⚠️';
+                    statusText.textContent = 'Status unknown';
+                    toggleBtn.disabled = true;
+                }
+            } catch (error) {
+                console.error('Error checking WiFi status:', error);
+                statusIcon.textContent = '❌';
+                statusText.textContent = 'Error';
+                toggleBtn.disabled = true;
+            }
+        }
+        
+        // Toggle WiFi radio
+        async function toggleWifiRadio() {
+            const statusIcon = document.getElementById('wifi-radio-status-icon');
+            const statusText = document.getElementById('wifi-radio-status-text');
+            const toggleBtn = document.getElementById('wifi-radio-toggle-btn');
+            const toggleText = document.getElementById('wifi-radio-toggle-text');
+            
+            // Determine current state
+            const isEnabled = statusText.textContent === 'Enabled';
+            
+            // Disable button during operation
+            toggleBtn.disabled = true;
+            toggleText.textContent = isEnabled ? '⏳ Disabling...' : '⏳ Enabling...';
+            
+            try {
+                const endpoint = isEnabled ? '/api/wifi/disable' : '/api/wifi/enable';
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus(data.message, 'success');
+                    // Refresh status
+                    await checkWifiRadioStatus();
+                    // Refresh saved networks list
+                    await loadSavedWifiNetworks();
+                } else {
+                    showStatus('Failed: ' + data.message, 'error');
+                    toggleBtn.disabled = false;
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+                toggleBtn.disabled = false;
+            }
+        }
+        
+        // Add event listener for WiFi radio toggle button
+        document.getElementById('wifi-radio-toggle-btn').addEventListener('click', toggleWifiRadio);
+        
+        // Check WiFi radio status on page load
+        checkWifiRadioStatus();
         
         // Toggle between scan and manual entry
         function toggleWifiInputMode() {

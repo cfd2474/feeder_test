@@ -1,10 +1,10 @@
 {
-  "version": "2.47.22",
+  "version": "2.47.23",
   "release_date": "2026-02-13",
-  "release_name": "Improved Update Process",
+  "release_name": "WiFi Radio Control",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Improved update process with proper button states and service restart handling. Buttons now stay disabled during entire update. Added smart retry logic to wait for web service restart before forcing hard page refresh. Handles service restart delay gracefully."
+  "release_notes": "Added WiFi radio enable/disable control. New button in WiFi Configuration section allows turning the WiFi radio on or off. Status indicator shows current state. Uses nmcli for reliable radio control."
 }

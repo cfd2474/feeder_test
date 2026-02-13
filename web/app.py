@@ -2770,6 +2770,76 @@ def wifi_remove():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+@app.route('/api/wifi/status', methods=['GET'])
+def wifi_status():
+    """Get WiFi radio status"""
+    try:
+        # Check if WiFi radio is enabled using nmcli
+        result = subprocess.run(
+            ['nmcli', 'radio', 'wifi'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if result.returncode == 0:
+            status = result.stdout.strip().lower()
+            enabled = status == 'enabled'
+            return jsonify({
+                'success': True,
+                'enabled': enabled,
+                'status': status
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Could not check WiFi status'})
+    
+    except FileNotFoundError:
+        return jsonify({'success': False, 'message': 'nmcli not available'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/wifi/enable', methods=['POST'])
+def wifi_enable():
+    """Enable WiFi radio"""
+    try:
+        result = subprocess.run(
+            ['sudo', 'nmcli', 'radio', 'wifi', 'on'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify({'success': True, 'message': 'WiFi enabled successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to enable WiFi'})
+    
+    except FileNotFoundError:
+        return jsonify({'success': False, 'message': 'nmcli not available'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/wifi/disable', methods=['POST'])
+def wifi_disable():
+    """Disable WiFi radio"""
+    try:
+        result = subprocess.run(
+            ['sudo', 'nmcli', 'radio', 'wifi', 'off'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            return jsonify({'success': True, 'message': 'WiFi disabled successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to disable WiFi'})
+    
+    except FileNotFoundError:
+        return jsonify({'success': False, 'message': 'nmcli not available'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 # ============================================================================
 # SYSTEM UPDATE ENDPOINTS
 # ============================================================================
