@@ -1,10 +1,10 @@
 {
-  "version": "2.47.32",
+  "version": "2.47.33",
   "release_date": "2026-02-13",
-  "release_name": "Statistics Tab Added",
+  "release_name": "Logs Tab Removed",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Added Statistics navigation tab between Map and About. Opens graphs1090/?timeframe=24h in new browser tab. Available on all pages."
+  "release_notes": "Removed Logs tab from all navigation menus. Logs page still accessible via direct URL (/logs) but not visible in main navigation."
 }
