@@ -247,6 +247,7 @@
                 <a href="/settings">Settings</a>
                 <a href="/logs">Logs</a>
                 <a href="#" id="map-link" target="_blank">Map</a>
+                <a href="#" id="statistics-link" target="_blank">Statistics</a>
                 <a href="/about">About</a>
             </nav>
         </header>
@@ -254,6 +255,8 @@
         <script>
         // Set map link dynamically
         document.getElementById('map-link').href = 'http://' + window.location.hostname + ':8080';
+        // Set statistics link dynamically
+        document.getElementById('statistics-link').href = 'http://' + window.location.hostname + ':8080/graphs1090/?timeframe=24h';
         </script>
 
         <div class="dashboard">

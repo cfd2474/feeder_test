@@ -1,10 +1,10 @@
 {
-  "version": "2.47.31",
+  "version": "2.47.32",
   "release_date": "2026-02-13",
-  "release_name": "UI Cleanup & ADSBHub Toggle Button",
+  "release_name": "Statistics Tab Added",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Removed clutter from Settings and Account Feeds pages. Replaced ADSBHub checkbox with toggle button matching FR24/FlightAware style. Added ADSBHub status endpoint. Cleaner, more consistent interface."
+  "release_notes": "Added Statistics navigation tab between Map and About. Opens graphs1090/?timeframe=24h in new browser tab. Available on all pages."
 }
