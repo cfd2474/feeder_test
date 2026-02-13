@@ -1,10 +1,10 @@
 {
-  "version": "2.47.30",
+  "version": "2.47.31",
   "release_date": "2026-02-13",
-  "release_name": "Tailscale Function Scope Fix",
+  "release_name": "UI Cleanup & ADSBHub Toggle Button",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Fixed JavaScript scope error causing Tailscale status not to display correctly. Moved updateTailscaleStatusUI and toggleTailscaleConfig to global scope. Status check now properly updates both connection box and toggle button."
+  "release_notes": "Removed clutter from Settings and Account Feeds pages. Replaced ADSBHub checkbox with toggle button matching FR24/FlightAware style. Added ADSBHub status endpoint. Cleaner, more consistent interface."
 }

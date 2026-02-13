@@ -451,21 +451,25 @@
                         </span>
                     </div>
                     
-                    <!-- Enable/Disable Toggle -->
-                    <div class="config-section" style="padding: 15px; background: #f3f4f6; border-radius: 6px; margin-bottom: 20px;">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input 
-                                type="checkbox" 
-                                id="adsbhub-enabled" 
-                                {% if adsbhub_enabled %}checked{% endif %}
-                                onchange="toggleADSBHubEnabled(this.checked)"
-                                style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;"
-                            >
-                            <span style="font-weight: 600; color: #374151;">Enable ADSBHub Feed</span>
-                        </label>
-                        <p class="config-hint" style="margin: 8px 0 0 30px;">
-                            Toggle to start/stop feeding data to ADSBHub
-                        </p>
+                    <!-- Enable/Disable Button Toggle -->
+                    <div class="config-section" style="padding: 15px; background: #f9fafb; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                            <div style="flex: 1;">
+                                <strong style="display: block; margin-bottom: 5px;">ADSBHub Feed Status</strong>
+                                <div id="adsbhub-status-indicator" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f3f4f6; border-radius: 6px; font-size: 0.95em;">
+                                    <span id="adsbhub-status-icon">⏳</span>
+                                    <span id="adsbhub-status-text">Checking...</span>
+                                </div>
+                            </div>
+                            <div>
+                                <button class="btn" id="adsbhub-toggle-btn" style="min-width: 150px;">
+                                    <span id="adsbhub-toggle-text">⏳ Loading...</span>
+                                </button>
+                            </div>
+                        </div>
+                        <small style="color: #666; display: block; margin-top: 10px;">
+                            Enable or disable feeding data to ADSBHub
+                        </small>
                     </div>
                     
                     <!-- Station Key Field -->
@@ -501,12 +505,6 @@
                     </div>
                     
                     <div id="adsbhub-result" style="margin-top: 15px; display: none;"></div>
-                </div>
-                
-                <div style="padding: 20px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
-                    <p style="margin: 0; color: #065f46;">
-                        <strong>About ADSBHub:</strong> ADSBHub is a community-driven ADS-B data aggregator that distributes real-time flight data to researchers, developers, and aviation enthusiasts worldwide.
-                    </p>
                 </div>
             </div>
             
@@ -1079,51 +1077,112 @@
             setupBtn.disabled = stationKey.length < 8;
         }
         
-        async function toggleADSBHubEnabled(enabled) {
-            const checkbox = document.getElementById('adsbhub-enabled');
+        // Check ADSBHub status and update button
+        async function checkADSBHubStatus() {
+            const statusIcon = document.getElementById('adsbhub-status-icon');
+            const statusText = document.getElementById('adsbhub-status-text');
+            const statusIndicator = document.getElementById('adsbhub-status-indicator');
+            const toggleBtn = document.getElementById('adsbhub-toggle-btn');
+            const toggleText = document.getElementById('adsbhub-toggle-text');
+            
+            try {
+                const response = await fetch('/api/feeds/adsbhub/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.enabled) {
+                        // ADSBHub enabled
+                        statusIcon.textContent = '✅';
+                        statusText.textContent = 'Enabled';
+                        statusIndicator.style.background = '#d1fae5';
+                        statusIndicator.style.border = '1px solid #10b981';
+                        toggleBtn.className = 'btn';
+                        toggleText.textContent = '🔴 Disable ADSBHub';
+                    } else {
+                        // ADSBHub disabled
+                        statusIcon.textContent = '⭕';
+                        statusText.textContent = 'Disabled';
+                        statusIndicator.style.background = '#f3f4f6';
+                        statusIndicator.style.border = '1px solid #d1d5db';
+                        toggleBtn.className = 'btn btn-primary';
+                        toggleText.textContent = '🟢 Enable & Setup ADSBHub';
+                    }
+                    toggleBtn.disabled = false;
+                    
+                    // Update status badge
+                    const statusBadge = document.getElementById('adsbhub-status');
+                    if (statusBadge) {
+                        statusBadge.textContent = data.enabled ? 'Active' : 'Inactive';
+                        statusBadge.className = 'feed-status-badge ' + (data.enabled ? 'status-active' : 'status-inactive');
+                    }
+                } else {
+                    statusIcon.textContent = '⚠️';
+                    statusText.textContent = 'Status unknown';
+                    toggleBtn.disabled = true;
+                }
+            } catch (error) {
+                console.error('Error checking ADSBHub status:', error);
+                statusIcon.textContent = '❌';
+                statusText.textContent = 'Error';
+                toggleBtn.disabled = true;
+            }
+        }
+        
+        // Toggle ADSBHub enabled/disabled
+        async function toggleADSBHubEnabled() {
+            const statusIcon = document.getElementById('adsbhub-status-icon');
+            const statusText = document.getElementById('adsbhub-status-text');
+            const toggleBtn = document.getElementById('adsbhub-toggle-btn');
+            const toggleText = document.getElementById('adsbhub-toggle-text');
             const stationKey = document.getElementById('adsbhub-station-key').value.trim();
-            const statusText = enabled ? 'enabling' : 'disabling';
-            const statusTextPast = enabled ? 'enabled' : 'disabled';
+            
+            // Determine current state
+            const isEnabled = statusText.textContent === 'Enabled';
             
             // Check if trying to enable without a key
-            if (enabled && !stationKey) {
-                checkbox.checked = false;
+            if (!isEnabled && !stationKey) {
                 showStatusModal('Station key required');
                 updateStatusModal('Please enter your ADSBHub station key before enabling', 'error');
                 setTimeout(() => hideStatusModal(), 2500);
                 return;
             }
             
+            // Disable button during operation
+            toggleBtn.disabled = true;
+            toggleText.textContent = isEnabled ? '⏳ Disabling...' : '⏳ Enabling...';
+            
+            const statusTextAction = isEnabled ? 'disabling' : 'enabling';
+            const statusTextPast = isEnabled ? 'disabled' : 'enabled';
+            
             // Show loading modal
-            showStatusModal(`${statusText.charAt(0).toUpperCase() + statusText.slice(1)} ADSBHub feed...`);
+            showStatusModal(`${statusTextAction.charAt(0).toUpperCase() + statusTextAction.slice(1)} ADSBHub feed...`);
             
             try {
                 const response = await fetch('/api/feeds/adsbhub/toggle', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ enabled: enabled })
+                    body: JSON.stringify({ enabled: !isEnabled })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Update status badge
-                    document.getElementById('adsbhub-status').textContent = enabled ? 'Active' : 'Inactive';
-                    document.getElementById('adsbhub-status').className = 'feed-status-badge ' + (enabled ? 'status-active' : 'status-inactive');
-                    
                     // Show success in modal
                     updateStatusModal(`ADSBHub feed ${statusTextPast} successfully`, 'success');
+                    
+                    // Refresh status
+                    await checkADSBHubStatus();
                     
                     // Auto-dismiss after 1.5 seconds
                     setTimeout(() => {
                         hideStatusModal();
                     }, 1500);
                 } else {
-                    // Revert checkbox on error
-                    checkbox.checked = !enabled;
-                    
                     // Show error in modal
                     updateStatusModal(`Failed: ${data.message}`, 'error');
+                    
+                    // Re-enable button
+                    toggleBtn.disabled = false;
                     
                     // Auto-dismiss after 2 seconds
                     setTimeout(() => {
@@ -1131,11 +1190,11 @@
                     }, 2000);
                 }
             } catch (error) {
-                // Revert checkbox on error
-                checkbox.checked = !enabled;
-                
                 // Show error in modal
                 updateStatusModal(`Error: ${error.message}`, 'error');
+                
+                // Re-enable button
+                toggleBtn.disabled = false;
                 
                 // Auto-dismiss after 2 seconds
                 setTimeout(() => {
@@ -1219,11 +1278,13 @@
         // Add event listeners for toggle buttons
         document.getElementById('fr24-toggle-btn').addEventListener('click', toggleFR24Enabled);
         document.getElementById('piaware-toggle-btn').addEventListener('click', togglePiawareEnabled);
+        document.getElementById('adsbhub-toggle-btn').addEventListener('click', toggleADSBHubEnabled);
         
         document.addEventListener('DOMContentLoaded', function() {
             // Check status on page load
             checkFR24Status();
             checkPiawareStatus();
+            checkADSBHubStatus();
             validateADSBHubKey();
         });
     </script>

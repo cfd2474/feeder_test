@@ -1690,6 +1690,20 @@ def api_adsbhub_setup():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
+@app.route('/api/feeds/adsbhub/status', methods=['GET'])
+def api_adsbhub_status():
+    """Get ADSBHub feed enabled/disabled status"""
+    try:
+        env = read_env()
+        enabled = env.get('ADSBHUB_ENABLED', 'false').lower() == 'true'
+        
+        return jsonify({
+            'success': True,
+            'enabled': enabled
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 @app.route('/api/feeds/adsbhub/toggle', methods=['POST'])
 def api_adsbhub_toggle():
     """Toggle ADSBHub feed enabled/disabled"""
