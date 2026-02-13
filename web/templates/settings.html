@@ -2599,12 +2599,13 @@
                         // If no changes for 5 polls (10 seconds) and not updating, assume complete
                         if (!data.is_updating && noChangeCount >= 5) {
                             clearInterval(updatePollInterval);
-                            updateLog.textContent += '\n\n✅ Update complete! Reloading page in 3 seconds...';
-
-                            // Reload page after 3 seconds
+                            updateLog.textContent += '\n\n✅ Update complete! Web interface restarting...';
+                            updateLog.textContent += '\n⏳ Waiting for service to restart (this may take 10-20 seconds)...';
+                            
+                            // Wait for web service to restart, then hard refresh
                             setTimeout(() => {
-                                window.location.reload();
-                            }, 3000);
+                                waitForServiceAndReload();
+                            }, 5000); // Wait 5 seconds for service to start restarting
                         }
                     }
 
@@ -2614,6 +2615,45 @@
                 }
 
             }, 2000); // Poll every 2 seconds
+        }
+        
+        async function waitForServiceAndReload() {
+            const updateLog = document.getElementById('update-log');
+            let attempts = 0;
+            const maxAttempts = 15; // Try for 30 seconds (15 * 2 seconds)
+            
+            const checkService = setInterval(async () => {
+                attempts++;
+                
+                try {
+                    // Try to fetch a simple endpoint to check if service is up
+                    const response = await fetch('/api/system/version', {
+                        method: 'GET',
+                        cache: 'no-cache'
+                    });
+                    
+                    if (response.ok) {
+                        // Service is back up - do hard refresh
+                        clearInterval(checkService);
+                        updateLog.textContent += '\n\n🔄 Service restored! Refreshing page now...';
+                        
+                        setTimeout(() => {
+                            // Hard refresh - clears cache
+                            location.reload(true);
+                        }, 1000);
+                    }
+                } catch (error) {
+                    // Service not ready yet
+                    if (attempts >= maxAttempts) {
+                        clearInterval(checkService);
+                        updateLog.textContent += '\n\n⚠️ Service taking longer than expected.';
+                        updateLog.textContent += '\n🔄 Please refresh this page manually in a few seconds.';
+                    } else {
+                        updateLog.textContent += '.';
+                        updateLog.scrollTop = updateLog.scrollHeight;
+                    }
+                }
+            }, 2000); // Check every 2 seconds
         }
     
     </script>

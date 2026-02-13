@@ -1,10 +1,10 @@
 {
-  "version": "2.47.21",
-  "release_date": "2026-02-12",
-  "release_name": "Disable Tailscale State Fix",
+  "version": "2.47.22",
+  "release_date": "2026-02-13",
+  "release_name": "Improved Update Process",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Fixed bug where Disable Tailscale button wouldn't update state variables. After disabling, clicking Enable & Connect button would show disable modal instead of enabling. Now works correctly without page refresh."
+  "release_notes": "Improved update process with proper button states and service restart handling. Buttons now stay disabled during entire update. Added smart retry logic to wait for web service restart before forcing hard page refresh. Handles service restart delay gracefully."
 }
