@@ -1,10 +1,10 @@
 {
-  "version": "2.47.25",
+  "version": "2.47.26",
   "release_date": "2026-02-13",
-  "release_name": "Account Feeds Button Toggle",
+  "release_name": "Update Button Visual Feedback",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Refactored account-required feeds (FR24, FlightAware) to use toggle buttons instead of checkboxes. Similar to Tailscale button - shows Enable/Disable state with clear status indicators. Added status API endpoints. Professional, consistent UX."
+  "release_notes": "Fixed update buttons to show clear visual feedback during update process. Buttons now change text, become grayed out, and show disabled cursor. Makes it obvious that update is in progress and buttons cannot be clicked."
 }

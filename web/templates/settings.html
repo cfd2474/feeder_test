@@ -2640,9 +2640,16 @@
             const updateProgress = document.getElementById('update-progress');
             const updateLog = document.getElementById('update-log');
 
-            // Disable buttons
+            // Disable buttons and change text
             updateBtn.disabled = true;
+            updateBtn.textContent = '⏳ Updating...';
+            updateBtn.style.opacity = '0.5';
+            updateBtn.style.cursor = 'not-allowed';
+            
             checkBtn.disabled = true;
+            checkBtn.textContent = '⏳ Updating...';
+            checkBtn.style.opacity = '0.5';
+            checkBtn.style.cursor = 'not-allowed';
 
             // Show progress
             updateProgress.style.display = 'block';
@@ -2663,15 +2670,33 @@
                     pollUpdateStatus();
                 } else {
                     updateLog.textContent += `\nERROR: ${data.message}\n`;
+                    
+                    // Re-enable buttons
                     updateBtn.disabled = false;
+                    updateBtn.textContent = '⬆️ Update Now';
+                    updateBtn.style.opacity = '1';
+                    updateBtn.style.cursor = 'pointer';
+                    
                     checkBtn.disabled = false;
+                    checkBtn.textContent = '🔍 Check for Updates';
+                    checkBtn.style.opacity = '1';
+                    checkBtn.style.cursor = 'pointer';
                 }
 
             } catch (error) {
                 console.error('Error starting update:', error);
                 updateLog.textContent += `\nERROR: ${error.message}\n`;
+                
+                // Re-enable buttons
                 updateBtn.disabled = false;
+                updateBtn.textContent = '⬆️ Update Now';
+                updateBtn.style.opacity = '1';
+                updateBtn.style.cursor = 'pointer';
+                
                 checkBtn.disabled = false;
+                checkBtn.textContent = '🔍 Check for Updates';
+                checkBtn.style.opacity = '1';
+                checkBtn.style.cursor = 'pointer';
             }
         }
 
