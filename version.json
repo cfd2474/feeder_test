@@ -1,10 +1,10 @@
 {
-  "version": "2.47.33",
+  "version": "2.47.34",
   "release_date": "2026-02-13",
-  "release_name": "Logs Tab Removed",
+  "release_name": "Dashboard Redesign with Logo",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Removed Logs tab from all navigation menus. Logs page still accessible via direct URL (/logs) but not visible in main navigation."
+  "release_notes": "Added TAKNET-PS shield logo to dashboard. Redesigned status section combining Core Service, Location, and Network Status into single aesthetic card with color-coded panels. Modern layout with better visual hierarchy."
 }

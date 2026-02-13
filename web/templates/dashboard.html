@@ -24,69 +24,99 @@
         </header>
 
         <div class="dashboard">
-            <!-- Status Cards -->
-            <div class="card-grid">
-                <div class="card">
-                    <h3>Core Service</h3>
-                    <div id="container-status">
-                        {% if docker.get('ultrafeeder') %}
-                            <div class="status-item">
-                                <span class="status-dot {% if 'Up' in docker.get('ultrafeeder') %}active{% else %}inactive{% endif %}"></span>
-                                <span>ultrafeeder</span>
-                                <span class="status-text">{{ docker.get('ultrafeeder', 'Unknown') }}</span>
+            <!-- Logo -->
+            <div style="text-align: center; margin-bottom: 30px;">
+                <img src="/static/taknet-ps_shield.png" alt="TAKNET-PS" style="max-width: 300px; height: auto;">
+            </div>
+
+            <!-- Combined System Status -->
+            <div class="card" style="margin-bottom: 20px;">
+                <h3 style="text-align: center; margin-bottom: 20px; font-size: 1.5em; color: #1f2937;">System Status</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                    <!-- Core Service -->
+                    <div style="padding: 20px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                        <h4 style="margin: 0 0 15px 0; color: #374151; font-size: 1.1em;">🔧 Core Service</h4>
+                        <div id="container-status">
+                            {% if docker.get('ultrafeeder') %}
+                                <div class="status-item" style="margin-bottom: 10px;">
+                                    <span class="status-dot {% if 'Up' in docker.get('ultrafeeder') %}active{% else %}inactive{% endif %}"></span>
+                                    <span style="font-weight: 600;">ultrafeeder</span>
+                                    <span class="status-text" style="margin-left: 10px;">{{ docker.get('ultrafeeder', 'Unknown') }}</span>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">ultrafeeder not running</p>
+                            {% endif %}
+                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                                <p style="font-size: 0.85em; color: #6b7280; margin-bottom: 5px;">Feeder UUID:</p>
+                                <p style="font-family: monospace; font-size: 0.85em; color: #374151; word-break: break-all;">{{ feeder_uuid }}</p>
                             </div>
-                        {% else %}
-                            <p class="text-muted">ultrafeeder not running</p>
-                        {% endif %}
-                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-                            <p style="font-size: 0.85em; color: #6b7280; margin-bottom: 5px;">Feeder UUID:</p>
-                            <p style="font-family: monospace; font-size: 0.9em; color: #374151; word-break: break-all;">{{ feeder_uuid }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Location -->
+                    <div style="padding: 20px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #10b981;">
+                        <h4 style="margin: 0 0 15px 0; color: #374151; font-size: 1.1em;">📍 Location</h4>
+                        <div style="display: grid; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #6b7280;">Latitude:</span>
+                                <span style="font-weight: 600; color: #374151;">{{ config.get('FEEDER_LAT', 'Not set') }}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #6b7280;">Longitude:</span>
+                                <span style="font-weight: 600; color: #374151;">{{ config.get('FEEDER_LONG', 'Not set') }}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #6b7280;">Altitude:</span>
+                                <span style="font-weight: 600; color: #374151;">{{ config.get('FEEDER_ALT_M', 'Not set') }}m</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #6b7280;">Timezone:</span>
+                                <span style="font-weight: 600; color: #374151;">{{ config.get('FEEDER_TZ', 'UTC') }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Network Status -->
+                    <div style="padding: 20px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        <h4 style="margin: 0 0 15px 0; color: #374151; font-size: 1.1em;">🌐 Network</h4>
+                        <div style="display: grid; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: #6b7280;">Machine:</span>
+                                <span style="font-weight: 600; color: #374151; font-size: 0.9em;">{{ network_info.machine_name }}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: #6b7280;">Hostname:</span>
+                                <span style="font-weight: 600; color: #374151; font-size: 0.9em;">{{ network_info.hostname }}</span>
+                            </div>
+                            <div style="display: grid; gap: 4px; margin-top: 4px;">
+                                <span style="color: #6b7280; font-size: 0.9em;">Connection:</span>
+                                <span style="font-weight: 600; color: #374151; font-size: 0.9em;">
+                                    {% if network_info.connection_mode == 'wifi' %}
+                                        <span style="color: #3b82f6;">📶 WiFi</span>
+                                    {% elif network_info.connection_mode == 'ethernet' %}
+                                        <span style="color: #10b981;">🔌 Ethernet</span>
+                                    {% elif network_info.connection_mode == 'usb' %}
+                                        <span style="color: #f59e0b;">🔗 USB</span>
+                                    {% elif network_info.connection_mode == 'none' %}
+                                        <span style="color: #ef4444;">❌ No Connection</span>
+                                    {% else %}
+                                        <span style="color: #6b7280;">❓ {{ network_info.connection_mode }}</span>
+                                    {% endif %}
+                                </span>
+                                <span style="font-size: 0.85em; color: #6b7280;">{{ network_info.connection_details }}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                                <span style="color: #6b7280;">Internet:</span>
+                                <span id="internet-status" style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="status-dot active"></span>
+                                    <span class="status-text">Connected</span>
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="card">
-                    <h3>Location</h3>
-                    <p><strong>Lat:</strong> {{ config.get('FEEDER_LAT', 'Not set') }}</p>
-                    <p><strong>Lon:</strong> {{ config.get('FEEDER_LONG', 'Not set') }}</p>
-                    <p><strong>Alt:</strong> {{ config.get('FEEDER_ALT_M', 'Not set') }}m</p>
-                    <p><strong>TZ:</strong> {{ config.get('FEEDER_TZ', 'UTC') }}</p>
-                </div>
-
-                <div class="card">
-                    <h3>Network Status</h3>
-                    <div class="status-item" style="margin-bottom: 10px;">
-                        <span class="status-label">Machine Name:</span>
-                        <span class="status-value">{{ network_info.machine_name }}</span>
-                    </div>
-                    <div class="status-item" style="margin-bottom: 10px;">
-                        <span class="status-label">Hostname:</span>
-                        <span class="status-value">{{ network_info.hostname }}</span>
-                    </div>
-                    <div class="status-item" style="margin-bottom: 10px;">
-                        <span class="status-label">Connection:</span>
-                        <span class="status-value">
-                            {% if network_info.connection_mode == 'wifi' %}
-                                <span style="color: #3b82f6;">📶 WiFi</span> - {{ network_info.connection_details }}
-                            {% elif network_info.connection_mode == 'ethernet' %}
-                                <span style="color: #10b981;">🔌 Ethernet</span> - {{ network_info.connection_details }}
-                            {% elif network_info.connection_mode == 'usb' %}
-                                <span style="color: #f59e0b;">🔗 USB</span> - {{ network_info.connection_details }}
-                            {% elif network_info.connection_mode == 'none' %}
-                                <span style="color: #ef4444;">❌ No Connection</span>
-                            {% else %}
-                                <span style="color: #6b7280;">❓ {{ network_info.connection_mode }}</span> - {{ network_info.connection_details }}
-                            {% endif %}
-                        </span>
-                    </div>
-                    <div class="status-item" style="margin-bottom: 10px;">
-                        <span class="status-label">Internet:</span>
-                        <span id="internet-status" class="status-value">
-                            <span class="status-dot active"></span>
-                            <span class="status-text">Connected</span>
-                        </span>
-                    </div>
-                </div>
+            </div>
 
             <!-- Aggregator Feed Status Table -->
             <div class="card" style="grid-column: 1 / -1;">
