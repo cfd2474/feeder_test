@@ -1,5 +1,5 @@
 #!/bin/bash
-# TAKNET-PS-ADSB-Feeder One-Line Installer v2.47.34
+# TAKNET-PS-ADSB-Feeder One-Line Installer v2.47.35
 # curl -fsSL https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh | sudo bash
 
 set -e
@@ -42,7 +42,7 @@ fi
 if [ "$UPDATE_MODE" != true ]; then
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  TAKNET-PS-ADSB-Feeder Installer v2.47.34"
+    echo "  TAKNET-PS-ADSB-Feeder Installer v2.47.35"
     echo "  Ultrafeeder + TAKNET-PS + Web UI"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
@@ -385,7 +385,7 @@ wget -q $REPO/version.json -O /opt/adsb/version.json 2>/dev/null || echo "  (ver
 
 # Download VERSION file
 echo "  - VERSION..."
-wget -q $REPO/VERSION -O /opt/adsb/VERSION 2>/dev/null || echo "2.47.34" > /opt/adsb/VERSION
+wget -q $REPO/VERSION -O /opt/adsb/VERSION 2>/dev/null || echo "2.47.35" > /opt/adsb/VERSION
 
 # Web UI files
 echo "Installing Web UI..."
@@ -403,6 +403,7 @@ wget -q $REPO/web/templates/taknet-ps-status.html -O /opt/adsb/web/templates/tak
 wget -q $REPO/web/static/css/style.css -O /opt/adsb/web/static/css/style.css
 wget -q $REPO/web/static/js/setup.js -O /opt/adsb/web/static/js/setup.js
 wget -q $REPO/web/static/js/dashboard.js -O /opt/adsb/web/static/js/dashboard.js
+wget -q $REPO/web/static/taknet-ps_shield.png -O /opt/adsb/web/static/taknet-ps_shield.png 2>/dev/null || echo "  (logo not found, skipping)"
 chmod +x /opt/adsb/web/app.py
 
 # Configure Nginx reverse proxy
