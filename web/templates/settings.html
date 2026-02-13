@@ -224,6 +224,15 @@
                         Zip code will be prepended. Current: {{ config.get('MLAT_SITE_NAME', 'Not set') }}
                     </small>
                 </div>
+                
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+                    <button class="btn btn-success" onclick="saveAndRestartUltrafeeder()" style="width: 100%;">
+                        💾 Apply Changes & Restart Ultrafeeder
+                    </button>
+                    <small class="help-text" style="display: block; margin-top: 10px; text-align: center;">
+                        Saves location and name settings, then restarts Ultrafeeder to apply changes
+                    </small>
+                </div>
             </div>
 
             <div class="card">
@@ -483,13 +492,31 @@
             </div>
 
             <div class="actions">
-                <button class="btn btn-success" onclick="saveSettings()">💾 Save Configuration</button>
                 <button class="btn btn-primary" onclick="showRestartServicesModal()">🔄 Restart Services</button>
                 <button class="btn" onclick="window.location.href='/dashboard'">← Back to Dashboard</button>
             </div>
         </div>
 
         <div id="status"></div>
+    </div>
+
+    <!-- Save & Restart Ultrafeeder Progress Modal -->
+    <div id="saveRestartModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2 class="modal-header">💾 Applying Changes</h2>
+            <div class="modal-body">
+                <div id="save-restart-progress" style="padding: 20px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div class="status-spinner"></div>
+                    </div>
+                    <div id="save-restart-status" style="text-align: center; color: #374151;">
+                        Saving configuration...
+                    </div>
+                    <div id="save-restart-log" style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 6px; font-family: monospace; font-size: 0.9em; max-height: 300px; overflow-y: auto; display: none;">
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Disable Tailscale Confirmation Modal -->
@@ -1183,6 +1210,146 @@
             } catch (error) {
                 showStatus('Error: ' + error.message, 'error');
             }
+        }
+        
+        // New function for save and restart
+        async function saveAndRestartUltrafeeder() {
+            const lat = document.getElementById('lat').value;
+            const lon = document.getElementById('lon').value;
+            const siteName = document.getElementById('site_name').value.trim();
+            const userZipCode = document.getElementById('zip_code').value.trim();
+            
+            // Validate coordinate format
+            const latPattern = /^-?\d+\.\d+$/;
+            const lonPattern = /^-?\d+\.\d+$/;
+            
+            if (lat && !latPattern.test(lat)) {
+                showStatus('Latitude must be in decimal format (e.g., 33.55390)', 'error');
+                return;
+            }
+            
+            if (lon && !lonPattern.test(lon)) {
+                showStatus('Longitude must be in decimal format (e.g., -117.21390)', 'error');
+                return;
+            }
+            
+            // Show modal
+            const modal = document.getElementById('saveRestartModal');
+            const statusDiv = document.getElementById('save-restart-status');
+            const logDiv = document.getElementById('save-restart-log');
+            
+            modal.style.display = 'flex';
+            statusDiv.textContent = 'Saving configuration...';
+            logDiv.style.display = 'none';
+            logDiv.innerHTML = '';
+            
+            let finalSiteName;
+            let zipCode;
+            
+            if (userZipCode) {
+                zipCode = userZipCode;
+                finalSiteName = `${zipCode}-${siteName}`;
+            } else if (lat && lon && siteName) {
+                zipCode = await getZipCodeFromCoords(lat, lon);
+                if (zipCode) {
+                    finalSiteName = `${zipCode}-${siteName}`;
+                } else {
+                    finalSiteName = `00000-${siteName}`;
+                }
+            } else {
+                const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
+                finalSiteName = currentFullName;
+            }
+            
+            const config = {
+                FEEDER_LAT: lat,
+                FEEDER_LONG: lon,
+                FEEDER_ALT_M: document.getElementById('alt').value,
+                FEEDER_TZ: document.getElementById('tz').value,
+                MLAT_SITE_NAME: finalSiteName,
+                ZIP_CODE: userZipCode || zipCode || ''
+            };
+            
+            try {
+                // Save configuration
+                const saveResponse = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                if (!saveResponse.ok) {
+                    const errorData = await saveResponse.json();
+                    throw new Error(errorData.message || 'Failed to save configuration');
+                }
+                
+                statusDiv.textContent = '✓ Configuration saved. Restarting Ultrafeeder...';
+                logDiv.style.display = 'block';
+                logDiv.innerHTML = 'Starting Ultrafeeder restart...\n';
+                
+                // Restart ultrafeeder
+                const restartResponse = await fetch('/api/service/restart', {
+                    method: 'POST'
+                });
+                
+                if (!restartResponse.ok) {
+                    throw new Error('Failed to restart Ultrafeeder');
+                }
+                
+                // Poll for progress
+                pollServiceRestartProgress();
+                
+            } catch (error) {
+                statusDiv.textContent = '❌ Error: ' + error.message;
+                logDiv.style.display = 'block';
+                logDiv.innerHTML += '\nError: ' + error.message;
+                
+                // Auto-close after 3 seconds
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        let restartPollInterval = null;
+        
+        async function pollServiceRestartProgress() {
+            const statusDiv = document.getElementById('save-restart-status');
+            const logDiv = document.getElementById('save-restart-log');
+            
+            if (restartPollInterval) {
+                clearInterval(restartPollInterval);
+            }
+            
+            restartPollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/service/progress');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Update log
+                        logDiv.innerHTML = data.message || 'Restarting...';
+                        logDiv.scrollTop = logDiv.scrollHeight;
+                        
+                        // Update status
+                        statusDiv.textContent = `Restarting Ultrafeeder... ${data.progress}%`;
+                        
+                        // Check if complete
+                        if (data.status === 'complete' || data.progress >= 100) {
+                            clearInterval(restartPollInterval);
+                            statusDiv.textContent = '✅ Ultrafeeder restarted successfully!';
+                            logDiv.innerHTML += '\n\n✅ Complete! Redirecting to dashboard...';
+                            
+                            // Redirect to dashboard after 2 seconds
+                            setTimeout(() => {
+                                window.location.href = '/dashboard';
+                            }, 2000);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error polling restart progress:', error);
+                }
+            }, 1000); // Poll every second
         }
         
         function showSaveModal(feederName) {

@@ -1,10 +1,10 @@
 {
-  "version": "2.47.26",
+  "version": "2.47.27",
   "release_date": "2026-02-13",
-  "release_name": "Update Button Visual Feedback",
+  "release_name": "Streamlined Location Save",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Fixed update buttons to show clear visual feedback during update process. Buttons now change text, become grayed out, and show disabled cursor. Makes it obvious that update is in progress and buttons cannot be clicked."
+  "release_notes": "Moved save button to Location section with new Apply Changes & Restart Ultrafeeder button. One-click save and restart with progress modal. Automatically redirects to dashboard when complete. Streamlined workflow for location/name changes."
 }
