@@ -283,47 +283,6 @@
                         <p>Contact: <a href="mailto:michael.leckliter@yahoo.com" style="color: #667eea;">Michael Leckliter</a></p>
                     </div>
                 </div>
-                
-                <div id="tailscale-config" style="display: none; margin-top: 15px;">
-                    {% if config.get('TAILSCALE_AUTH_KEY', '') %}
-                    <div class="info-box" style="background: #e8f5e9; border-left: 4px solid #4caf50; margin-bottom: 15px;">
-                        <p style="margin: 0;">✓ Tailscale auth key is configured</p>
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Enter New Key Checkbox (shown when already connected) -->
-                    <div id="tailscale-rekey-section" style="display: none;">
-                        <div class="form-group">
-                            <label>
-                                <input type="checkbox" id="enter_new_key">
-                                Enter New Tailscale Key
-                            </label>
-                        </div>
-                        
-                        <!-- New Key Input (only shown when checkbox is checked) -->
-                        <div id="new-key-section" style="display: none; margin-top: 15px;">
-                            <div class="form-group">
-                                <label>Insert NEW Tailscale Auth Key</label>
-                                <input type="text" id="tailscale_key" placeholder="tskey-auth-xxxxxxxxxxxxxxxxxxxxx">
-                                <small style="color: #666; display: block; margin-top: 5px;">
-                                    Enter a new key to re-register this device with Tailscale
-                                </small>
-                            </div>
-                            
-                            <div class="form-group" style="margin-top: 15px;">
-                                <button class="btn btn-primary" onclick="updateTailscale()">🔄 Apply New Tailscale Key</button>
-                                <small style="color: #666; display: block; margin-top: 5px;">
-                                    This will restart Tailscale with the new authentication key
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="info-note" style="margin-top: 15px;">
-                        <p><strong>Need a Tailscale auth key?</strong></p>
-                        <p>Contact: <a href="mailto:michael.leckliter@yahoo.com" style="color: #667eea;">Michael Leckliter</a></p>
-                    </div>
-                </div>
             </div>
 
             <!-- WiFi Configuration Section -->
@@ -629,11 +588,6 @@
             let tailscaleEnabled = {{ 'true' if config.get('TAILSCALE_ENABLED', 'false') == 'true' else 'false' }};
             let tailscaleConnected = false;
             
-            // Show/hide Tailscale config section
-            const tailscaleConfig = document.getElementById('tailscale-config');
-            const enterNewKeyCheckbox = document.getElementById('enter_new_key');
-            const newKeySection = document.getElementById('new-key-section');
-            
             // Update Tailscale status UI
             function updateTailscaleStatusUI(enabled, connected) {
                 const statusIcon = document.getElementById('tailscale-status-icon');
@@ -675,29 +629,9 @@
             function toggleTailscaleConfig() {
                 const disabledSection = document.getElementById('tailscale-disabled-section');
                 
-                // Show disabled section when disabled, hide when enabled
+                // Show auth key input when disabled, hide when enabled
                 disabledSection.style.display = tailscaleEnabled ? 'none' : 'block';
-                
-                // Show config section when enabled, hide when disabled
-                tailscaleConfig.style.display = tailscaleEnabled ? 'block' : 'none';
-                
-                if (!tailscaleEnabled) {
-                    // Also hide new key section if Tailscale disabled
-                    enterNewKeyCheckbox.checked = false;
-                    newKeySection.style.display = 'none';
-                }
             }
-            
-            function toggleNewKeySection() {
-                newKeySection.style.display = enterNewKeyCheckbox.checked ? 'block' : 'none';
-                // Clear the key field when hiding
-                if (!enterNewKeyCheckbox.checked) {
-                    document.getElementById('tailscale_key').value = '';
-                }
-            }
-            
-            // Handle enter new key checkbox
-            enterNewKeyCheckbox.addEventListener('change', toggleNewKeySection);
             
             // Toggle Tailscale on/off
             async function toggleTailscale() {
@@ -831,7 +765,6 @@
                     const statusText = document.getElementById('tailscale-status-text');
                     const statusIndicator = document.getElementById('tailscale-status-indicator');
                     const disabledSection = document.getElementById('tailscale-disabled-section');
-                    const tailscaleConfig = document.getElementById('tailscale-config');
                     
                     // Show status indicator
                     if (statusIndicator) statusIndicator.style.display = 'flex';
@@ -844,9 +777,8 @@
                     toggleBtn.className = 'btn btn-primary';
                     toggleText.textContent = '🟢 Enable & Connect';
                     
-                    // Show disabled section, hide config section
+                    // Show disabled section (with auth key input)
                     disabledSection.style.display = 'block';
-                    tailscaleConfig.style.display = 'none';
                     
                     // CRITICAL: Update state variables
                     tailscaleEnabled = false;
@@ -915,57 +847,6 @@
         }
         
         // Update Tailscale configuration
-        async function updateTailscale() {
-            const tailscaleKey = document.getElementById('tailscale_key').value.trim();
-            const siteName = document.getElementById('site_name').value.trim();
-            const userZipCode = document.getElementById('zip_code').value.trim();
-            const lat = document.getElementById('lat').value;
-            const lon = document.getElementById('lon').value;
-            
-            if (!tailscaleEnabled) {
-                showStatus('Please enable Tailscale first', 'error');
-                return;
-            }
-            
-            if (!tailscaleKey) {
-                showStatus('Please enter a Tailscale auth key', 'error');
-                return;
-            }
-            
-            // Get feeder name with zip code
-            let machineName = siteName;
-            
-            // First check if user entered a zip code
-            if (userZipCode && siteName) {
-                machineName = `${userZipCode}-${siteName}`;
-            } else if (lat && lon && siteName) {
-                // Try to get zip from coordinates
-                const zipCode = await getZipCodeFromCoords(lat, lon);
-                if (zipCode) {
-                    machineName = `${zipCode}-${siteName}`;
-                } else {
-                    // Use current MLAT_SITE_NAME which should already have zip
-                    const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
-                    if (currentFullName && currentFullName.includes('-')) {
-                        machineName = currentFullName;
-                    } else {
-                        machineName = siteName; // No zip available
-                    }
-                }
-            } else {
-                // Use current MLAT_SITE_NAME as fallback
-                const currentFullName = "{{ config.get('MLAT_SITE_NAME', '') }}";
-                if (currentFullName) {
-                    machineName = currentFullName;
-                }
-            }
-            
-            // Sanitize machine name for Tailscale/DNS compatibility
-            machineName = sanitizeMachineName(machineName);
-            
-            // Show progress modal
-            showTailscaleProgressModal(tailscaleKey, machineName);
-        }
         
         function showTailscaleProgressModal(authKey, hostname) {
             const modal = document.getElementById('tailscaleProgressModal');
@@ -1186,10 +1067,7 @@
                 FEEDER_ALT_M: document.getElementById('alt').value,
                 FEEDER_TZ: document.getElementById('tz').value,
                 MLAT_SITE_NAME: finalSiteName,
-                ZIP_CODE: userZipCode || zipCode || '',
-                
-                TAILSCALE_ENABLED: tailscaleEnabled ? 'true' : 'false',
-                TAILSCALE_AUTH_KEY: document.getElementById('tailscale_key').value.trim()
+                ZIP_CODE: userZipCode || zipCode || ''
             };
             
             try {

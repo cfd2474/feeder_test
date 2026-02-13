@@ -1,10 +1,10 @@
 {
-  "version": "2.47.27",
+  "version": "2.47.28",
   "release_date": "2026-02-13",
-  "release_name": "Streamlined Location Save",
+  "release_name": "Simplified Tailscale Key Management",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Moved save button to Location section with new Apply Changes & Restart Ultrafeeder button. One-click save and restart with progress modal. Automatically redirects to dashboard when complete. Streamlined workflow for location/name changes."
+  "release_notes": "Removed complex change key feature. To change Tailscale key: disable Tailscale, enter new key, re-enable. Cleaner interface - when connected shows only connection status and disable button. When disabled shows auth key input."
 }
