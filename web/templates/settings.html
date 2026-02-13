@@ -584,54 +584,7 @@
             // Start polling Tailscale status every 10 seconds
             setInterval(checkTailscaleStatus, 10000);
             
-            // Tailscale toggle state
-            let tailscaleEnabled = {{ 'true' if config.get('TAILSCALE_ENABLED', 'false') == 'true' else 'false' }};
-            let tailscaleConnected = false;
-            
-            // Update Tailscale status UI
-            function updateTailscaleStatusUI(enabled, connected) {
-                const statusIcon = document.getElementById('tailscale-status-icon');
-                const statusText = document.getElementById('tailscale-status-text');
-                const statusIndicator = document.getElementById('tailscale-status-indicator');
-                const toggleBtn = document.getElementById('tailscale-toggle-btn');
-                const toggleText = document.getElementById('tailscale-toggle-text');
-                
-                if (enabled && connected) {
-                    // Enabled and connected - hide status indicator
-                    if (statusIndicator) statusIndicator.style.display = 'none';
-                    toggleBtn.className = 'btn';
-                    toggleText.textContent = '🔴 Disable Tailscale';
-                } else if (enabled && !connected) {
-                    // Enabled but not connected
-                    if (statusIndicator) statusIndicator.style.display = 'flex';
-                    statusIcon.textContent = '⚠️';
-                    statusText.textContent = 'Not Connected';
-                    statusIcon.parentElement.style.background = '#fef3c7';
-                    statusIcon.parentElement.style.border = '1px solid #f59e0b';
-                    toggleBtn.className = 'btn';
-                    toggleText.textContent = '🔴 Disable Tailscale';
-                } else {
-                    // Disabled
-                    if (statusIndicator) statusIndicator.style.display = 'flex';
-                    statusIcon.textContent = '⭕';
-                    statusText.textContent = 'Disabled';
-                    statusIcon.parentElement.style.background = '#f3f4f6';
-                    statusIcon.parentElement.style.border = '1px solid #d1d5db';
-                    toggleBtn.className = 'btn btn-primary';
-                    toggleText.textContent = '🟢 Enable & Connect';
-                }
-                
-                tailscaleEnabled = enabled;
-                tailscaleConnected = connected;
-                toggleTailscaleConfig();
-            }
-            
-            function toggleTailscaleConfig() {
-                const disabledSection = document.getElementById('tailscale-disabled-section');
-                
-                // Show auth key input when disabled, hide when enabled
-                disabledSection.style.display = tailscaleEnabled ? 'none' : 'block';
-            }
+            // Toggle Tailscale (uses global tailscaleEnabled/tailscaleConnected variables)
             
             // Toggle Tailscale on/off
             async function toggleTailscale() {
@@ -733,6 +686,55 @@
                 })
                 .catch(error => console.error('Error checking Tailscale status:', error));
         });
+        
+        // Tailscale toggle state (global scope)
+        let tailscaleEnabled = {{ 'true' if config.get('TAILSCALE_ENABLED', 'false') == 'true' else 'false' }};
+        let tailscaleConnected = false;
+        
+        // Update Tailscale status UI (global scope for checkTailscaleStatus)
+        function updateTailscaleStatusUI(enabled, connected) {
+            const statusIcon = document.getElementById('tailscale-status-icon');
+            const statusText = document.getElementById('tailscale-status-text');
+            const statusIndicator = document.getElementById('tailscale-status-indicator');
+            const toggleBtn = document.getElementById('tailscale-toggle-btn');
+            const toggleText = document.getElementById('tailscale-toggle-text');
+            
+            if (enabled && connected) {
+                // Enabled and connected - hide status indicator
+                if (statusIndicator) statusIndicator.style.display = 'none';
+                toggleBtn.className = 'btn';
+                toggleText.textContent = '🔴 Disable Tailscale';
+            } else if (enabled && !connected) {
+                // Enabled but not connected
+                if (statusIndicator) statusIndicator.style.display = 'flex';
+                statusIcon.textContent = '⚠️';
+                statusText.textContent = 'Not Connected';
+                statusIcon.parentElement.style.background = '#fef3c7';
+                statusIcon.parentElement.style.border = '1px solid #f59e0b';
+                toggleBtn.className = 'btn';
+                toggleText.textContent = '🔴 Disable Tailscale';
+            } else {
+                // Disabled
+                if (statusIndicator) statusIndicator.style.display = 'flex';
+                statusIcon.textContent = '⭕';
+                statusText.textContent = 'Disabled';
+                statusIcon.parentElement.style.background = '#f3f4f6';
+                statusIcon.parentElement.style.border = '1px solid #d1d5db';
+                toggleBtn.className = 'btn btn-primary';
+                toggleText.textContent = '🟢 Enable & Connect';
+            }
+            
+            tailscaleEnabled = enabled;
+            tailscaleConnected = connected;
+            toggleTailscaleConfig();
+        }
+        
+        function toggleTailscaleConfig() {
+            const disabledSection = document.getElementById('tailscale-disabled-section');
+            
+            // Show auth key input when disabled, hide when enabled
+            disabledSection.style.display = tailscaleEnabled ? 'none' : 'block';
+        }
         
         function showDisableModal() {
             document.getElementById('disableModal').style.display = 'block';
