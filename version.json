@@ -1,10 +1,10 @@
 {
-  "version": "2.47.28",
+  "version": "2.47.29",
   "release_date": "2026-02-13",
-  "release_name": "Simplified Tailscale Key Management",
+  "release_name": "Tailscale Status Sync Fix",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Removed complex change key feature. To change Tailscale key: disable Tailscale, enter new key, re-enable. Cleaner interface - when connected shows only connection status and disable button. When disabled shows auth key input."
+  "release_notes": "Fixed Tailscale status display mismatch. Connection status box and toggle button now properly synchronized. Removed duplicate status check functions. When connected shows correct button and hides auth key field."
 }

@@ -1425,20 +1425,14 @@
                 const response = await fetch('/api/tailscale/status');
                 const data = await response.json();
                 
+                // Update top connection status box
                 updateTailscaleStatusDisplay(data);
                 
-                // Show/hide rekey section based on connection status
-                const rekeySection = document.getElementById('tailscale-rekey-section');
+                // Update toggle button and status indicator
+                const enabled = data.installed || false;
+                const connected = data.connected || false;
+                updateTailscaleStatusUI(enabled, connected);
                 
-                if (rekeySection) {
-                    if (data.installed && data.connected) {
-                        // Tailscale is connected - show rekey section
-                        rekeySection.style.display = 'block';
-                    } else {
-                        // Not connected - hide rekey section
-                        rekeySection.style.display = 'none';
-                    }
-                }
             } catch (error) {
                 console.error('Failed to check Tailscale status:', error);
                 updateTailscaleStatusDisplay({
@@ -1446,6 +1440,7 @@
                     connected: false,
                     error: 'Failed to check status'
                 });
+                updateTailscaleStatusUI(false, false);
             }
         }
         
@@ -1887,89 +1882,6 @@
                 addServiceProgressLog('Timeout - service may still be starting', 'error');
                 document.getElementById('serviceProgressCloseBtn').style.display = 'inline-block';
             }
-        }
-        
-        // ============================================
-        // TAILSCALE CONNECTION & STATUS FUNCTIONS
-        // ============================================
-        
-        // Check Tailscale status
-        async function checkTailscaleStatus() {
-            try {
-                const response = await fetch('/api/tailscale/status');
-                const data = await response.json();
-                
-                updateTailscaleStatusDisplay(data);
-                
-                // Show/hide rekey section based on connection status
-                const rekeySection = document.getElementById('tailscale-rekey-section');
-                
-                if (data.installed && data.connected) {
-                    // Tailscale is connected - show rekey section
-                    rekeySection.style.display = 'block';
-                } else {
-                    // Not connected - hide rekey section
-                    rekeySection.style.display = 'none';
-                }
-            } catch (error) {
-                console.error('Failed to check Tailscale status:', error);
-                updateTailscaleStatusDisplay({
-                    installed: false,
-                    connected: false,
-                    error: 'Failed to check status'
-                });
-            }
-        }
-        
-        // Update Tailscale status display
-        function updateTailscaleStatusDisplay(data) {
-            const statusDisplay = document.getElementById('tailscale-status-display');
-            const statusIndicator = document.getElementById('tailscale-status-indicator');
-            
-            if (!statusDisplay) return;
-            
-            if (!data) {
-                statusDisplay.innerHTML = '<div style="padding: 10px; text-align: center; color: #666;">Status unknown</div>';
-                if (statusIndicator) statusIndicator.style.display = 'flex';
-                return;
-            }
-            
-            let statusHTML = '';
-            
-            if (data.connected) {
-                // Connected - show green box
-                statusHTML = `
-                    <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 15px; border-radius: 8px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 1.5em;">✓</span>
-                            <div>
-                                <div style="font-weight: 600; color: #2e7d32;">Connected</div>
-                                ${data.ip ? `<div style="font-size: 0.9em; color: #666; margin-top: 4px;">IP: ${data.ip}</div>` : ''}
-                                ${data.hostname ? `<div style="font-size: 0.9em; color: #666;">Hostname: ${data.hostname}</div>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
-                // Hide the status indicator when connected
-                if (statusIndicator) statusIndicator.style.display = 'none';
-            } else {
-                // Not connected - show simple not connected message
-                statusHTML = `
-                    <div style="background: #f3f4f6; border-left: 4px solid #9ca3af; padding: 15px; border-radius: 8px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 1.5em;">○</span>
-                            <div>
-                                <div style="font-weight: 600; color: #4b5563;">Not Connected</div>
-                                <div style="font-size: 0.9em; color: #666; margin-top: 4px;">Enter auth key below to connect</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                // Show the status indicator when not connected
-                if (statusIndicator) statusIndicator.style.display = 'flex';
-            }
-            
-            statusDisplay.innerHTML = statusHTML;
         }
         
         
