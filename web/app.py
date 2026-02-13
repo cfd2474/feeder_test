@@ -1335,6 +1335,20 @@ no
             'url': 'https://www.flightradar24.com/share-your-data'
         })
 
+@app.route('/api/feeds/fr24/status', methods=['GET'])
+def api_fr24_status():
+    """Get FR24 feed enabled/disabled status"""
+    try:
+        env = read_env()
+        enabled = env.get('FR24_ENABLED', 'false').lower() == 'true'
+        
+        return jsonify({
+            'success': True,
+            'enabled': enabled
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
 @app.route('/api/feeds/fr24/toggle', methods=['POST'])
 def api_fr24_toggle():
     """Toggle FR24 feed enabled/disabled"""
@@ -1559,6 +1573,20 @@ def api_piaware_setup():
                     'url': 'https://flightaware.com/adsb/piaware/claim'
                 })
         
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/feeds/piaware/status', methods=['GET'])
+def api_piaware_status():
+    """Get FlightAware/PiAware feed enabled/disabled status"""
+    try:
+        env = read_env()
+        enabled = env.get('PIAWARE_ENABLED', 'false').lower() == 'true'
+        
+        return jsonify({
+            'success': True,
+            'enabled': enabled
+        })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 

@@ -1,10 +1,10 @@
 {
-  "version": "2.47.24",
+  "version": "2.47.25",
   "release_date": "2026-02-13",
-  "release_name": "Dynamic Version Display",
+  "release_name": "Account Feeds Button Toggle",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Fixed header version display to automatically read from VERSION file. Version now updates dynamically on install/update. No more hardcoded version in code. Header version will always match installed version."
+  "release_notes": "Refactored account-required feeds (FR24, FlightAware) to use toggle buttons instead of checkboxes. Similar to Tailscale button - shows Enable/Disable state with clear status indicators. Added status API endpoints. Professional, consistent UX."
 }

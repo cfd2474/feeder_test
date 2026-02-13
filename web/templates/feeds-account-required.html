@@ -281,21 +281,25 @@
                         </span>
                     </div>
                     
-                    <!-- Enable/Disable Toggle -->
-                    <div class="config-section" style="padding: 15px; background: #f3f4f6; border-radius: 6px; margin-bottom: 20px;">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input 
-                                type="checkbox" 
-                                id="fr24-enabled" 
-                                {% if fr24_enabled %}checked{% endif %}
-                                onchange="toggleFR24Enabled(this.checked)"
-                                style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;"
-                            >
-                            <span style="font-weight: 600; color: #374151;">Enable FR24 Feed</span>
-                        </label>
-                        <p class="config-hint" style="margin: 8px 0 0 30px;">
-                            Toggle to start/stop feeding data to FlightRadar24
-                        </p>
+                    <!-- Enable/Disable Button Toggle -->
+                    <div class="config-section" style="padding: 15px; background: #f9fafb; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                            <div style="flex: 1;">
+                                <strong style="display: block; margin-bottom: 5px;">FR24 Feed Status</strong>
+                                <div id="fr24-status-indicator" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f3f4f6; border-radius: 6px; font-size: 0.95em;">
+                                    <span id="fr24-status-icon">⏳</span>
+                                    <span id="fr24-status-text">Checking...</span>
+                                </div>
+                            </div>
+                            <div>
+                                <button class="btn" id="fr24-toggle-btn" style="min-width: 150px;">
+                                    <span id="fr24-toggle-text">⏳ Loading...</span>
+                                </button>
+                            </div>
+                        </div>
+                        <small style="color: #666; display: block; margin-top: 10px;">
+                            Enable or disable feeding data to FlightRadar24
+                        </small>
                     </div>
                     
                     <!-- Smart Single Field -->
@@ -352,21 +356,25 @@
                         </span>
                     </div>
                     
-                    <!-- Enable/Disable Toggle -->
-                    <div class="config-section" style="padding: 15px; background: #f3f4f6; border-radius: 6px; margin-bottom: 20px;">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input 
-                                type="checkbox" 
-                                id="piaware-enabled" 
-                                {% if piaware_enabled %}checked{% endif %}
-                                onchange="togglePiawareEnabled(this.checked)"
-                                style="width: 20px; height: 20px; margin-right: 10px; cursor: pointer;"
-                            >
-                            <span style="font-weight: 600; color: #374151;">Enable FlightAware Feed</span>
-                        </label>
-                        <p class="config-hint" style="margin: 8px 0 0 30px;">
-                            Toggle to start/stop feeding data to FlightAware
-                        </p>
+                    <!-- Enable/Disable Button Toggle -->
+                    <div class="config-section" style="padding: 15px; background: #f9fafb; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                            <div style="flex: 1;">
+                                <strong style="display: block; margin-bottom: 5px;">FlightAware Feed Status</strong>
+                                <div id="piaware-status-indicator" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f3f4f6; border-radius: 6px; font-size: 0.95em;">
+                                    <span id="piaware-status-icon">⏳</span>
+                                    <span id="piaware-status-text">Checking...</span>
+                                </div>
+                            </div>
+                            <div>
+                                <button class="btn" id="piaware-toggle-btn" style="min-width: 150px;">
+                                    <span id="piaware-toggle-text">⏳ Loading...</span>
+                                </button>
+                            </div>
+                        </div>
+                        <small style="color: #666; display: block; margin-top: 10px;">
+                            Enable or disable feeding data to FlightAware
+                        </small>
                     </div>
                     
                     <!-- Smart Single Field -->
@@ -556,42 +564,103 @@
         
         // Switch between setup methods
         
+        // Check FR24 status and update button
+        async function checkFR24Status() {
+            const statusIcon = document.getElementById('fr24-status-icon');
+            const statusText = document.getElementById('fr24-status-text');
+            const statusIndicator = document.getElementById('fr24-status-indicator');
+            const toggleBtn = document.getElementById('fr24-toggle-btn');
+            const toggleText = document.getElementById('fr24-toggle-text');
+            
+            try {
+                const response = await fetch('/api/feeds/fr24/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.enabled) {
+                        // FR24 enabled
+                        statusIcon.textContent = '✅';
+                        statusText.textContent = 'Enabled';
+                        statusIndicator.style.background = '#d1fae5';
+                        statusIndicator.style.border = '1px solid #10b981';
+                        toggleBtn.className = 'btn';
+                        toggleText.textContent = '🔴 Disable FR24';
+                    } else {
+                        // FR24 disabled
+                        statusIcon.textContent = '⭕';
+                        statusText.textContent = 'Disabled';
+                        statusIndicator.style.background = '#f3f4f6';
+                        statusIndicator.style.border = '1px solid #d1d5db';
+                        toggleBtn.className = 'btn btn-primary';
+                        toggleText.textContent = '🟢 Enable & Setup FR24';
+                    }
+                    toggleBtn.disabled = false;
+                    
+                    // Update status badge
+                    const statusBadge = document.getElementById('fr24-status');
+                    if (statusBadge) {
+                        statusBadge.textContent = data.enabled ? 'Active' : 'Inactive';
+                        statusBadge.className = 'feed-status-badge ' + (data.enabled ? 'status-active' : 'status-inactive');
+                    }
+                } else {
+                    statusIcon.textContent = '⚠️';
+                    statusText.textContent = 'Status unknown';
+                    toggleBtn.disabled = true;
+                }
+            } catch (error) {
+                console.error('Error checking FR24 status:', error);
+                statusIcon.textContent = '❌';
+                statusText.textContent = 'Error';
+                toggleBtn.disabled = true;
+            }
+        }
+        
         // Toggle FR24 enabled/disabled
-        async function toggleFR24Enabled(enabled) {
-            const checkbox = document.getElementById('fr24-enabled');
-            const statusText = enabled ? 'enabling' : 'disabling';
-            const statusTextPast = enabled ? 'enabled' : 'disabled';
+        async function toggleFR24Enabled() {
+            const statusIcon = document.getElementById('fr24-status-icon');
+            const statusText = document.getElementById('fr24-status-text');
+            const toggleBtn = document.getElementById('fr24-toggle-btn');
+            const toggleText = document.getElementById('fr24-toggle-text');
+            
+            // Determine current state
+            const isEnabled = statusText.textContent === 'Enabled';
+            
+            // Disable button during operation
+            toggleBtn.disabled = true;
+            toggleText.textContent = isEnabled ? '⏳ Disabling...' : '⏳ Enabling...';
+            
+            const statusTextAction = isEnabled ? 'disabling' : 'enabling';
+            const statusTextPast = isEnabled ? 'disabled' : 'enabled';
             
             // Show loading modal
-            showStatusModal(`${statusText.charAt(0).toUpperCase() + statusText.slice(1)} FR24 feed...`);
+            showStatusModal(`${statusTextAction.charAt(0).toUpperCase() + statusTextAction.slice(1)} FR24 feed...`);
             
             try {
                 const response = await fetch('/api/feeds/fr24/toggle', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ enabled: enabled })
+                    body: JSON.stringify({ enabled: !isEnabled })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Update status badge
-                    document.getElementById('fr24-status').textContent = enabled ? 'Active' : 'Inactive';
-                    document.getElementById('fr24-status').className = 'feed-status-badge ' + (enabled ? 'status-active' : 'status-inactive');
-                    
                     // Show success in modal
                     updateStatusModal(`FR24 feed ${statusTextPast} successfully`, 'success');
+                    
+                    // Refresh status
+                    await checkFR24Status();
                     
                     // Auto-dismiss after 1.5 seconds
                     setTimeout(() => {
                         hideStatusModal();
                     }, 1500);
                 } else {
-                    // Revert checkbox on error
-                    checkbox.checked = !enabled;
-                    
                     // Show error in modal
                     updateStatusModal(`Failed: ${data.message}`, 'error');
+                    
+                    // Re-enable button
+                    toggleBtn.disabled = false;
                     
                     // Auto-dismiss after 2 seconds
                     setTimeout(() => {
@@ -599,11 +668,11 @@
                     }, 2000);
                 }
             } catch (error) {
-                // Revert checkbox on error
-                checkbox.checked = !enabled;
-                
                 // Show error in modal
                 updateStatusModal(`Error: ${error.message}`, 'error');
+                
+                // Re-enable button
+                toggleBtn.disabled = false;
                 
                 // Auto-dismiss after 2 seconds
                 setTimeout(() => {
@@ -757,37 +826,100 @@
         // ========================================
         
         // Toggle PiAware enabled/disabled
-        async function togglePiawareEnabled(enabled) {
-            const statusBadge = document.getElementById('piaware-status');
-            const checkbox = document.getElementById('piaware-enabled');
+        // Check FlightAware status and update button
+        async function checkPiawareStatus() {
+            const statusIcon = document.getElementById('piaware-status-icon');
+            const statusText = document.getElementById('piaware-status-text');
+            const statusIndicator = document.getElementById('piaware-status-indicator');
+            const toggleBtn = document.getElementById('piaware-toggle-btn');
+            const toggleText = document.getElementById('piaware-toggle-text');
             
-            const statusText = enabled ? 'enabling' : 'disabling';
-            const statusTextPast = enabled ? 'enabled' : 'disabled';
+            try {
+                const response = await fetch('/api/feeds/piaware/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.enabled) {
+                        // FlightAware enabled
+                        statusIcon.textContent = '✅';
+                        statusText.textContent = 'Enabled';
+                        statusIndicator.style.background = '#d1fae5';
+                        statusIndicator.style.border = '1px solid #10b981';
+                        toggleBtn.className = 'btn';
+                        toggleText.textContent = '🔴 Disable FlightAware';
+                    } else {
+                        // FlightAware disabled
+                        statusIcon.textContent = '⭕';
+                        statusText.textContent = 'Disabled';
+                        statusIndicator.style.background = '#f3f4f6';
+                        statusIndicator.style.border = '1px solid #d1d5db';
+                        toggleBtn.className = 'btn btn-primary';
+                        toggleText.textContent = '🟢 Enable & Setup FlightAware';
+                    }
+                    toggleBtn.disabled = false;
+                    
+                    // Update status badge
+                    const statusBadge = document.getElementById('piaware-status');
+                    if (statusBadge) {
+                        statusBadge.textContent = data.enabled ? 'Active' : 'Inactive';
+                        statusBadge.className = 'feed-status-badge ' + (data.enabled ? 'status-active' : 'status-inactive');
+                    }
+                } else {
+                    statusIcon.textContent = '⚠️';
+                    statusText.textContent = 'Status unknown';
+                    toggleBtn.disabled = true;
+                }
+            } catch (error) {
+                console.error('Error checking FlightAware status:', error);
+                statusIcon.textContent = '❌';
+                statusText.textContent = 'Error';
+                toggleBtn.disabled = true;
+            }
+        }
+        
+        // Toggle FlightAware enabled/disabled
+        async function togglePiawareEnabled() {
+            const statusIcon = document.getElementById('piaware-status-icon');
+            const statusText = document.getElementById('piaware-status-text');
+            const toggleBtn = document.getElementById('piaware-toggle-btn');
+            const toggleText = document.getElementById('piaware-toggle-text');
             
-            showStatusModal(`${statusText.charAt(0).toUpperCase() + statusText.slice(1)} FlightAware feed...`);
+            // Determine current state
+            const isEnabled = statusText.textContent === 'Enabled';
+            
+            // Disable button during operation
+            toggleBtn.disabled = true;
+            toggleText.textContent = isEnabled ? '⏳ Disabling...' : '⏳ Enabling...';
+            
+            const statusTextAction = isEnabled ? 'disabling' : 'enabling';
+            const statusTextPast = isEnabled ? 'disabled' : 'enabled';
+            
+            showStatusModal(`${statusTextAction.charAt(0).toUpperCase() + statusTextAction.slice(1)} FlightAware feed...`);
             
             try {
                 const response = await fetch('/api/feeds/piaware/toggle', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ enabled })
+                    body: JSON.stringify({ enabled: !isEnabled })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
                     updateStatusModal(`FlightAware feed ${statusTextPast} successfully`, 'success');
-                    statusBadge.textContent = enabled ? 'Active' : 'Inactive';
-                    statusBadge.className = `feed-status-badge ${enabled ? 'status-active' : 'status-inactive'}`;
+                    
+                    // Refresh status
+                    await checkPiawareStatus();
                     
                     // Auto-dismiss after 1.5 seconds
                     setTimeout(() => {
                         hideStatusModal();
                     }, 1500);
                 } else {
-                    updateStatusModal(`Failed to ${statusText} FlightAware feed: ${data.message}`, 'error');
-                    // Revert checkbox
-                    checkbox.checked = !enabled;
+                    updateStatusModal(`Failed to ${statusTextAction} FlightAware feed: ${data.message}`, 'error');
+                    
+                    // Re-enable button
+                    toggleBtn.disabled = false;
                     
                     // Auto-dismiss after 2 seconds
                     setTimeout(() => {
@@ -795,9 +927,10 @@
                     }, 2000);
                 }
             } catch (error) {
-                updateStatusModal(`Error ${statusText} FlightAware feed: ${error.message}`, 'error');
-                // Revert checkbox
-                checkbox.checked = !enabled;
+                updateStatusModal(`Error ${statusTextAction} FlightAware feed: ${error.message}`, 'error');
+                
+                // Re-enable button
+                toggleBtn.disabled = false;
                 
                 // Auto-dismiss after 2 seconds
                 setTimeout(() => {
@@ -1083,7 +1216,14 @@
         }
         
         // Validate ADSBHub button on page load
+        // Add event listeners for toggle buttons
+        document.getElementById('fr24-toggle-btn').addEventListener('click', toggleFR24Enabled);
+        document.getElementById('piaware-toggle-btn').addEventListener('click', togglePiawareEnabled);
+        
         document.addEventListener('DOMContentLoaded', function() {
+            // Check status on page load
+            checkFR24Status();
+            checkPiawareStatus();
             validateADSBHubKey();
         });
     </script>
