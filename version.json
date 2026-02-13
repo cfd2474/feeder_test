@@ -1,10 +1,10 @@
 {
-  "version": "2.47.23",
+  "version": "2.47.24",
   "release_date": "2026-02-13",
-  "release_name": "WiFi Radio Control",
+  "release_name": "Dynamic Version Display",
   "download_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/install/install.sh",
   "changelog_url": "https://raw.githubusercontent.com/cfd2474/feeder_test/main/CHANGELOG.md",
   "minimum_version": "2.40.0",
   "breaking_changes": false,
-  "release_notes": "Added WiFi radio enable/disable control. New button in WiFi Configuration section allows turning the WiFi radio on or off. Status indicator shows current state. Uses nmcli for reliable radio control."
+  "release_notes": "Fixed header version display to automatically read from VERSION file. Version now updates dynamically on install/update. No more hardcoded version in code. Header version will always match installed version."
 }

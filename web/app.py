@@ -16,8 +16,15 @@ import socket
 
 app = Flask(__name__)
 
-# Version information
-VERSION = "2.45.0"
+# Version information - read from VERSION file
+def get_version():
+    """Read version from VERSION file"""
+    version_file = Path('/opt/adsb/VERSION')
+    if version_file.exists():
+        return version_file.read_text().strip()
+    return "unknown"
+
+VERSION = get_version()
 
 # Global progress tracking
 service_progress = {
