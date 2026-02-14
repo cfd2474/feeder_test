@@ -340,7 +340,7 @@ mkdir -p /opt/adsb/{config,scripts,ultrafeeder,web/{templates,static/{css,js}}}
 
 # Download files
 echo "Downloading configuration files..."
-REPO="https://raw.githubusercontent.com/cfd2474/TAKNET-PS_ADS-B_Feeder/main"
+REPO="https://raw.githubusercontent.com/cfd2474/feeder_test/main"
 
 # Config files
 echo "  - docker-compose.yml..."
